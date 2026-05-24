@@ -1,0 +1,39 @@
+@import "tailwindcss";
+
+@theme {
+  --color-sidebar: #1a233a;
+  --color-sidebar-hover: #243049;
+  --color-sidebar-active: #2d3a56;
+  --color-surface: #f4f6f9;
+  --color-card: #ffffff;
+
+  --color-room-occupied: #4a90e2;
+  --color-room-vacant: #5cb85c;
+  --color-room-reserved: #f0ad4e;
+  --color-room-dirty: #d9534f;
+
+  --font-sans: "Segoe UI", system-ui, -apple-system, sans-serif;
+}
+
+body {
+  @apply bg-surface text-slate-800 antialiased;
+}
+
+@media print {
+  aside,
+  header,
+  .no-print {
+    display: none !important;
+  }
+
+  main {
+    padding: 0 !important;
+  }
+
+  #receipt-print {
+    box-shadow: none !important;
+    border: none !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+  }
+}

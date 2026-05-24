@@ -1,0 +1,418 @@
+"use client";
+
+
+
+import { RESERVATION_STATUS_LABELS } from "@/lib/constants";
+
+import { formatDate, formatPHP, formatTime } from "@/lib/format";
+
+import type { ReservationDetail } from "@/lib/reservations";
+
+import { cn } from "@/lib/utils";
+
+import { X } from "lucide-react";
+
+import { useRouter } from "next/navigation";
+
+import { useEffect, useState } from "react";
+
+
+
+type ReservationDrawerProps = {
+
+  reservationId: string | null;
+
+  onClose: () => void;
+
+};
+
+
+
+export function ReservationDrawer({ reservationId, onClose }: ReservationDrawerProps) {
+
+  const router = useRouter();
+
+  const [detail, setDetail] = useState<ReservationDetail | null>(null);
+
+  const [loading, setLoading] = useState(false);
+
+  const [checkingIn, setCheckingIn] = useState(false);
+
+  const [error, setError] = useState<string | null>(null);
+
+  const [success, setSuccess] = useState<string | null>(null);
+
+
+
+  useEffect(() => {
+
+    if (!reservationId) {
+
+      setDetail(null);
+
+      setError(null);
+
+      setSuccess(null);
+
+      return;
+
+    }
+
+
+
+    setLoading(true);
+
+    fetch(`/api/reservations/${reservationId}`)
+
+      .then((r) => (r.ok ? r.json() : null))
+
+      .then((data) => setDetail(data))
+
+      .finally(() => setLoading(false));
+
+  }, [reservationId]);
+
+
+
+  async function handleCheckIn() {
+
+    if (!reservationId) return;
+
+    setCheckingIn(true);
+
+    setError(null);
+
+    setSuccess(null);
+
+
+
+    try {
+
+      const res = await fetch(`/api/reservations/${reservationId}/check-in`, {
+
+        method: "POST",
+
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) throw new Error(data.error ?? "Check-in failed");
+
+
+
+      setSuccess(`Checked in to Room ${data.roomNumber}. Folio ${data.folioNumber}.`);
+
+      router.refresh();
+
+      fetch(`/api/reservations/${reservationId}`)
+
+        .then((r) => (r.ok ? r.json() : null))
+
+        .then((d) => setDetail(d));
+
+    } catch (e) {
+
+      setError(e instanceof Error ? e.message : "Check-in failed");
+
+    } finally {
+
+      setCheckingIn(false);
+
+    }
+
+  }
+
+
+
+  if (!reservationId) return null;
+
+
+
+  return (
+
+    <div className="fixed inset-0 z-50 flex justify-end bg-black/30">
+
+      <button type="button" className="flex-1" aria-label="Close" onClick={onClose} />
+
+      <aside className="flex h-full w-full max-w-md flex-col bg-white shadow-xl">
+
+        <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
+
+          <h3 className="text-lg font-semibold text-slate-800">Reservation</h3>
+
+          <button
+
+            type="button"
+
+            onClick={onClose}
+
+            className="rounded-lg p-1 text-slate-500 hover:bg-slate-100"
+
+            aria-label="Close panel"
+
+          >
+
+            <X className="h-5 w-5" />
+
+          </button>
+
+        </div>
+
+
+
+        <div className="flex-1 overflow-y-auto p-5">
+
+          {loading && <p className="text-sm text-slate-500">Loading…</p>}
+
+
+
+          {!loading && !detail && (
+
+            <p className="text-sm text-room-dirty">Could not load reservation.</p>
+
+          )}
+
+
+
+          {error && (
+
+            <p className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-room-dirty">
+
+              {error}
+
+            </p>
+
+          )}
+
+          {success && (
+
+            <p className="mb-4 rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-sm text-room-vacant">
+
+              {success}
+
+            </p>
+
+          )}
+
+
+
+          {detail && (
+
+            <dl className="space-y-4 text-sm">
+
+              <div>
+
+                <dt className="text-slate-500">Guest</dt>
+
+                <dd className="mt-0.5 text-lg font-semibold text-slate-800">{detail.guestName}</dd>
+
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+
+                <div>
+
+                  <dt className="text-slate-500">Room</dt>
+
+                  <dd className="mt-0.5 font-medium text-slate-800">{detail.roomNumber}</dd>
+
+                </div>
+
+                <div>
+
+                  <dt className="text-slate-500">Description</dt>
+
+                  <dd className="mt-0.5 font-medium text-slate-800">
+
+                    {detail.roomDescription}
+
+                  </dd>
+
+                </div>
+
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+
+                <div>
+
+                  <dt className="text-slate-500">Check-in</dt>
+
+                  <dd className="mt-0.5 font-medium text-slate-800">
+
+                    {formatDate(detail.checkIn)}
+
+                  </dd>
+
+                </div>
+
+                <div>
+
+                  <dt className="text-slate-500">Check-out</dt>
+
+                  <dd className="mt-0.5 font-medium text-slate-800">
+
+                    {formatDate(detail.checkOut)}
+
+                  </dd>
+
+                </div>
+
+              </div>
+
+              {detail.scheduledArrival && (
+
+                <div>
+
+                  <dt className="text-slate-500">Arrival time</dt>
+
+                  <dd className="mt-0.5 font-medium text-slate-800">
+
+                    {formatTime(detail.scheduledArrival)}
+
+                  </dd>
+
+                </div>
+
+              )}
+
+              {detail.scheduledDeparture && (
+
+                <div>
+
+                  <dt className="text-slate-500">Departure time</dt>
+
+                  <dd className="mt-0.5 font-medium text-slate-800">
+
+                    {formatTime(detail.scheduledDeparture)}
+
+                  </dd>
+
+                </div>
+
+              )}
+
+              <div className="grid grid-cols-2 gap-4">
+
+                <div>
+
+                  <dt className="text-slate-500">Status</dt>
+
+                  <dd className="mt-0.5">
+
+                    <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-700">
+
+                      {RESERVATION_STATUS_LABELS[detail.status] ?? detail.status}
+
+                    </span>
+
+                  </dd>
+
+                </div>
+
+                <div>
+
+                  <dt className="text-slate-500">Guests</dt>
+
+                  <dd className="mt-0.5 font-medium text-slate-800">
+
+                    {detail.adults} adult{detail.adults !== 1 ? "s" : ""}
+
+                    {detail.children > 0
+
+                      ? `, ${detail.children} child${detail.children !== 1 ? "ren" : ""}`
+
+                      : ""}
+
+                  </dd>
+
+                </div>
+
+              </div>
+
+              {detail.extensionDays > 0 && (
+                <div>
+                  <dt className="text-slate-500">Day extensions</dt>
+                  <dd className="mt-0.5 font-medium text-slate-800">
+                    {detail.extensionDays} extra day{detail.extensionDays !== 1 ? "s" : ""}
+                  </dd>
+                </div>
+              )}
+              {detail.extensionHours > 0 && (
+                <div>
+                  <dt className="text-slate-500">Hour extensions</dt>
+                  <dd className="mt-0.5 font-medium text-slate-800">
+                    {detail.extensionHours} extra hour{detail.extensionHours !== 1 ? "s" : ""}
+                  </dd>
+                </div>
+              )}
+              <div>
+                <dt className="text-slate-500">Estimated total</dt>
+                <dd className="mt-0.5 text-lg font-bold text-room-occupied">
+                  {formatPHP(detail.estimatedTotal)}
+                </dd>
+              </div>
+              {detail.bookingType === "MAINTENANCE" && (
+
+                <p
+
+                  className={cn(
+
+                    "rounded-lg border border-room-dirty/30 bg-red-50 px-3 py-2 text-room-dirty",
+
+                  )}
+
+                >
+
+                  Maintenance block — room unavailable for guests.
+
+                </p>
+
+              )}
+
+            </dl>
+
+          )}
+
+        </div>
+
+
+
+        {detail?.status === "RESERVED" && detail.bookingType === "GUEST" && (
+
+          <div className="border-t border-slate-100 p-5">
+
+            <button
+
+              type="button"
+
+              onClick={handleCheckIn}
+
+              disabled={checkingIn}
+
+              className="w-full rounded-lg bg-room-vacant py-2.5 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
+
+            >
+
+              {checkingIn ? "Checking in…" : "Check In Guest"}
+
+            </button>
+
+            <p className="mt-2 text-center text-xs text-slate-400">
+
+              Use when the guest arrives on check-in day
+
+            </p>
+
+          </div>
+
+        )}
+
+      </aside>
+
+    </div>
+
+  );
+
+}
+

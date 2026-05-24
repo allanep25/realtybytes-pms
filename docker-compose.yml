@@ -1,0 +1,23 @@
+# Local PostgreSQL for development (matches production database type)
+# Start: docker compose up -d
+# Then set DATABASE_URL in .env (see .env.example)
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: amar
+      POSTGRES_PASSWORD: amar
+      POSTGRES_DB: amar_residence
+    ports:
+      - "5432:5432"
+    volumes:
+      - amar_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U amar -d amar_residence"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  amar_pgdata:

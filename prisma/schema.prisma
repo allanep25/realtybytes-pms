@@ -1,0 +1,179 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum RoomStatus {
+  VACANT
+  OCCUPIED
+  RESERVED
+  DIRTY
+  OUT_OF_ORDER
+}
+
+enum RoomType {
+  STANDARD
+  DELUXE
+  SUITE
+}
+
+enum ReservationStatus {
+  RESERVED
+  CHECKED_IN
+  CHECKED_OUT
+  CANCELLED
+  NO_SHOW
+}
+
+enum BookingType {
+  GUEST
+  MAINTENANCE
+}
+
+enum EmployeeRole {
+  ADMINISTRATOR
+  FRONT_DESK
+  HOUSEKEEPING
+}
+
+enum EmployeeStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum HousekeepingStatus {
+  CLEAN
+  DIRTY
+  CLEANING
+  OUT_OF_ORDER
+}
+
+enum PaymentMethod {
+  CASH
+  CARD
+  GCASH
+  BANK_TRANSFER
+}
+
+model Room {
+  id            String     @id @default(cuid())
+  number        String     @unique
+  floor         Int
+  type          RoomType   @default(STANDARD)
+  description   String     @default("")
+  maxPax        Int        @default(2)
+  status        RoomStatus @default(VACANT)
+  baseRate      Decimal
+  breakfastRate Decimal?
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  reservations     Reservation[]
+  housekeepingTask HousekeepingTask?
+}
+
+model Guest {
+  id            String   @id @default(cuid())
+  fullName      String
+  contactNumber String?
+  idType        String?
+  idNumber      String?
+  address       String?
+  isVip         Boolean  @default(false)
+  notes         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  reservations Reservation[]
+}
+
+model Reservation {
+  id                 String            @id @default(cuid())
+  guestId            String
+  roomId             String
+  checkIn            DateTime
+  checkOut           DateTime
+  scheduledArrival   DateTime?
+  scheduledDeparture DateTime?
+  adults             Int               @default(1)
+  children           Int               @default(0)
+  extensionDays      Int               @default(0)
+  extensionHours     Int               @default(0)
+  status             ReservationStatus @default(RESERVED)
+  bookingType        BookingType       @default(GUEST)
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+
+  guest Guest @relation(fields: [guestId], references: [id])
+  room  Room  @relation(fields: [roomId], references: [id])
+  folio Folio?
+}
+
+model Folio {
+  id            String         @id @default(cuid())
+  folioNumber   String         @unique
+  reservationId String         @unique
+  paymentMethod PaymentMethod?
+  subtotal      Decimal        @default(0)
+  discount      Decimal        @default(0)
+  total         Decimal        @default(0)
+  paid          Decimal        @default(0)
+  paidAt        DateTime?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  reservation Reservation @relation(fields: [reservationId], references: [id])
+  lines       FolioLine[]
+}
+
+model FolioLine {
+  id          String  @id @default(cuid())
+  folioId     String
+  description String
+  quantity    Int     @default(1)
+  rate        Decimal
+  amount      Decimal
+
+  folio Folio @relation(fields: [folioId], references: [id], onDelete: Cascade)
+}
+
+model Employee {
+  id           String         @id @default(cuid())
+  name         String
+  email        String?        @unique
+  passwordHash String?
+  role         EmployeeRole
+  status       EmployeeStatus @default(ACTIVE)
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  housekeepingTasks HousekeepingTask[]
+}
+
+model HousekeepingTask {
+  id         String             @id @default(cuid())
+  roomId     String             @unique
+  status     HousekeepingStatus @default(DIRTY)
+  assignedTo String?
+  notes      String?
+  updatedAt  DateTime           @updatedAt
+
+  room     Room      @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  employee Employee? @relation(fields: [assignedTo], references: [id])
+}
+
+model HotelSettings {
+  id           String  @id @default("default")
+  name         String  @default("Amar Residence")
+  tagline      String  @default("HOTEL")
+  address      String?
+  phone        String?
+  email        String?
+  taxRate        Decimal @default(0.12)
+  currencyCode   String  @default("PHP")
+  receiptFooter  String?
+}
