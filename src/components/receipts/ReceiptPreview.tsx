@@ -10,8 +10,11 @@ type ReceiptFolioOption = {
   folioNumber: string;
   guestName: string;
   roomNumber: string;
+  total: number;
   paid: number;
+  balanceDue: number;
   paidAt: string | null;
+  reservationStatus: string;
 };
 
 type ReceiptPreviewProps = {
@@ -49,17 +52,26 @@ export function ReceiptPreview({
 
   if (folios.length === 0) {
     return (
-      <div className="rounded-xl border border-dashed border-slate-300 p-12 text-center text-slate-400">
-        No paid transactions yet. Complete a check-out or record a payment in Billing first.
+      <div className="rounded-xl border border-dashed border-slate-300 p-8 text-center text-slate-500">
+        <p className="font-medium text-slate-700">No guest folios to print yet.</p>
+        <p className="mx-auto mt-3 max-w-md text-sm leading-relaxed">
+          Folios are created when you check in a guest or make a reservation. After recording a
+          payment in Billing, print an official receipt here. You can also print a folio summary
+          before payment is collected.
+        </p>
       </div>
     );
   }
 
   return (
     <div className="space-y-4">
+      <p className="text-sm text-slate-600 no-print">
+        Select a guest folio to preview and print. Amount paid shows on the receipt; record payments
+        in Billing first for an official paid receipt.
+      </p>
       <div className="flex flex-wrap items-end gap-3 no-print">
         <label className="text-sm">
-          <span className="mb-1 block text-slate-500">Select transaction</span>
+          <span className="mb-1 block text-slate-500">Select folio</span>
           <select
             value={folioId}
             onChange={(e) => setFolioId(e.target.value)}
@@ -67,7 +79,10 @@ export function ReceiptPreview({
           >
             {folios.map((f) => (
               <option key={f.id} value={f.id}>
-                {f.folioNumber} — {f.guestName} · Rm {f.roomNumber} ({formatPHP(f.paid)})
+                {f.folioNumber} — {f.guestName} · Rm {f.roomNumber}
+                {f.paid > 0
+                  ? ` · Paid ${formatPHP(f.paid)}`
+                  : ` · Balance ${formatPHP(f.balanceDue)}`}
               </option>
             ))}
           </select>
@@ -167,6 +182,12 @@ export function ReceiptPreview({
               <span>Amount Paid</span>
               <span>{formatPHP(receipt.paid)}</span>
             </div>
+            {receipt.paid < receipt.total && (
+              <div className="flex justify-between font-semibold text-room-occupied">
+                <span>Balance Due</span>
+                <span>{formatPHP(receipt.total - receipt.paid)}</span>
+              </div>
+            )}
             {receipt.paymentMethod && (
               <div className="flex justify-between text-xs text-slate-400">
                 <span>Payment</span>

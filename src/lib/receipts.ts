@@ -45,8 +45,10 @@ export async function getHotelInfo(): Promise<HotelInfo> {
 export async function getReceiptFolios() {
   const folios = await prisma.folio.findMany({
     where: {
-      paid: { gt: 0 },
-      reservation: { bookingType: "GUEST" },
+      reservation: {
+        bookingType: "GUEST",
+        status: { in: ["CHECKED_IN", "RESERVED", "CHECKED_OUT"] },
+      },
     },
     include: {
       reservation: {
@@ -56,18 +58,25 @@ export async function getReceiptFolios() {
         },
       },
     },
-    orderBy: { paidAt: "desc" },
+    orderBy: { updatedAt: "desc" },
     take: 50,
   });
 
-  return folios.map((f) => ({
-    id: f.id,
-    folioNumber: f.folioNumber,
-    guestName: f.reservation.guest.fullName,
-    roomNumber: f.reservation.room.number,
-    paid: Number(f.paid),
-    paidAt: f.paidAt?.toISOString() ?? null,
-  }));
+  return folios.map((f) => {
+    const total = Number(f.total);
+    const paid = Number(f.paid);
+    return {
+      id: f.id,
+      folioNumber: f.folioNumber,
+      guestName: f.reservation.guest.fullName,
+      roomNumber: f.reservation.room.number,
+      total,
+      paid,
+      balanceDue: Math.max(0, total - paid),
+      paidAt: f.paidAt?.toISOString() ?? null,
+      reservationStatus: f.reservation.status,
+    };
+  });
 }
 
 export async function getReceiptData(folioId: string): Promise<ReceiptData | null> {
