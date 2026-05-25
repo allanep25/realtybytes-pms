@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { formatBookingChannel } from "@/lib/booking-source";
 import { addDays, daysBetween, eachDayOfInterval, startOfDay } from "@/lib/dates";
+import { mapStaffAttribution, type StaffAttribution } from "@/lib/staff-attribution";
 import { buildStayFolioLines, folioLinesTotal } from "@/lib/stay-pricing";
 import {
   BookingType,
@@ -65,6 +66,8 @@ export type ReservationDetail = {
   paid: number;
   balanceDue: number;
   paymentMethod: string | null;
+  encodedBy: StaffAttribution | null;
+  checkedInBy: StaffAttribution | null;
 };
 
 export type ReservationTimelineData = {
@@ -310,6 +313,8 @@ export async function getReservationById(id: string): Promise<ReservationDetail 
           paymentMethod: true,
         },
       },
+      encodedBy: { select: { name: true, role: true } },
+      checkedInBy: { select: { name: true, role: true } },
     },
   });
 
@@ -355,5 +360,7 @@ export async function getReservationById(id: string): Promise<ReservationDetail 
     paid,
     balanceDue: Math.max(0, folioTotal - paid),
     paymentMethod: res.folio?.paymentMethod ?? null,
+    encodedBy: mapStaffAttribution(res.encodedBy),
+    checkedInBy: mapStaffAttribution(res.checkedInBy),
   };
 }

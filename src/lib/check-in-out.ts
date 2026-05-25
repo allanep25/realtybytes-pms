@@ -4,6 +4,10 @@ import { addDays, daysBetween, setTime, startOfDay } from "@/lib/dates";
 import { buildStayFolioLines, folioLinesTotal } from "@/lib/stay-pricing";
 import type { BookingPlatform, BookingSource, PaymentMethod, RoomType } from "@prisma/client";
 
+export type StaffActionContext = {
+  employeeId: string;
+};
+
 export type AvailableRoom = {
   id: string;
   number: string;
@@ -304,7 +308,10 @@ export async function getActiveStays(): Promise<ActiveStay[]> {
   });
 }
 
-export async function performCheckIn(input: CheckInInput): Promise<CheckInResult> {
+export async function performCheckIn(
+  input: CheckInInput,
+  staff: StaffActionContext,
+): Promise<CheckInResult> {
   if (!input.fullName.trim()) {
     throw new Error("Guest name is required");
   }
@@ -369,6 +376,8 @@ export async function performCheckIn(input: CheckInInput): Promise<CheckInResult
       bookingSource: booking.bookingSource,
       bookingPlatform: booking.bookingPlatform,
       bookingReference: booking.bookingReference,
+      encodedById: staff.employeeId,
+      checkedInById: staff.employeeId,
     },
   });
 
@@ -401,6 +410,7 @@ export async function performCheckIn(input: CheckInInput): Promise<CheckInResult
 
 export async function createReservation(
   input: CreateReservationInput,
+  staff: StaffActionContext,
 ): Promise<CreateReservationResult> {
   if (!input.fullName.trim()) {
     throw new Error("Guest name is required");
@@ -478,6 +488,7 @@ export async function createReservation(
       bookingSource: booking.bookingSource,
       bookingPlatform: booking.bookingPlatform,
       bookingReference: booking.bookingReference,
+      encodedById: staff.employeeId,
     },
   });
 
@@ -517,6 +528,7 @@ export async function createReservation(
 
 export async function performCheckInFromReservation(
   reservationId: string,
+  staff: StaffActionContext,
 ): Promise<CheckInResult> {
   const reservation = await prisma.reservation.findUnique({
     where: { id: reservationId },
@@ -567,7 +579,10 @@ export async function performCheckInFromReservation(
 
   await prisma.reservation.update({
     where: { id: reservationId },
-    data: { status: "CHECKED_IN" },
+    data: {
+      status: "CHECKED_IN",
+      checkedInById: staff.employeeId,
+    },
   });
 
   await prisma.room.update({

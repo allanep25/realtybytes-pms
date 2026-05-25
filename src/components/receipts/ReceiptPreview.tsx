@@ -194,6 +194,11 @@ export function ReceiptPreview({
                 <span>{receipt.paymentMethod.replace("_", " ")}</span>
               </div>
             )}
+            {receipt.staffLines.map((line) => (
+              <p key={line} className="text-xs text-slate-500">
+                {line}
+              </p>
+            ))}
           </div>
 
           <p className="mt-6 text-center text-xs text-slate-400">

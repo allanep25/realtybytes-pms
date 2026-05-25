@@ -4,10 +4,9 @@
 
 import { formatBookingChannel, BOOKING_SOURCE_LABELS } from "@/lib/booking-source";
 import { PAYMENT_METHOD_OPTIONS, RESERVATION_STATUS_LABELS } from "@/lib/constants";
-
 import { formatDate, formatPHP, formatTime } from "@/lib/format";
-
 import type { ReservationDetail } from "@/lib/reservations";
+import { formatStaffAttribution } from "@/lib/staff-attribution";
 
 import { cn } from "@/lib/utils";
 
@@ -241,6 +240,42 @@ export function ReservationDrawer({ reservationId, onClose }: ReservationDrawerP
                   )}
                 </div>
               )}
+
+              {detail.bookingType === "GUEST" &&
+                (detail.encodedBy || detail.checkedInBy) && (
+                  <div className="rounded-lg border border-slate-100 bg-slate-50 p-3">
+                    {detail.encodedBy &&
+                    detail.checkedInBy &&
+                    formatStaffAttribution(detail.encodedBy) ===
+                      formatStaffAttribution(detail.checkedInBy) ? (
+                      <div>
+                        <dt className="text-slate-500">Recorded by</dt>
+                        <dd className="mt-0.5 font-medium text-slate-800">
+                          {formatStaffAttribution(detail.encodedBy)}
+                        </dd>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                        {detail.encodedBy && (
+                          <div>
+                            <dt className="text-slate-500">Encoded by</dt>
+                            <dd className="mt-0.5 font-medium text-slate-800">
+                              {formatStaffAttribution(detail.encodedBy)}
+                            </dd>
+                          </div>
+                        )}
+                        {detail.checkedInBy && (
+                          <div>
+                            <dt className="text-slate-500">Checked in by</dt>
+                            <dd className="mt-0.5 font-medium text-slate-800">
+                              {formatStaffAttribution(detail.checkedInBy)}
+                            </dd>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
 
               <div className="grid grid-cols-2 gap-4">
 

@@ -1,6 +1,10 @@
 import { prisma } from "@/lib/db";
 import { getFolioById } from "@/lib/billing";
 import { formatDate } from "@/lib/format";
+import {
+  getReceiptStaffLines,
+  mapStaffAttribution,
+} from "@/lib/staff-attribution";
 
 export type HotelInfo = {
   name: string;
@@ -27,6 +31,7 @@ export type ReceiptData = {
   total: number;
   paid: number;
   hotel: HotelInfo;
+  staffLines: string[];
 };
 
 export async function getHotelInfo(): Promise<HotelInfo> {
@@ -87,7 +92,12 @@ export async function getReceiptData(folioId: string): Promise<ReceiptData | nul
     where: { id: folioId },
     include: {
       reservation: {
-        select: { checkIn: true, checkOut: true },
+        select: {
+          checkIn: true,
+          checkOut: true,
+          encodedBy: { select: { name: true, role: true } },
+          checkedInBy: { select: { name: true, role: true } },
+        },
       },
     },
   });
@@ -114,5 +124,9 @@ export async function getReceiptData(folioId: string): Promise<ReceiptData | nul
     total: folio.total,
     paid: folio.paid,
     hotel,
+    staffLines: getReceiptStaffLines(
+      mapStaffAttribution(full.reservation.encodedBy),
+      mapStaffAttribution(full.reservation.checkedInBy),
+    ),
   };
 }

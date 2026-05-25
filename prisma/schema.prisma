@@ -128,12 +128,16 @@ model Reservation {
   bookingSource      BookingSource     @default(PHONE)
   bookingPlatform    BookingPlatform?
   bookingReference   String?
+  encodedById        String?
+  checkedInById      String?
   createdAt          DateTime          @default(now())
   updatedAt          DateTime          @updatedAt
 
-  guest Guest @relation(fields: [guestId], references: [id])
-  room  Room  @relation(fields: [roomId], references: [id])
-  folio Folio?
+  guest       Guest     @relation(fields: [guestId], references: [id])
+  room        Room      @relation(fields: [roomId], references: [id])
+  folio       Folio?
+  encodedBy   Employee? @relation("ReservationEncodedBy", fields: [encodedById], references: [id])
+  checkedInBy Employee? @relation("ReservationCheckedInBy", fields: [checkedInById], references: [id])
 }
 
 model Folio {
@@ -174,7 +178,9 @@ model Employee {
   createdAt    DateTime       @default(now())
   updatedAt    DateTime       @updatedAt
 
-  housekeepingTasks HousekeepingTask[]
+  housekeepingTasks     HousekeepingTask[]
+  encodedReservations   Reservation[] @relation("ReservationEncodedBy")
+  checkedInReservations Reservation[] @relation("ReservationCheckedInBy")
 }
 
 model HousekeepingTask {
