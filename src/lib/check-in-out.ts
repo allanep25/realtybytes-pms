@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/db";
 import { normalizeBookingFields } from "@/lib/booking-source";
-import { addDays, daysBetween, setTime, startOfDay } from "@/lib/dates";
+import { addDays, addHotelDays, daysBetween, parseHotelCalendarDate, setTime, startOfHotelDay } from "@/lib/dates";
 import { buildStayFolioLines, folioLinesTotal } from "@/lib/stay-pricing";
 import { compareRoomNumbers } from "@/lib/utils";
 import type { BookingPlatform, BookingSource, PaymentMethod, RoomType } from "@prisma/client";
@@ -96,8 +96,7 @@ export type CheckOutInput = {
 };
 
 function parseDateInput(value: string): Date {
-  const [y, m, d] = value.split("-").map(Number);
-  return startOfDay(new Date(y, m - 1, d));
+  return parseHotelCalendarDate(value);
 }
 
 function parseArrivalTime(checkIn: Date, time: string): Date {
@@ -240,8 +239,8 @@ export type ReservedArrival = {
 };
 
 export async function getTodayReservedArrivals(): Promise<ReservedArrival[]> {
-  const today = startOfDay(new Date());
-  const tomorrow = addDays(today, 1);
+  const today = startOfHotelDay();
+  const tomorrow = addHotelDays(new Date(), 1);
 
   const rows = await prisma.reservation.findMany({
     where: {
@@ -437,7 +436,7 @@ export async function createReservation(
 
   const checkIn = parseDateInput(input.checkIn);
   const checkOut = parseDateInput(input.checkOut);
-  const today = startOfDay(new Date());
+  const today = startOfHotelDay();
 
   if (checkOut <= checkIn) {
     throw new Error("Check-out date must be after check-in date");

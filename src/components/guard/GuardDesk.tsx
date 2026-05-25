@@ -1,6 +1,7 @@
 "use client";
 
 import { formatDate, formatPHP } from "@/lib/format";
+import { startOfHotelDay } from "@/lib/dates";
 import type { ActiveStay } from "@/lib/check-in-out";
 import { cn, compareRoomNumbers } from "@/lib/utils";
 import { Search } from "lucide-react";
@@ -18,14 +19,8 @@ type GuardDeskProps = {
   activeStays: ActiveStay[];
 };
 
-function startOfDay(date: Date): Date {
-  const d = new Date(date);
-  d.setHours(0, 0, 0, 0);
-  return d;
-}
-
 function isLeavingToday(checkOut: string): boolean {
-  return startOfDay(new Date(checkOut)).getTime() <= startOfDay(new Date()).getTime();
+  return startOfHotelDay(new Date(checkOut)).getTime() <= startOfHotelDay().getTime();
 }
 
 function matchesSearch(stay: ActiveStay, query: string): boolean {

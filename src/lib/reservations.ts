@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/db";
 import { formatBookingChannel } from "@/lib/booking-source";
-import { addDays, daysBetween, eachDayOfInterval, startOfDay } from "@/lib/dates";
+import { addDays, addHotelDays, daysBetween, eachDayOfInterval, startOfDay, startOfHotelDay } from "@/lib/dates";
 import { mapStaffAttribution, type StaffAttribution } from "@/lib/staff-attribution";
 import { buildStayFolioLines, folioLinesTotal } from "@/lib/stay-pricing";
 import {
@@ -213,13 +213,13 @@ export async function getReservationTimeline(
 }
 
 export async function getTodayArrivals(): Promise<ActivityItem[]> {
-  const today = startOfDay(new Date());
-  const tomorrow = addDays(today, 1);
+  const today = startOfHotelDay();
+  const tomorrow = addHotelDays(new Date(), 1);
 
   const rows = await prisma.reservation.findMany({
     where: {
       checkIn: { gte: today, lt: tomorrow },
-      status: { in: ["RESERVED", "CHECKED_IN"] },
+      status: "RESERVED",
       bookingType: BookingType.GUEST,
     },
     include: {
@@ -238,13 +238,13 @@ export async function getTodayArrivals(): Promise<ActivityItem[]> {
 }
 
 export async function getTodayDepartures(): Promise<ActivityItem[]> {
-  const today = startOfDay(new Date());
-  const tomorrow = addDays(today, 1);
+  const today = startOfHotelDay();
+  const tomorrow = addHotelDays(new Date(), 1);
 
   const rows = await prisma.reservation.findMany({
     where: {
       checkOut: { gte: today, lt: tomorrow },
-      status: { in: ["CHECKED_IN", "CHECKED_OUT"] },
+      status: "CHECKED_IN",
       bookingType: BookingType.GUEST,
     },
     include: {
@@ -263,9 +263,9 @@ export async function getTodayDepartures(): Promise<ActivityItem[]> {
 }
 
 export async function getTodayRevenue(): Promise<TodayRevenue> {
-  const today = startOfDay(new Date());
-  const tomorrow = addDays(today, 1);
-  const yesterday = addDays(today, -1);
+  const today = startOfHotelDay();
+  const tomorrow = addHotelDays(new Date(), 1);
+  const yesterday = addHotelDays(new Date(), -1);
   const paidFilter = { gt: new Prisma.Decimal(0) };
 
   const todayFolios = await prisma.folio.findMany({
