@@ -1,0 +1,14 @@
+# Railway / Nixpacks build config
+# Install devDependencies so TypeScript, Tailwind, and ESLint are available during `next build`.
+
+[phases.setup]
+nixPkgs = ["nodejs_20"]
+
+[phases.install]
+cmds = ["npm ci --include=dev"]
+
+[phases.build]
+cmds = ["npm run build"]
+
+[start]
+cmd = "npm run start"
