@@ -96,7 +96,11 @@ export function GuardTopBar({ hotelName }: GuardTopBarProps) {
         </div>
       </header>
 
-      <ChangePasswordModal open={showPassword} onClose={() => setShowPassword(false)} />
+      <ChangePasswordModal
+        open={showPassword}
+        onClose={() => setShowPassword(false)}
+        mode="self"
+      />
     </>
   );
 }
