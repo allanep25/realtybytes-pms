@@ -139,6 +139,32 @@ async function createStayFolio(
   return folioNumber;
 }
 
+/** Create folios for checked-in or reserved guests that do not have one yet. */
+export async function ensureOpenStayFolios(): Promise<number> {
+  const rows = await prisma.reservation.findMany({
+    where: {
+      status: { in: ["CHECKED_IN", "RESERVED"] },
+      bookingType: "GUEST",
+      folio: null,
+    },
+    include: { room: true },
+  });
+
+  for (const res of rows) {
+    const nights = Math.max(1, daysBetween(res.checkIn, res.checkOut));
+    await createStayFolio(
+      res.id,
+      res.room.number,
+      Number(res.room.baseRate),
+      nights,
+      res.extensionDays,
+      res.extensionHours,
+    );
+  }
+
+  return rows.length;
+}
+
 export async function hasRoomConflict(
   roomId: string,
   checkIn: Date,

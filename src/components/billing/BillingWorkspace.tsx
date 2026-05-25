@@ -58,7 +58,7 @@ export function BillingWorkspace({
       setDiscount(String(data.discount));
       setPaymentMethod(data.paymentMethod ?? "CASH");
       setPaymentAmount(data.balanceDue > 0 ? String(data.balanceDue) : "");
-      router.push(`/billing?folio=${id}`, { scroll: false });
+      router.push(`/billing?folio=${folio?.folioNumber ?? id}`, { scroll: false });
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load");
     } finally {
@@ -173,10 +173,19 @@ export function BillingWorkspace({
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
       <aside className="lg:col-span-4">
-        <h3 className="mb-3 text-sm font-semibold text-slate-800">Open Folios</h3>
+        <h3 className="mb-1 text-sm font-semibold text-slate-800">Open Folios</h3>
+        <p className="mb-3 text-xs text-slate-500">
+          Active guest bills — checked-in stays and upcoming reservations with a balance.
+        </p>
         <ul className="max-h-[520px] space-y-2 overflow-y-auto">
           {folios.length === 0 ? (
-            <li className="text-sm text-slate-400">No open folios.</li>
+            <li className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-4 text-sm text-slate-600">
+              <p className="font-medium text-slate-800">No open folios right now.</p>
+              <p className="mt-2 text-xs leading-relaxed text-slate-500">
+                Folios appear when you create a reservation, check in a guest, or have an upcoming
+                booking. Use Check-In / Check-Out or Reservation Calendar to add guests first.
+              </p>
+            </li>
           ) : (
             folios.map((f) => (
               <li key={f.id}>
@@ -208,8 +217,20 @@ export function BillingWorkspace({
         )}
 
         {!folio && !loading && (
-          <div className="rounded-xl border border-dashed border-slate-300 p-12 text-center text-slate-400">
-            Select a folio to view charges and payments.
+          <div className="rounded-xl border border-dashed border-slate-300 p-8 text-center text-slate-500">
+            {folios.length === 0 ? (
+              <div className="mx-auto max-w-md space-y-3 text-sm">
+                <p className="font-medium text-slate-700">What belongs here</p>
+                <p className="text-left text-xs leading-relaxed">
+                  Each guest stay gets a <strong>folio</strong> (bill) with room charges, extras
+                  (minibar, laundry), deposits, and payments. Select a folio on the left to record
+                  payments (Cash, GCash, card), add charges, apply discounts, and see the balance
+                  due at check-out.
+                </p>
+              </div>
+            ) : (
+              "Select a folio on the left to view charges and record payments."
+            )}
           </div>
         )}
 
