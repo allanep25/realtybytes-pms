@@ -1,4 +1,5 @@
 import { DashboardShell } from "@/components/layout/DashboardShell";
+import { BackdateArrivalsTool } from "@/components/settings/BackdateArrivalsTool";
 import { SettingsForm } from "@/components/settings/SettingsForm";
 import { getHotelSettings } from "@/lib/settings";
 
@@ -11,6 +12,7 @@ export default async function SettingsPage() {
         Configure hotel branding, tax rate, and receipt footer. Administrator access only.
       </p>
       <SettingsForm settings={settings} />
+      <BackdateArrivalsTool />
     </DashboardShell>
   );
 }
