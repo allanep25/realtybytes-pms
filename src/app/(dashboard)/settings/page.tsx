@@ -1,5 +1,6 @@
 import { DashboardShell } from "@/components/layout/DashboardShell";
 import { BackdateArrivalsTool } from "@/components/settings/BackdateArrivalsTool";
+import { RelocateGuestTool } from "@/components/settings/RelocateGuestTool";
 import { SettingsForm } from "@/components/settings/SettingsForm";
 import { getHotelSettings } from "@/lib/settings";
 
@@ -13,6 +14,7 @@ export default async function SettingsPage() {
       </p>
       <SettingsForm settings={settings} />
       <BackdateArrivalsTool />
+      <RelocateGuestTool />
     </DashboardShell>
   );
 }
