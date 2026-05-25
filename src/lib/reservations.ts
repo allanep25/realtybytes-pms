@@ -1,7 +1,14 @@
 import { prisma } from "@/lib/db";
+import { formatBookingChannel } from "@/lib/booking-source";
 import { addDays, daysBetween, eachDayOfInterval, startOfDay } from "@/lib/dates";
 import { buildStayFolioLines, folioLinesTotal } from "@/lib/stay-pricing";
-import { BookingType, Prisma, type ReservationStatus } from "@prisma/client";
+import {
+  BookingType,
+  Prisma,
+  type BookingPlatform,
+  type BookingSource,
+  type ReservationStatus,
+} from "@prisma/client";
 
 export type ActivityItem = {
   id: string;
@@ -43,6 +50,9 @@ export type ReservationDetail = {
   checkOut: string;
   status: ReservationStatus;
   bookingType: BookingType;
+  bookingSource: BookingSource;
+  bookingPlatform: BookingPlatform | null;
+  bookingReference: string | null;
   adults: number;
   children: number;
   extensionDays: number;
@@ -167,15 +177,22 @@ export async function getReservationTimeline(
     const clampedStart = Math.max(0, startCol);
     const clampedSpan = Math.min(span, dayCount - clampedStart);
 
+    const guestLabel =
+      res.bookingType === "MAINTENANCE" ? "Maintenance" : res.guest.fullName;
+    const channel = formatBookingChannel(
+      res.bookingSource,
+      res.bookingPlatform,
+      res.bookingReference,
+    );
+
     bars.push({
       id: res.id,
       roomNumber: res.room.number,
-      guestName:
-        res.bookingType === "MAINTENANCE" ? "Maintenance" : res.guest.fullName,
+      guestName: guestLabel,
       startCol: clampedStart,
       span: clampedSpan,
       colorClass: barColor(res.status, res.bookingType),
-      title: `${res.room.number} — ${barLabel(res.status, res.bookingType)}`,
+      title: `${res.room.number} — ${guestLabel} (${channel})`,
       status: res.status,
       bookingType: res.bookingType,
       checkIn: res.checkIn.toISOString(),
@@ -306,6 +323,9 @@ export async function getReservationById(id: string): Promise<ReservationDetail 
     checkOut: res.checkOut.toISOString(),
     status: res.status,
     bookingType: res.bookingType,
+    bookingSource: res.bookingSource,
+    bookingPlatform: res.bookingPlatform,
+    bookingReference: res.bookingReference,
     adults: res.adults,
     children: res.children,
     extensionDays: res.extensionDays,

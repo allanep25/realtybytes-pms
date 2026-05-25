@@ -2,10 +2,15 @@
 
 import type { RoomGridItem } from "@/components/dashboard/RoomStatusGrid";
 import { StayBillingSummary } from "@/components/reservations/StayBillingSummary";
+import {
+  BOOKING_PLATFORM_OPTIONS,
+  BOOKING_SOURCE_OPTIONS,
+} from "@/lib/booking-source";
 import { formatPHP } from "@/lib/format";
 import type { AvailableRoom } from "@/lib/check-in-out";
 import { calcHourlyExtensionRate, calcStayQuote } from "@/lib/stay-pricing";
 import { cn } from "@/lib/utils";
+import type { BookingPlatform, BookingSource } from "@prisma/client";
 import { X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -45,6 +50,9 @@ const emptyForm = {
   arrivalTime: "14:00",
   extensionDays: "0",
   extensionHours: "0",
+  bookingSource: "PHONE" as BookingSource,
+  bookingPlatform: "" as BookingPlatform | "",
+  bookingReference: "",
 };
 
 export function ReservationFormModal({
@@ -136,6 +144,13 @@ export function ReservationFormModal({
           arrivalTime: form.arrivalTime,
           extensionDays: Number(form.extensionDays) || 0,
           extensionHours: Number(form.extensionHours) || 0,
+          bookingSource: form.bookingSource,
+          bookingPlatform:
+            form.bookingSource === "ONLINE" && form.bookingPlatform
+              ? form.bookingPlatform
+              : null,
+          bookingReference:
+            form.bookingSource === "ONLINE" ? form.bookingReference || null : null,
         }),
       });
 
@@ -261,6 +276,74 @@ export function ReservationFormModal({
           )}
 
           <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+            <div className="space-y-3 md:col-span-2">
+              <h4 className="font-medium text-slate-800">How was this booked?</h4>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <label className="block text-sm">
+                  <span className="text-slate-500">Booking method *</span>
+                  <select
+                    required
+                    disabled={!bookable}
+                    value={form.bookingSource}
+                    onChange={(e) =>
+                      setForm((f) => ({
+                        ...f,
+                        bookingSource: e.target.value as BookingSource,
+                        bookingPlatform: "",
+                        bookingReference: "",
+                      }))
+                    }
+                    className={fieldClass}
+                  >
+                    {BOOKING_SOURCE_OPTIONS.map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                {form.bookingSource === "ONLINE" && (
+                  <>
+                    <label className="block text-sm">
+                      <span className="text-slate-500">Online platform *</span>
+                      <select
+                        required
+                        disabled={!bookable}
+                        value={form.bookingPlatform}
+                        onChange={(e) =>
+                          setForm((f) => ({
+                            ...f,
+                            bookingPlatform: e.target.value as BookingPlatform,
+                          }))
+                        }
+                        className={fieldClass}
+                      >
+                        <option value="">Select platform…</option>
+                        {BOOKING_PLATFORM_OPTIONS.map((opt) => (
+                          <option key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="block text-sm sm:col-span-2">
+                      <span className="text-slate-500">Booking reference #</span>
+                      <input
+                        disabled={!bookable}
+                        value={form.bookingReference}
+                        onChange={(e) =>
+                          setForm((f) => ({ ...f, bookingReference: e.target.value }))
+                        }
+                        className={fieldClass}
+                        placeholder="Agoda / Booking.com confirmation number"
+                      />
+                    </label>
+                  </>
+                )}
+              </div>
+            </div>
+
             <div className="space-y-3">
               <h4 className="font-medium text-slate-800">Guest</h4>
               <label className="block text-sm">

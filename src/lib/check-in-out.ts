@@ -1,7 +1,8 @@
 import { prisma } from "@/lib/db";
+import { normalizeBookingFields } from "@/lib/booking-source";
 import { addDays, daysBetween, setTime, startOfDay } from "@/lib/dates";
 import { buildStayFolioLines, folioLinesTotal } from "@/lib/stay-pricing";
-import type { PaymentMethod, RoomType } from "@prisma/client";
+import type { BookingPlatform, BookingSource, PaymentMethod, RoomType } from "@prisma/client";
 
 export type AvailableRoom = {
   id: string;
@@ -67,6 +68,9 @@ export type CreateReservationInput = {
   arrivalTime?: string;
   extensionDays?: number;
   extensionHours?: number;
+  bookingSource?: BookingSource;
+  bookingPlatform?: BookingPlatform | null;
+  bookingReference?: string | null;
 };
 
 export type CreateReservationResult = {
@@ -313,6 +317,7 @@ export async function performCheckIn(input: CheckInInput): Promise<CheckInResult
       children,
       status: "CHECKED_IN",
       bookingType: "GUEST",
+      bookingSource: "WALK_IN",
     },
   });
 
@@ -400,6 +405,12 @@ export async function createReservation(
     },
   });
 
+  const booking = normalizeBookingFields({
+    bookingSource: input.bookingSource,
+    bookingPlatform: input.bookingPlatform,
+    bookingReference: input.bookingReference,
+  });
+
   const reservation = await prisma.reservation.create({
     data: {
       guestId: guest.id,
@@ -413,6 +424,9 @@ export async function createReservation(
       extensionHours,
       status: "RESERVED",
       bookingType: "GUEST",
+      bookingSource: booking.bookingSource,
+      bookingPlatform: booking.bookingPlatform,
+      bookingReference: booking.bookingReference,
     },
   });
 

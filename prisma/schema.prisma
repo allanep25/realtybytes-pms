@@ -34,6 +34,26 @@ enum BookingType {
   MAINTENANCE
 }
 
+enum BookingSource {
+  WALK_IN
+  PHONE
+  EMAIL
+  ONLINE
+  OTHER
+}
+
+enum BookingPlatform {
+  AGODA
+  BOOKING_COM
+  TRIP_COM
+  EXPEDIA
+  HOTELS_COM
+  AIRBNB
+  TRAVELOKA
+  DIRECT_WEBSITE
+  OTHER
+}
+
 enum EmployeeRole {
   ADMINISTRATOR
   FRONT_DESK
@@ -105,6 +125,9 @@ model Reservation {
   extensionHours     Int               @default(0)
   status             ReservationStatus @default(RESERVED)
   bookingType        BookingType       @default(GUEST)
+  bookingSource      BookingSource     @default(PHONE)
+  bookingPlatform    BookingPlatform?
+  bookingReference   String?
   createdAt          DateTime          @default(now())
   updatedAt          DateTime          @updatedAt
 

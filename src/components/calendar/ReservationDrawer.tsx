@@ -2,6 +2,7 @@
 
 
 
+import { formatBookingChannel, BOOKING_SOURCE_LABELS } from "@/lib/booking-source";
 import { RESERVATION_STATUS_LABELS } from "@/lib/constants";
 
 import { formatDate, formatPHP, formatTime } from "@/lib/format";
@@ -207,6 +208,39 @@ export function ReservationDrawer({ reservationId, onClose }: ReservationDrawerP
                 <dd className="mt-0.5 text-lg font-semibold text-slate-800">{detail.guestName}</dd>
 
               </div>
+
+              {detail.bookingType === "GUEST" && (
+                <div className="grid grid-cols-1 gap-3 rounded-lg border border-slate-100 bg-slate-50 p-3 sm:grid-cols-2">
+                  <div>
+                    <dt className="text-slate-500">Booked via</dt>
+                    <dd className="mt-0.5 font-medium text-slate-800">
+                      {BOOKING_SOURCE_LABELS[detail.bookingSource]}
+                    </dd>
+                  </div>
+                  {detail.bookingSource === "ONLINE" && (
+                    <>
+                      <div>
+                        <dt className="text-slate-500">Platform</dt>
+                        <dd className="mt-0.5 font-medium text-slate-800">
+                          {formatBookingChannel(
+                            detail.bookingSource,
+                            detail.bookingPlatform,
+                            null,
+                          )}
+                        </dd>
+                      </div>
+                      {detail.bookingReference && (
+                        <div className="sm:col-span-2">
+                          <dt className="text-slate-500">Reference #</dt>
+                          <dd className="mt-0.5 font-mono text-sm font-medium text-slate-800">
+                            {detail.bookingReference}
+                          </dd>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              )}
 
               <div className="grid grid-cols-2 gap-4">
 
