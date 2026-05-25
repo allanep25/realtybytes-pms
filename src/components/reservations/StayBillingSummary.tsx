@@ -1,12 +1,25 @@
+import { PAYMENT_METHOD_OPTIONS } from "@/lib/constants";
 import { formatPHP } from "@/lib/format";
 import type { StayQuote } from "@/lib/stay-pricing";
 
 type StayBillingSummaryProps = {
   quote: StayQuote | null;
   roomNumber?: string;
+  depositAmount?: number;
+  paymentMethod?: string;
 };
 
-export function StayBillingSummary({ quote, roomNumber }: StayBillingSummaryProps) {
+function paymentLabel(method: string | undefined): string {
+  if (!method) return "—";
+  return PAYMENT_METHOD_OPTIONS.find((m) => m.value === method)?.label ?? method;
+}
+
+export function StayBillingSummary({
+  quote,
+  roomNumber,
+  depositAmount = 0,
+  paymentMethod,
+}: StayBillingSummaryProps) {
   if (!quote) {
     return (
       <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-500">
@@ -14,6 +27,9 @@ export function StayBillingSummary({ quote, roomNumber }: StayBillingSummaryProp
       </div>
     );
   }
+
+  const deposit = Math.max(0, depositAmount);
+  const balanceDue = Math.max(0, quote.totalDue - deposit);
 
   return (
     <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
@@ -59,9 +75,32 @@ export function StayBillingSummary({ quote, roomNumber }: StayBillingSummaryProp
         )}
 
         <div className="flex justify-between gap-4 border-t border-slate-200 pt-2">
-          <dt className="font-semibold text-slate-800">Total Due</dt>
-          <dd className="text-lg font-bold text-room-occupied">{formatPHP(quote.totalDue)}</dd>
+          <dt className="font-semibold text-slate-800">Total stay</dt>
+          <dd className="font-semibold text-slate-800">{formatPHP(quote.totalDue)}</dd>
         </div>
+
+        {deposit > 0 && (
+          <>
+            <div className="flex justify-between gap-4 text-room-vacant">
+              <dt>
+                Deposit paid
+                {paymentMethod ? ` (${paymentLabel(paymentMethod)})` : ""}
+              </dt>
+              <dd className="font-medium">− {formatPHP(deposit)}</dd>
+            </div>
+            <div className="flex justify-between gap-4 border-t border-slate-200 pt-2">
+              <dt className="font-semibold text-slate-800">Balance at check-out</dt>
+              <dd className="text-lg font-bold text-room-occupied">{formatPHP(balanceDue)}</dd>
+            </div>
+          </>
+        )}
+
+        {deposit === 0 && (
+          <div className="flex justify-between gap-4 border-t border-slate-200 pt-2">
+            <dt className="font-semibold text-slate-800">Balance due</dt>
+            <dd className="text-lg font-bold text-room-occupied">{formatPHP(quote.totalDue)}</dd>
+          </div>
+        )}
       </dl>
     </div>
   );

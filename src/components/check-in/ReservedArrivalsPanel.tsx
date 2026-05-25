@@ -1,6 +1,6 @@
 "use client";
 
-import { formatDate } from "@/lib/format";
+import { formatDate, formatPHP } from "@/lib/format";
 import type { ReservedArrival } from "@/lib/check-in-out";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -54,6 +54,20 @@ export function ReservedArrivalsPanel({ arrivals }: ReservedArrivalsPanelProps) 
               <p className="font-medium text-slate-800">{a.guestName}</p>
               <p className="text-sm text-slate-500">
                 Room {a.roomNumber} · {a.roomDescription} · out {formatDate(a.checkOut)}
+              </p>
+              <p className="mt-1 text-sm">
+                <span className="text-slate-500">Total {formatPHP(a.total)}</span>
+                {a.paid > 0 && (
+                  <span className="text-room-vacant"> · Paid {formatPHP(a.paid)}</span>
+                )}
+                <span
+                  className={
+                    a.balanceDue > 0 ? " font-medium text-room-occupied" : " text-room-vacant"
+                  }
+                >
+                  {" "}
+                  · Balance {formatPHP(a.balanceDue)}
+                </span>
               </p>
             </div>
             <button

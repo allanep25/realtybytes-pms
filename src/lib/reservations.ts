@@ -60,6 +60,11 @@ export type ReservationDetail = {
   estimatedTotal: number;
   scheduledArrival: string | null;
   scheduledDeparture: string | null;
+  folioNumber: string | null;
+  totalDue: number;
+  paid: number;
+  balanceDue: number;
+  paymentMethod: string | null;
 };
 
 export type ReservationTimelineData = {
@@ -297,6 +302,14 @@ export async function getReservationById(id: string): Promise<ReservationDetail 
     include: {
       guest: { select: { fullName: true } },
       room: { select: { number: true, type: true, description: true, baseRate: true } },
+      folio: {
+        select: {
+          folioNumber: true,
+          total: true,
+          paid: true,
+          paymentMethod: true,
+        },
+      },
     },
   });
 
@@ -311,6 +324,10 @@ export async function getReservationById(id: string): Promise<ReservationDetail 
     extensionDays: res.extensionDays,
     extensionHours: res.extensionHours,
   });
+
+  const estimatedTotal = folioLinesTotal(lines);
+  const folioTotal = res.folio ? Number(res.folio.total) : estimatedTotal;
+  const paid = res.folio ? Number(res.folio.paid) : 0;
 
   return {
     id: res.id,
@@ -330,8 +347,13 @@ export async function getReservationById(id: string): Promise<ReservationDetail 
     children: res.children,
     extensionDays: res.extensionDays,
     extensionHours: res.extensionHours,
-    estimatedTotal: folioLinesTotal(lines),
+    estimatedTotal: folioTotal,
     scheduledArrival: res.scheduledArrival?.toISOString() ?? null,
     scheduledDeparture: res.scheduledDeparture?.toISOString() ?? null,
+    folioNumber: res.folio?.folioNumber ?? null,
+    totalDue: folioTotal,
+    paid,
+    balanceDue: Math.max(0, folioTotal - paid),
+    paymentMethod: res.folio?.paymentMethod ?? null,
   };
 }

@@ -71,6 +71,8 @@ export type CreateReservationInput = {
   bookingSource?: BookingSource;
   bookingPlatform?: BookingPlatform | null;
   bookingReference?: string | null;
+  depositAmount?: number;
+  paymentMethod?: PaymentMethod;
 };
 
 export type CreateReservationResult = {
@@ -102,6 +104,7 @@ async function createStayFolio(
   nights: number,
   extensionDays: number,
   extensionHours: number,
+  options?: { depositAmount?: number; paymentMethod?: PaymentMethod },
 ): Promise<string> {
   const lines = buildStayFolioLines({
     roomNumber,
@@ -112,6 +115,10 @@ async function createStayFolio(
   });
   const total = folioLinesTotal(lines);
   const folioNumber = `F-${Date.now().toString(36).toUpperCase()}`;
+  const deposit = Math.max(0, options?.depositAmount ?? 0);
+  const paid = Math.min(deposit, total);
+  const paymentMethod =
+    paid > 0 ? (options?.paymentMethod ?? "CASH") : options?.paymentMethod ?? null;
 
   await prisma.folio.create({
     data: {
@@ -119,7 +126,9 @@ async function createStayFolio(
       reservationId,
       subtotal: total,
       total,
-      paid: 0,
+      paid,
+      paidAt: paid > 0 ? new Date() : null,
+      paymentMethod,
       lines: { create: lines },
     },
   });
@@ -190,6 +199,9 @@ export type ReservedArrival = {
   roomNumber: string;
   roomDescription: string;
   checkOut: string;
+  total: number;
+  paid: number;
+  balanceDue: number;
 };
 
 export async function getTodayReservedArrivals(): Promise<ReservedArrival[]> {
@@ -205,17 +217,25 @@ export async function getTodayReservedArrivals(): Promise<ReservedArrival[]> {
     include: {
       guest: { select: { fullName: true } },
       room: { select: { number: true, description: true } },
+      folio: { select: { total: true, paid: true } },
     },
     orderBy: { scheduledArrival: "asc" },
   });
 
-  return rows.map((r) => ({
-    reservationId: r.id,
-    guestName: r.guest.fullName,
-    roomNumber: r.room.number,
-    roomDescription: r.room.description,
-    checkOut: r.checkOut.toISOString(),
-  }));
+  return rows.map((r) => {
+    const total = Number(r.folio?.total ?? 0);
+    const paid = Number(r.folio?.paid ?? 0);
+    return {
+      reservationId: r.id,
+      guestName: r.guest.fullName,
+      roomNumber: r.room.number,
+      roomDescription: r.room.description,
+      checkOut: r.checkOut.toISOString(),
+      total,
+      paid,
+      balanceDue: Math.max(0, total - paid),
+    };
+  });
 }
 
 export async function getActiveStays(): Promise<ActiveStay[]> {
@@ -437,6 +457,26 @@ export async function createReservation(
     });
   }
 
+  const nights = Math.max(1, daysBetween(checkIn, checkOut));
+  const rate = Number(room.baseRate);
+  const depositAmount = Math.max(0, input.depositAmount ?? 0);
+  if (depositAmount > 0 && !input.paymentMethod) {
+    throw new Error("Select a payment method for the deposit");
+  }
+
+  await createStayFolio(
+    reservation.id,
+    room.number,
+    rate,
+    nights,
+    extensionDays,
+    extensionHours,
+    {
+      depositAmount,
+      paymentMethod: input.paymentMethod,
+    },
+  );
+
   return {
     reservationId: reservation.id,
     guestId: guest.id,
@@ -455,9 +495,6 @@ export async function performCheckInFromReservation(
   if (!reservation) throw new Error("Reservation not found");
   if (reservation.status !== "RESERVED") {
     throw new Error("This reservation is not pending check-in");
-  }
-  if (reservation.folio) {
-    throw new Error("Guest is already checked in");
   }
 
   const room = reservation.room;
@@ -482,14 +519,20 @@ export async function performCheckInFromReservation(
 
   const nights = Math.max(1, daysBetween(reservation.checkIn, reservation.checkOut));
   const rate = Number(room.baseRate);
-  const folioNumber = await createStayFolio(
-    reservation.id,
-    room.number,
-    rate,
-    nights,
-    reservation.extensionDays,
-    reservation.extensionHours,
-  );
+  let folioNumber: string;
+
+  if (reservation.folio) {
+    folioNumber = reservation.folio.folioNumber;
+  } else {
+    folioNumber = await createStayFolio(
+      reservation.id,
+      room.number,
+      rate,
+      nights,
+      reservation.extensionDays,
+      reservation.extensionHours,
+    );
+  }
 
   await prisma.reservation.update({
     where: { id: reservationId },

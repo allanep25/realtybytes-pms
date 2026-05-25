@@ -3,7 +3,7 @@
 
 
 import { formatBookingChannel, BOOKING_SOURCE_LABELS } from "@/lib/booking-source";
-import { RESERVATION_STATUS_LABELS } from "@/lib/constants";
+import { PAYMENT_METHOD_OPTIONS, RESERVATION_STATUS_LABELS } from "@/lib/constants";
 
 import { formatDate, formatPHP, formatTime } from "@/lib/format";
 
@@ -380,12 +380,57 @@ export function ReservationDrawer({ reservationId, onClose }: ReservationDrawerP
                   </dd>
                 </div>
               )}
-              <div>
-                <dt className="text-slate-500">Estimated total</dt>
-                <dd className="mt-0.5 text-lg font-bold text-room-occupied">
-                  {formatPHP(detail.estimatedTotal)}
-                </dd>
+
+              <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                <h4 className="text-sm font-semibold text-slate-800">Billing</h4>
+                <dl className="mt-3 space-y-2">
+                  {detail.folioNumber && (
+                    <div className="flex justify-between gap-4">
+                      <dt className="text-slate-500">Folio</dt>
+                      <dd className="font-mono text-sm font-medium text-slate-800">
+                        {detail.folioNumber}
+                      </dd>
+                    </div>
+                  )}
+                  <div className="flex justify-between gap-4">
+                    <dt className="text-slate-500">Total stay</dt>
+                    <dd className="font-medium text-slate-800">
+                      {formatPHP(detail.totalDue || detail.estimatedTotal)}
+                    </dd>
+                  </div>
+                  {detail.paid > 0 && (
+                    <div className="flex justify-between gap-4 text-room-vacant">
+                      <dt>
+                        Paid
+                        {detail.paymentMethod
+                          ? ` (${PAYMENT_METHOD_OPTIONS.find((m) => m.value === detail.paymentMethod)?.label ?? detail.paymentMethod})`
+                          : ""}
+                      </dt>
+                      <dd className="font-medium">− {formatPHP(detail.paid)}</dd>
+                    </div>
+                  )}
+                  <div className="flex justify-between gap-4 border-t border-slate-200 pt-2">
+                    <dt className="font-semibold text-slate-800">Balance at check-out</dt>
+                    <dd
+                      className={cn(
+                        "text-lg font-bold",
+                        detail.balanceDue > 0 ? "text-room-occupied" : "text-room-vacant",
+                      )}
+                    >
+                      {formatPHP(detail.balanceDue)}
+                    </dd>
+                  </div>
+                </dl>
+                {detail.folioNumber && (
+                  <a
+                    href={`/billing?folio=${detail.folioNumber}`}
+                    className="mt-3 inline-block text-xs font-medium text-room-vacant hover:underline"
+                  >
+                    Open in Billing →
+                  </a>
+                )}
               </div>
+
               {detail.bookingType === "MAINTENANCE" && (
 
                 <p

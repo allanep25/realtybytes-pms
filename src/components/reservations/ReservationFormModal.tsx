@@ -6,11 +6,12 @@ import {
   BOOKING_PLATFORM_OPTIONS,
   BOOKING_SOURCE_OPTIONS,
 } from "@/lib/booking-source";
+import { PAYMENT_METHOD_OPTIONS } from "@/lib/constants";
 import { formatPHP } from "@/lib/format";
 import type { AvailableRoom } from "@/lib/check-in-out";
 import { calcHourlyExtensionRate, calcStayQuote } from "@/lib/stay-pricing";
 import { cn } from "@/lib/utils";
-import type { BookingPlatform, BookingSource } from "@prisma/client";
+import type { BookingPlatform, BookingSource, PaymentMethod } from "@prisma/client";
 import { X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -53,6 +54,8 @@ const emptyForm = {
   bookingSource: "PHONE" as BookingSource,
   bookingPlatform: "" as BookingPlatform | "",
   bookingReference: "",
+  depositAmount: "",
+  paymentMethod: "CASH" as PaymentMethod,
 };
 
 export function ReservationFormModal({
@@ -151,6 +154,8 @@ export function ReservationFormModal({
               : null,
           bookingReference:
             form.bookingSource === "ONLINE" ? form.bookingReference || null : null,
+          depositAmount: Number(form.depositAmount) || 0,
+          paymentMethod: form.paymentMethod,
         }),
       });
 
@@ -489,6 +494,44 @@ export function ReservationFormModal({
                 </label>
               </div>
             </div>
+
+            <div className="space-y-3">
+              <h4 className="font-medium text-slate-800">Payment / deposit</h4>
+              <p className="text-xs text-slate-500">
+                Record any amount paid now (deposit or full payment). Balance can be collected at
+                check-out or in Billing.
+              </p>
+              <label className="block text-sm">
+                <span className="text-slate-500">Amount paid now (optional)</span>
+                <input
+                  type="number"
+                  min={0}
+                  step={100}
+                  disabled={!bookable}
+                  value={form.depositAmount}
+                  onChange={(e) => setForm((f) => ({ ...f, depositAmount: e.target.value }))}
+                  className={fieldClass}
+                  placeholder="0"
+                />
+              </label>
+              <label className="block text-sm">
+                <span className="text-slate-500">Payment method</span>
+                <select
+                  disabled={!bookable}
+                  value={form.paymentMethod}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, paymentMethod: e.target.value as PaymentMethod }))
+                  }
+                  className={fieldClass}
+                >
+                  {PAYMENT_METHOD_OPTIONS.map((m) => (
+                    <option key={m.value} value={m.value}>
+                      {m.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
           </div>
 
           <div className="mt-5 grid grid-cols-1 gap-5 md:grid-cols-2">
@@ -536,6 +579,8 @@ export function ReservationFormModal({
             <StayBillingSummary
               quote={quote}
               roomNumber={selectedFromList?.number}
+              depositAmount={Number(form.depositAmount) || 0}
+              paymentMethod={form.paymentMethod}
             />
           </div>
 

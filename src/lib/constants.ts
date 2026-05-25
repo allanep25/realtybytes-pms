@@ -78,3 +78,10 @@ export const EMPLOYEE_ROLE_LABELS: Record<string, string> = {
   FRONT_DESK: "Front Desk",
   HOUSEKEEPING: "Housekeeping",
 };
+
+export const PAYMENT_METHOD_OPTIONS = [
+  { value: "CASH", label: "Cash" },
+  { value: "GCASH", label: "GCash" },
+  { value: "CARD", label: "Credit / Debit Card" },
+  { value: "BANK_TRANSFER", label: "Bank Transfer" },
+] as const;
