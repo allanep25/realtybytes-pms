@@ -134,7 +134,7 @@ export function HousekeepingTable({ tasks, staff }: HousekeepingTableProps) {
                       onClick={() => setStatus(task.roomId, "CLEAN")}
                       className="rounded bg-room-vacant px-2 py-1 text-xs font-medium text-white hover:opacity-90 disabled:opacity-50"
                     >
-                      Mark Clean
+                      Mark Vacant
                     </button>
                     <button
                       type="button"

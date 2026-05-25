@@ -17,6 +17,8 @@ export async function PATCH(request: Request, context: RouteContext) {
       revalidatePath("/rooms");
       revalidatePath("/");
       revalidatePath("/guard");
+      revalidatePath("/check-in");
+      revalidatePath("/calendar");
       return NextResponse.json(task);
     }
 
@@ -30,6 +32,8 @@ export async function PATCH(request: Request, context: RouteContext) {
     revalidatePath("/rooms");
     revalidatePath("/");
     revalidatePath("/guard");
+    revalidatePath("/check-in");
+    revalidatePath("/calendar");
 
     return NextResponse.json(task);
   } catch (e) {

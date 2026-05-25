@@ -85,14 +85,24 @@ export async function updateHousekeepingTask(roomId: string, input: UpdateTaskIn
       break;
   }
 
+  const taskData: {
+    status: HousekeepingStatus;
+    assignedTo?: string | null;
+    notes?: string | null;
+  } = { status: input.status };
+
+  if (input.status === "CLEAN") {
+    taskData.assignedTo = null;
+    taskData.notes = null;
+  } else {
+    if (input.assignedTo !== undefined) taskData.assignedTo = input.assignedTo;
+    if (input.notes !== undefined) taskData.notes = input.notes;
+  }
+
   await prisma.$transaction([
     prisma.housekeepingTask.update({
       where: { roomId },
-      data: {
-        status: input.status,
-        assignedTo: input.assignedTo ?? null,
-        notes: input.notes ?? null,
-      },
+      data: taskData,
     }),
     prisma.room.update({
       where: { id: roomId },

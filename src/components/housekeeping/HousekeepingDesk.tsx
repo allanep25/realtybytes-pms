@@ -46,7 +46,6 @@ function TaskCard({
   loading: boolean;
 }) {
   const isDirty = task.status === "DIRTY";
-  const isAssignedToMe = task.assignedTo === currentUserId;
 
   return (
     <article className="flex h-full flex-col rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -94,22 +93,14 @@ function TaskCard({
           </button>
         )}
 
-        {!isDirty && (
-          <button
-            type="button"
-            disabled={loading}
-            onClick={() => onUpdate(task.roomId, "CLEAN", { notes: null })}
-            className="w-full rounded-lg bg-room-vacant py-3 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
-          >
-            {loading ? "Updating…" : "Mark clean & ready"}
-          </button>
-        )}
-
-        {!isDirty && !isAssignedToMe && task.assignedTo && (
-          <p className="text-center text-xs text-slate-400">
-            Finish cleaning, then mark the room clean when done.
-          </p>
-        )}
+        <button
+          type="button"
+          disabled={loading}
+          onClick={() => onUpdate(task.roomId, "CLEAN", { assignedTo: null, notes: null })}
+          className="w-full rounded-lg bg-room-vacant py-3 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
+        >
+          {loading ? "Updating…" : "Mark vacant — ready for guests"}
+        </button>
       </div>
     </article>
   );
@@ -165,7 +156,7 @@ export function HousekeepingDesk({ tasks, currentUserId }: HousekeepingDeskProps
 
       setSuccess(
         status === "CLEAN"
-          ? `Room ${data.roomNumber} is clean and ready.`
+          ? `Room ${data.roomNumber} is now vacant — ready for new guests.`
           : `Room ${data.roomNumber} marked as cleaning.`,
       );
       router.refresh();
@@ -181,8 +172,8 @@ export function HousekeepingDesk({ tasks, currentUserId }: HousekeepingDeskProps
       <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
         <p className="text-sm font-medium text-slate-800">Rooms waiting to be cleaned</p>
         <p className="mt-1 text-sm text-slate-500">
-          Only dirty and in-progress rooms appear here. Mark clean when the room is ready for the
-          next guest.
+          When finished, tap <strong>Mark vacant — ready for guests</strong>. Front desk will see
+          the room as vacant on the dashboard and can assign new guests.
         </p>
       </div>
 

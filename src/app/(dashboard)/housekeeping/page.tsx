@@ -33,9 +33,9 @@ export default async function HousekeepingPage() {
   return (
     <DashboardShell title="Housekeeping">
       <p className="mb-4 text-sm text-slate-500">
-        Assign staff and update room cleaning status. Mark Clean sets vacant rooms ready for
-        guests. Housekeeping staff only see dirty and in-progress rooms on their Cleaning Queue
-        view.
+        Assign staff and update room cleaning status. <strong>Mark Vacant</strong> sets the room
+        ready for front desk to accept new guests. Housekeeping staff only see dirty and in-progress
+        rooms on their Cleaning Queue view.
       </p>
       <HousekeepingTable tasks={tasks} staff={staff} />
     </DashboardShell>
