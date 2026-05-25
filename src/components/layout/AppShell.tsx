@@ -1,7 +1,10 @@
+"use client";
+
 import { AuthProvider } from "@/components/auth/AuthProvider";
+import type { SessionUser } from "@/lib/auth-types";
+import { useState } from "react";
 import { Sidebar } from "./Sidebar";
 import { TopBar } from "./TopBar";
-import type { SessionUser } from "@/lib/auth-types";
 
 type AppShellProps = {
   title: string;
@@ -11,13 +14,29 @@ type AppShellProps = {
 };
 
 export function AppShell({ title, hotelName, user, children }: AppShellProps) {
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+
   return (
     <AuthProvider user={user}>
-      <div className="min-h-screen">
-        <Sidebar hotelName={hotelName} />
-        <div className="pl-60">
-          <TopBar title={title} />
-          <main className="p-4 xl:p-5">{children}</main>
+      <div className="min-h-screen bg-slate-50">
+        <Sidebar
+          hotelName={hotelName}
+          mobileOpen={mobileNavOpen}
+          onMobileClose={() => setMobileNavOpen(false)}
+        />
+
+        {mobileNavOpen && (
+          <button
+            type="button"
+            aria-label="Close navigation menu"
+            className="fixed inset-0 z-20 bg-black/40 lg:hidden"
+            onClick={() => setMobileNavOpen(false)}
+          />
+        )}
+
+        <div className="lg:pl-60">
+          <TopBar title={title} onMenuClick={() => setMobileNavOpen(true)} />
+          <main className="p-3 sm:p-4 xl:p-5">{children}</main>
         </div>
       </div>
     </AuthProvider>

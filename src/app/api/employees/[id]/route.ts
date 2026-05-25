@@ -1,6 +1,6 @@
 import { getSession } from "@/lib/auth";
+import { deleteEmployee, getEmployeeById, updateEmployee } from "@/lib/employees";
 import { setEmployeePassword } from "@/lib/login";
-import { updateEmployee } from "@/lib/employees";
 import type { EmployeeRole, EmployeeStatus } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
@@ -12,6 +12,9 @@ export async function PATCH(request: Request, context: RouteContext) {
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  if (session.role !== "ADMINISTRATOR") {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
 
   const { id } = await context.params;
 
@@ -19,17 +22,19 @@ export async function PATCH(request: Request, context: RouteContext) {
     const body = await request.json();
 
     if (body.password != null) {
-      if (session.role !== "ADMINISTRATOR") {
-        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-      }
       await setEmployeePassword(id, String(body.password));
     }
 
-    const employee = await updateEmployee(id, {
-      name: body.name,
-      role: body.role as EmployeeRole | undefined,
-      status: body.status as EmployeeStatus | undefined,
-    });
+    const hasProfileUpdate =
+      body.name != null || body.role != null || body.status != null;
+
+    const employee = hasProfileUpdate
+      ? await updateEmployee(id, {
+          name: body.name,
+          role: body.role as EmployeeRole | undefined,
+          status: body.status as EmployeeStatus | undefined,
+        })
+      : await getEmployeeById(id);
 
     revalidatePath("/employees");
     revalidatePath("/housekeeping");
@@ -37,6 +42,28 @@ export async function PATCH(request: Request, context: RouteContext) {
     return NextResponse.json(employee);
   } catch (e) {
     const message = e instanceof Error ? e.message : "Update failed";
+    return NextResponse.json({ error: message }, { status: 400 });
+  }
+}
+
+export async function DELETE(_request: Request, context: RouteContext) {
+  const session = await getSession();
+  if (!session) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  if (session.role !== "ADMINISTRATOR") {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  const { id } = await context.params;
+
+  try {
+    await deleteEmployee(id, session.id);
+    revalidatePath("/employees");
+    revalidatePath("/housekeeping");
+    return NextResponse.json({ ok: true });
+  } catch (e) {
+    const message = e instanceof Error ? e.message : "Delete failed";
     return NextResponse.json({ error: message }, { status: 400 });
   }
 }

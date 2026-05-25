@@ -7,6 +7,11 @@ export const metadata: Metadata = {
   description: "Hotel management system for Amar Residence",
 };
 
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+};
+
 export default function RootLayout({
   children,
 }: Readonly<{

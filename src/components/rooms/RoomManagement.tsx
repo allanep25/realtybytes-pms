@@ -108,13 +108,13 @@ export function RoomManagement({
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-end gap-3 rounded-xl border border-slate-200 bg-card p-4 shadow-sm">
+      <div className="grid grid-cols-1 gap-3 rounded-xl border border-slate-200 bg-card p-4 shadow-sm sm:grid-cols-2 lg:flex lg:flex-wrap lg:items-end">
         <label className="text-sm">
           <span className="mb-1 block text-slate-500">Status</span>
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="rounded-lg border border-slate-200 px-3 py-2 text-sm"
+            className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm sm:w-auto"
           >
             <option value="">All</option>
             {STATUS_OPTIONS.map((s) => (
@@ -130,7 +130,7 @@ export function RoomManagement({
           <select
             value={typeFilter}
             onChange={(e) => setTypeFilter(e.target.value)}
-            className="rounded-lg border border-slate-200 px-3 py-2 text-sm"
+            className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm sm:w-auto"
           >
             <option value="">All</option>
             {TYPE_OPTIONS.map((t) => (
@@ -146,7 +146,7 @@ export function RoomManagement({
           <select
             value={floorFilter}
             onChange={(e) => setFloorFilter(e.target.value)}
-            className="rounded-lg border border-slate-200 px-3 py-2 text-sm"
+            className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm sm:w-auto"
           >
             <option value="">All</option>
             {floors.map((f) => (
@@ -163,7 +163,7 @@ export function RoomManagement({
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Room # or type"
-            className="w-28 rounded-lg border border-slate-200 px-3 py-2 text-sm"
+            className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm sm:w-28"
           />
         </label>
 
@@ -177,7 +177,8 @@ export function RoomManagement({
       </div>
 
       <div className="overflow-hidden rounded-xl border border-slate-200 bg-card shadow-sm">
-        <table className="w-full text-sm">
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[760px] text-sm">
           <thead className="border-b border-slate-100 bg-slate-50 text-left text-xs font-medium uppercase text-slate-500">
             <tr>
               <th className="px-4 py-3">Room</th>
@@ -232,6 +233,7 @@ export function RoomManagement({
             )}
           </tbody>
         </table>
+        </div>
       </div>
 
       {editing && (
