@@ -12,8 +12,7 @@
     "db:seed": "prisma db seed",
     "db:deploy": "prisma db push && tsx prisma/deploy-seed-if-empty.ts",
     "db:update-rates": "tsx prisma/update-rates.ts",
-    "db:studio": "prisma studio",
-    "postinstall": "prisma generate --schema=./prisma/schema.prisma"
+    "db:studio": "prisma studio"
   },
   "dependencies": {
     "@prisma/client": "^6.9.0",
