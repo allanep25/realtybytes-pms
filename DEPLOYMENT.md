@@ -63,6 +63,8 @@ Replace `YOUR_USERNAME` with your GitHub username.
 |----------|--------|
 | `DATABASE_URL` | `${{Postgres.DATABASE_URL}}` (use Railway reference) **or** paste the full URL |
 | `AUTH_SECRET` | A long random string (see below) |
+| `SEED_ADMIN_PASSWORD` | Strong password for the first admin account (min 6 characters) |
+| `SEED_ADMIN_EMAIL` | Optional — defaults to `admin@amarresidence.com` |
 | `NEXT_PUBLIC_APP_NAME` | `Amar Residence` |
 
 **Generate AUTH_SECRET** (PowerShell):
@@ -85,23 +87,33 @@ Never use the demo secret from `.env.example` in production.
 
 ---
 
-## Step 6 — First login and security
+## Step 6 — First login and reset demo data
 
-Default accounts (from seed — **change passwords immediately**):
+On first deploy, the app creates **one administrator** and loads all **18 rooms as vacant** — no sample guests or bookings.
 
-| Role | Email | Password |
-|------|-------|----------|
-| Administrator (owner — full access) | admin@amarresidence.com | admin123 |
-| Front Desk | frontdesk@amarresidence.com | admin123 |
-| Housekeeping | housekeeping@amarresidence.com | admin123 |
+| | |
+|--|--|
+| **Email** | Value of `SEED_ADMIN_EMAIL` (default `admin@amarresidence.com`) |
+| **Password** | Value of `SEED_ADMIN_PASSWORD` you set in Railway |
 
-**As owner**, log in as **Administrator** to see:
+Log in as **Administrator**, then:
 
-- Dashboard (room grid, calendar preview)
-- Full **Reservation Calendar**
-- All reports and settings
+1. Go to **Employee Accounts** → add front desk and housekeeping staff
+2. Update **Settings** with your hotel address and contact details
+3. Start creating real reservations and check-ins
 
-Go to **Employee Accounts** and set new strong passwords for every user.
+### Clear existing demo data (already deployed)
+
+If your database still has sample guests/bookings from an older seed, reset it from your PC:
+
+```powershell
+cd C:\Users\Admin\Projects\amar-residence
+$env:DATABASE_URL = "paste-your-railway-postgres-url-here"
+$env:SEED_ADMIN_PASSWORD = "your-new-admin-password"
+npm run db:reset
+```
+
+This **deletes all data** and reloads vacant rooms plus one admin account.
 
 ---
 

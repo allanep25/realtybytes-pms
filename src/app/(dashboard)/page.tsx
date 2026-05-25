@@ -30,9 +30,15 @@ export default async function DashboardPage() {
     <DashboardShell title="Dashboard">
       {!summary.fromDatabase && (
         <p className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-800">
-          Using demo data — database not connected or not seeded. Run{" "}
-          <code className="text-xs">npm run db:push</code>,{" "}
-          <code className="text-xs">npm run db:seed</code>, then restart dev.
+          Database not connected. Set <code className="text-xs">DATABASE_URL</code> and run{" "}
+          <code className="text-xs">npm run db:deploy</code>.
+        </p>
+      )}
+
+      {summary.fromDatabase && summary.total === 0 && (
+        <p className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-800">
+          No rooms loaded yet. Run <code className="text-xs">npm run db:seed</code> with{" "}
+          <code className="text-xs">SEED_ADMIN_PASSWORD</code> set in your environment.
         </p>
       )}
 

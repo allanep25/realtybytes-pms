@@ -236,7 +236,7 @@ export function ReservationFormModal({
         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-5">
           {!bookable && (
             <p className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-800">
-              Connect and seed the database to create reservations.
+              Connect the database before creating reservations.
             </p>
           )}
 

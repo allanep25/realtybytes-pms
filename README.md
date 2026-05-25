@@ -13,16 +13,14 @@ Web-based HMS for **Amar Residence**, scaffolded from the SunnyView-style dashbo
 
 - [x] Project structure and dependencies
 - [x] Prisma schema (rooms, guests, reservations, folios, employees, housekeeping)
-- [x] Seed script (16 rooms, sample guests/reservations/employees)
+- [x] Seed script (room catalog + admin bootstrap)
 - [x] App shell: dark sidebar, top bar, routing placeholders
-- [x] Dashboard with KPI cards + room status grid (DB or demo fallback)
+- [x] Dashboard with KPI cards + room status grid
 
 ## Phase 1
 
 - [x] Reservation Gantt calendar (dashboard preview + `/calendar` full view)
 - [x] Today's revenue from folio payments with % vs yesterday
-- [x] Today's arrivals and departures from reservations
-- [x] Seed data uses relative dates (works any day you run it)
 
 ## Phase 2
 
@@ -61,13 +59,7 @@ Web-based HMS for **Amar Residence**, scaffolded from the SunnyView-style dashbo
 - [x] Settings page: hotel branding, tax rate, receipt footer (admin only)
 - [x] Sign out from user menu
 
-### Demo login (password: `admin123` for all)
-
-| Role | Email |
-|------|-------|
-| Administrator | admin@amarresidence.com |
-| Front Desk | frontdesk@amarresidence.com |
-| Housekeeping | housekeeping@amarresidence.com |
+Set `SEED_ADMIN_PASSWORD` in `.env` before running `npm run db:seed` or `npm run db:reset`.
 
 ## Getting started
 

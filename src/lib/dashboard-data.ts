@@ -1,7 +1,7 @@
 import type { RoomGridItem } from "@/components/dashboard/RoomStatusGrid";
 import { prisma } from "@/lib/db";
-import { getRoomCatalogEntry, ROOM_NUMBERS } from "@/lib/room-rates";
 import type { RoomStatus } from "@prisma/client";
+
 export type DashboardSummary = {
   occupied: number;
   vacant: number;
@@ -12,37 +12,16 @@ export type DashboardSummary = {
   fromDatabase: boolean;
 };
 
-const FALLBACK_ROOMS: RoomGridItem[] = ROOM_NUMBERS.map((number) => {
-  const entry = getRoomCatalogEntry(number);
-  const statusByNumber: Record<string, RoomStatus> = {
-    "21": "OCCUPIED",
-    "22": "OCCUPIED",
-    "23": "VACANT",
-    "24": "RESERVED",
-    "25": "OCCUPIED",
-    "26": "DIRTY",
-    "27": "OCCUPIED",
-    "28": "OCCUPIED",
-    "31": "OCCUPIED",
-    "32": "VACANT",
-    "33": "OCCUPIED",
-    "34": "RESERVED",
-    "35": "OCCUPIED",
-    "36": "DIRTY",
-    "37": "OCCUPIED",
-    "38": "VACANT",
-  };
-  return {
-    id: `demo-${number}`,
-    number,
-    floor: entry.floor,
-    status: statusByNumber[number] ?? "VACANT",
-    description: entry.description,
-    maxPax: entry.maxPax,
-    baseRate: entry.regularRate,
-    breakfastRate: entry.breakfastRate,
-  };
-});
+const EMPTY_SUMMARY: DashboardSummary = {
+  occupied: 0,
+  vacant: 0,
+  reserved: 0,
+  dirty: 0,
+  total: 0,
+  rooms: [],
+  fromDatabase: false,
+};
+
 function summarize(rooms: RoomGridItem[]): Omit<DashboardSummary, "rooms" | "fromDatabase"> {
   const total = rooms.length;
   const count = (status: RoomStatus) => rooms.filter((r) => r.status === status).length;
@@ -67,8 +46,7 @@ export async function getDashboardSummary(): Promise<DashboardSummary> {
   const databaseUrl = process.env.DATABASE_URL;
 
   if (isPlaceholderDatabaseUrl(databaseUrl)) {
-    const rooms = FALLBACK_ROOMS;
-    return { ...summarize(rooms), rooms, fromDatabase: false };
+    return EMPTY_SUMMARY;
   }
 
   try {
@@ -86,11 +64,6 @@ export async function getDashboardSummary(): Promise<DashboardSummary> {
       },
     });
 
-    if (rooms.length === 0) {
-      const fallback = FALLBACK_ROOMS;
-      return { ...summarize(fallback), rooms: fallback, fromDatabase: false };
-    }
-
     const grid: RoomGridItem[] = rooms.map((r) => ({
       id: r.id,
       number: r.number,
@@ -101,10 +74,10 @@ export async function getDashboardSummary(): Promise<DashboardSummary> {
       baseRate: Number(r.baseRate),
       breakfastRate: r.breakfastRate != null ? Number(r.breakfastRate) : null,
     }));
+
     return { ...summarize(grid), rooms: grid, fromDatabase: true };
   } catch {
-    const rooms = FALLBACK_ROOMS;
-    return { ...summarize(rooms), rooms, fromDatabase: false };
+    return EMPTY_SUMMARY;
   }
 }
 
