@@ -85,7 +85,7 @@ function barColor(status: ReservationStatus, bookingType: BookingType): string {
   if (bookingType === "MAINTENANCE") return "bg-room-dirty";
   switch (status) {
     case "CHECKED_IN":
-      return "bg-room-vacant";
+      return "bg-room-occupied";
     case "RESERVED":
       return "bg-room-reserved";
     case "CHECKED_OUT":

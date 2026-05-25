@@ -20,7 +20,7 @@ type CalendarTimelineProps = {
 };
 
 const LEGEND = [
-  { label: "Checked in", className: "bg-room-vacant" },
+  { label: "Checked in", className: "bg-room-occupied" },
   { label: "Reserved", className: "bg-room-reserved" },
   { label: "Maintenance", className: "bg-room-dirty" },
 ];

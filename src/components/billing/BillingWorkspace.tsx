@@ -186,7 +186,7 @@ export function BillingWorkspace({
                   className={cn(
                     "w-full rounded-lg border px-3 py-2.5 text-left text-sm transition",
                     selectedId === f.id
-                      ? "border-room-occupied bg-blue-50"
+                      ? "border-room-occupied bg-room-occupied/10"
                       : "border-slate-200 hover:bg-slate-50",
                   )}
                 >

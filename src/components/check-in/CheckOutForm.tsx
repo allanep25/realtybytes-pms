@@ -121,7 +121,7 @@ export function CheckOutForm({ activeStays }: CheckOutFormProps) {
                   className={cn(
                     "w-full rounded-lg border px-3 py-2 text-left transition",
                     selectedId === s.reservationId
-                      ? "border-room-occupied bg-blue-50"
+                      ? "border-room-occupied bg-room-occupied/10"
                       : "border-slate-100 hover:bg-slate-50",
                   )}
                 >

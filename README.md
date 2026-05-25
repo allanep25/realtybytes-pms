@@ -152,7 +152,7 @@ Phases 0–7 are implemented. Future enhancements could include online booking, 
 | Token | Usage |
 |-------|--------|
 | `#1a233a` | Sidebar background |
-| Blue `#4a90e2` | Occupied |
+| Light red `#e57373` | Occupied |
 | Green `#5cb85c` | Vacant |
 | Yellow `#f0ad4e` | Reserved |
 | Red `#d9534f` | Dirty / maintenance |
