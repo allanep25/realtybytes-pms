@@ -13,7 +13,7 @@ export async function GuardShell({ children }: GuardShellProps) {
     <AuthProvider user={user}>
       <div className="min-h-screen bg-slate-50">
         <GuardTopBar hotelName={hotelName} />
-        <main className="mx-auto max-w-3xl p-4 sm:p-6">{children}</main>
+        <main className="mx-auto max-w-6xl p-4 sm:p-6">{children}</main>
       </div>
     </AuthProvider>
   );

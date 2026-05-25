@@ -38,6 +38,8 @@ function matchesSearch(stay: ActiveStay, query: string): boolean {
   );
 }
 
+const STAY_GRID_CLASS = "grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3";
+
 function StayCard({
   stay,
   onCheckOut,
@@ -51,7 +53,7 @@ function StayCard({
   const [paymentMethod, setPaymentMethod] = useState("CASH");
 
   return (
-    <article className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+    <article className="flex h-full flex-col rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-lg font-bold text-slate-900">Room {stay.roomNumber}</p>
@@ -111,7 +113,7 @@ function StayCard({
         disabled={checkingOut}
         onClick={() => onCheckOut(stay, paymentMethod)}
         className={cn(
-          "mt-4 w-full rounded-lg py-3 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50",
+          "mt-auto w-full rounded-lg py-3 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50",
           fullyPaid ? "bg-room-vacant" : "bg-room-occupied",
         )}
       >
@@ -234,14 +236,16 @@ export function GuardDesk({ activeStays }: GuardDeskProps) {
               <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
                 Leaving today ({leavingToday.length})
               </h2>
-              {leavingToday.map((stay) => (
-                <StayCard
-                  key={stay.reservationId}
-                  stay={stay}
-                  onCheckOut={handleCheckOut}
-                  checkingOut={checkingOutId === stay.reservationId}
-                />
-              ))}
+              <div className={STAY_GRID_CLASS}>
+                {leavingToday.map((stay) => (
+                  <StayCard
+                    key={stay.reservationId}
+                    stay={stay}
+                    onCheckOut={handleCheckOut}
+                    checkingOut={checkingOutId === stay.reservationId}
+                  />
+                ))}
+              </div>
             </section>
           )}
 
@@ -252,14 +256,16 @@ export function GuardDesk({ activeStays }: GuardDeskProps) {
                   ? `Other in-house guests (${otherStays.length})`
                   : `All in-house guests (${otherStays.length})`}
               </h2>
-              {otherStays.map((stay) => (
-                <StayCard
-                  key={stay.reservationId}
-                  stay={stay}
-                  onCheckOut={handleCheckOut}
-                  checkingOut={checkingOutId === stay.reservationId}
-                />
-              ))}
+              <div className={STAY_GRID_CLASS}>
+                {otherStays.map((stay) => (
+                  <StayCard
+                    key={stay.reservationId}
+                    stay={stay}
+                    onCheckOut={handleCheckOut}
+                    checkingOut={checkingOutId === stay.reservationId}
+                  />
+                ))}
+              </div>
             </section>
           )}
         </>

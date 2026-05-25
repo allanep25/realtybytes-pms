@@ -29,7 +29,7 @@ export function GuardTopBar({ hotelName }: GuardTopBarProps) {
   return (
     <>
       <header className="sticky top-0 z-20 border-b border-slate-200 bg-white shadow-sm">
-        <div className="mx-auto flex h-14 max-w-3xl items-center justify-between gap-3 px-4 sm:px-6">
+        <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-3 px-4 sm:px-6">
           <div className="min-w-0">
             <div className="flex items-center gap-2">
               <Shield className="h-5 w-5 shrink-0 text-room-occupied" />
