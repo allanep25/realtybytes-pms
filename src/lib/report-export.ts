@@ -7,8 +7,9 @@ export function reportToCsv(report: ReportSummary): string {
     `Period,${report.from.slice(0, 10)} to ${report.to.slice(0, 10)}`,
     "",
     "Metric,Value",
-    `Total Revenue,${report.totalRevenue.toFixed(2)}`,
-    `Total Transactions,${report.totalTransactions}`,
+    `Room Revenue,${report.totalRevenue.toFixed(2)}`,
+    `Collected,${report.totalCollected.toFixed(2)}`,
+    `Guest Stays,${report.totalTransactions}`,
     `Occupancy Rate,${report.occupancyRate.toFixed(2)}%`,
     `ADR,${report.adr.toFixed(2)}`,
     "",
@@ -57,8 +58,9 @@ export function reportToHtml(report: ReportSummary): string {
   <h1>Amar Residence — ${escapeHtml(report.label)}</h1>
   <p class="meta">Period: ${from} to ${to} · Generated ${new Date().toLocaleString("en-PH")}</p>
   <div class="stats">
-    <div class="stat"><label>Total Revenue</label><value>${escapeHtml(formatPHP(report.totalRevenue))}</value></div>
-    <div class="stat"><label>Transactions</label><value>${report.totalTransactions}</value></div>
+    <div class="stat"><label>Room Revenue</label><value>${escapeHtml(formatPHP(report.totalRevenue))}</value></div>
+    <div class="stat"><label>Collected</label><value>${escapeHtml(formatPHP(report.totalCollected))}</value></div>
+    <div class="stat"><label>Guest Stays</label><value>${report.totalTransactions}</value></div>
     <div class="stat"><label>Occupancy Rate</label><value>${report.occupancyRate.toFixed(2)}%</value></div>
     <div class="stat"><label>ADR</label><value>${escapeHtml(formatPHP(report.adr))}</value></div>
   </div>
