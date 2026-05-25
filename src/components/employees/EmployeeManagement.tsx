@@ -15,7 +15,7 @@ type EmployeeManagementProps = {
   isAdmin: boolean;
 };
 
-const ROLES: EmployeeRole[] = ["ADMINISTRATOR", "FRONT_DESK", "HOUSEKEEPING"];
+const ROLES: EmployeeRole[] = ["ADMINISTRATOR", "FRONT_DESK", "HOUSEKEEPING", "SECURITY"];
 
 type FormState = {
   name: string;

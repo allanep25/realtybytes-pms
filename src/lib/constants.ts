@@ -96,6 +96,7 @@ export const EMPLOYEE_ROLE_LABELS: Record<string, string> = {
   ADMINISTRATOR: "Administrator",
   FRONT_DESK: "Front Desk",
   HOUSEKEEPING: "Housekeeping",
+  SECURITY: "Security",
 };
 
 export const PAYMENT_METHOD_OPTIONS = [

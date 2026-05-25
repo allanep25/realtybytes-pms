@@ -58,6 +58,7 @@ enum EmployeeRole {
   ADMINISTRATOR
   FRONT_DESK
   HOUSEKEEPING
+  SECURITY
 }
 
 enum EmployeeStatus {

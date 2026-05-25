@@ -272,6 +272,19 @@ export async function getTodayReservedArrivals(): Promise<ReservedArrival[]> {
   });
 }
 
+export async function getReservationBalanceDue(reservationId: string): Promise<number> {
+  const reservation = await prisma.reservation.findUnique({
+    where: { id: reservationId },
+    include: { folio: { select: { total: true, paid: true } } },
+  });
+
+  if (!reservation?.folio) return 0;
+
+  const total = Number(reservation.folio.total);
+  const paid = Number(reservation.folio.paid);
+  return Math.max(0, total - paid);
+}
+
 export async function getActiveStays(): Promise<ActiveStay[]> {
   const rows = await prisma.reservation.findMany({
     where: {

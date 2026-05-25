@@ -16,6 +16,7 @@ const ROLE_ROUTES: Record<EmployeeRole, string[]> = {
     "/employees",
   ],
   HOUSEKEEPING: ["/housekeeping", "/employees"],
+  SECURITY: ["/guard", "/employees"],
 };
 
 /** Admin-only routes */
@@ -50,12 +51,19 @@ export function roleLabel(role: EmployeeRole): string {
       return "Front Desk";
     case "HOUSEKEEPING":
       return "Housekeeping";
+    case "SECURITY":
+      return "Security";
     default:
       return role;
   }
 }
 
+export function isSecurityRole(role: EmployeeRole): boolean {
+  return role === "SECURITY";
+}
+
 export function defaultRouteForRole(role: EmployeeRole): string {
   if (role === "HOUSEKEEPING") return "/housekeeping";
+  if (role === "SECURITY") return "/guard";
   return "/";
 }
