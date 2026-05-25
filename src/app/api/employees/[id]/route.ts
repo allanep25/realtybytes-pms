@@ -1,6 +1,7 @@
 import { getSession } from "@/lib/auth";
 import { deleteEmployee, getEmployeeById, updateEmployee } from "@/lib/employees";
 import { setEmployeePassword } from "@/lib/login";
+import { isAdministrator } from "@/lib/permissions";
 import type { EmployeeRole, EmployeeStatus } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
@@ -12,7 +13,7 @@ export async function PATCH(request: Request, context: RouteContext) {
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  if (session.role !== "ADMINISTRATOR") {
+  if (!isAdministrator(session.role)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -51,7 +52,7 @@ export async function DELETE(_request: Request, context: RouteContext) {
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  if (session.role !== "ADMINISTRATOR") {
+  if (!isAdministrator(session.role)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

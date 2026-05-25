@@ -13,12 +13,17 @@ const ROLE_ROUTES: Record<EmployeeRole, string[]> = {
     "/billing",
     "/reports",
     "/receipts",
+    "/employees",
   ],
-  HOUSEKEEPING: ["/housekeeping"],
+  HOUSEKEEPING: ["/housekeeping", "/employees"],
 };
 
 /** Admin-only routes */
-export const ADMIN_ONLY_ROUTES = ["/settings", "/employees"];
+export const ADMIN_ONLY_ROUTES = ["/settings"];
+
+export function isAdministrator(role: EmployeeRole): boolean {
+  return role === "ADMINISTRATOR";
+}
 
 export function canAccessRoute(role: EmployeeRole, pathname: string): boolean {
   if (ADMIN_ONLY_ROUTES.some((r) => pathname === r || pathname.startsWith(`${r}/`))) {

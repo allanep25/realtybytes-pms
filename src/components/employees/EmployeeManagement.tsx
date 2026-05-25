@@ -12,6 +12,7 @@ import { useState } from "react";
 
 type EmployeeManagementProps = {
   employees: EmployeeListItem[];
+  isAdmin: boolean;
 };
 
 const ROLES: EmployeeRole[] = ["ADMINISTRATOR", "FRONT_DESK", "HOUSEKEEPING"];
@@ -82,7 +83,7 @@ function StatusBadge({ status }: { status: EmployeeListItem["status"] }) {
   );
 }
 
-export function EmployeeManagement({ employees }: EmployeeManagementProps) {
+export function EmployeeManagement({ employees, isAdmin }: EmployeeManagementProps) {
   const router = useRouter();
   const currentUser = useAuth();
   const [showAdd, setShowAdd] = useState(false);
@@ -180,20 +181,31 @@ export function EmployeeManagement({ employees }: EmployeeManagementProps) {
     }
   }
 
-  const showFormModal = showAdd || editTarget != null;
+  const showFormModal = isAdmin && (showAdd || editTarget != null);
+  const columnCount = isAdmin ? 4 : 3;
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-end">
-        <button
-          type="button"
-          onClick={openAdd}
-          className="flex items-center gap-1.5 rounded-lg bg-room-vacant px-4 py-2 text-sm font-medium text-white hover:opacity-90"
-        >
-          <Plus className="h-4 w-4" />
-          Add Employee
-        </button>
-      </div>
+      {!isAdmin && (
+        <p className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+          This is your staff profile. To change your password, use{" "}
+          <span className="font-medium">Change password</span> in the profile menu at the top
+          right.
+        </p>
+      )}
+
+      {isAdmin && (
+        <div className="flex justify-end">
+          <button
+            type="button"
+            onClick={openAdd}
+            className="flex items-center gap-1.5 rounded-lg bg-room-vacant px-4 py-2 text-sm font-medium text-white hover:opacity-90"
+          >
+            <Plus className="h-4 w-4" />
+            Add Employee
+          </button>
+        </div>
+      )}
 
       {error && (
         <p className="rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm text-room-dirty">
@@ -209,13 +221,13 @@ export function EmployeeManagement({ employees }: EmployeeManagementProps) {
                 <th className="px-4 py-3">Name</th>
                 <th className="px-4 py-3">Role</th>
                 <th className="px-4 py-3">Status</th>
-                <th className="px-4 py-3">Actions</th>
+                {isAdmin && <th className="px-4 py-3">Actions</th>}
               </tr>
             </thead>
             <tbody>
               {employees.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="px-4 py-8 text-center text-slate-400">
+                  <td colSpan={columnCount} className="px-4 py-8 text-center text-slate-400">
                     No employees yet.
                   </td>
                 </tr>
@@ -229,16 +241,18 @@ export function EmployeeManagement({ employees }: EmployeeManagementProps) {
                     <td className="px-4 py-3">
                       <StatusBadge status={emp.status} />
                     </td>
-                    <td className="px-4 py-3">
-                      <EmployeeActions
-                        emp={emp}
-                        isSelf={emp.id === currentUser.id}
-                        onEdit={() => openEdit(emp)}
-                        onResetPassword={() => setResetTarget(emp)}
-                        onToggleStatus={() => toggleStatus(emp.id, emp.status)}
-                        onRemove={() => removeEmployee(emp)}
-                      />
-                    </td>
+                    {isAdmin && (
+                      <td className="px-4 py-3">
+                        <EmployeeActions
+                          emp={emp}
+                          isSelf={emp.id === currentUser.id}
+                          onEdit={() => openEdit(emp)}
+                          onResetPassword={() => setResetTarget(emp)}
+                          onToggleStatus={() => toggleStatus(emp.id, emp.status)}
+                          onRemove={() => removeEmployee(emp)}
+                        />
+                      </td>
+                    )}
                   </tr>
                 ))
               )}
@@ -267,16 +281,18 @@ export function EmployeeManagement({ employees }: EmployeeManagementProps) {
                 </div>
                 <StatusBadge status={emp.status} />
               </div>
-              <div className="mt-3 border-t border-slate-100 pt-3">
-                <EmployeeActions
-                  emp={emp}
-                  isSelf={emp.id === currentUser.id}
-                  onEdit={() => openEdit(emp)}
-                  onResetPassword={() => setResetTarget(emp)}
-                  onToggleStatus={() => toggleStatus(emp.id, emp.status)}
-                  onRemove={() => removeEmployee(emp)}
-                />
-              </div>
+              {isAdmin && (
+                <div className="mt-3 border-t border-slate-100 pt-3">
+                  <EmployeeActions
+                    emp={emp}
+                    isSelf={emp.id === currentUser.id}
+                    onEdit={() => openEdit(emp)}
+                    onResetPassword={() => setResetTarget(emp)}
+                    onToggleStatus={() => toggleStatus(emp.id, emp.status)}
+                    onRemove={() => removeEmployee(emp)}
+                  />
+                </div>
+              )}
             </article>
           ))
         )}
@@ -341,13 +357,15 @@ export function EmployeeManagement({ employees }: EmployeeManagementProps) {
         </div>
       )}
 
-      <ChangePasswordModal
-        open={resetTarget != null}
-        onClose={() => setResetTarget(null)}
-        mode="admin"
-        employeeId={resetTarget?.id}
-        employeeName={resetTarget?.name}
-      />
+      {isAdmin && (
+        <ChangePasswordModal
+          open={resetTarget != null}
+          onClose={() => setResetTarget(null)}
+          mode="admin"
+          employeeId={resetTarget?.id}
+          employeeName={resetTarget?.name}
+        />
+      )}
     </div>
   );
 }
