@@ -15,6 +15,7 @@
     "db:update-rates": "tsx prisma/update-rates.ts",
     "db:backdate-arrivals": "tsx prisma/backdate-today-arrivals.ts",
     "db:shift-checkin-date": "tsx prisma/shift-checkin-date.ts",
+    "db:purge-date-range": "tsx prisma/purge-date-range.ts",
     "db:relocate-guest": "tsx prisma/relocate-guest.ts",
     "db:studio": "prisma studio"
   },
