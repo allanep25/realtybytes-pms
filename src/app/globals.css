@@ -11,6 +11,8 @@
   --color-room-vacant: #5cb85c;
   --color-room-reserved: #f0ad4e;
   --color-room-dirty: #d9534f;
+  --color-room-cleaning: #3b82f6;
+  --color-room-maintenance: #ea580c;
 
   --font-sans: "Segoe UI", system-ui, -apple-system, sans-serif;
 }

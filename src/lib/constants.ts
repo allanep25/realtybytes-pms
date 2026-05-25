@@ -38,8 +38,8 @@ export const ROOM_STATUS_COLORS = {
   OCCUPIED: "bg-room-occupied text-white",
   VACANT: "bg-room-vacant text-white",
   RESERVED: "bg-room-reserved text-slate-900",
-  DIRTY: "bg-room-dirty text-white",
-  OUT_OF_ORDER: "bg-room-dirty text-white",
+  DIRTY: "bg-room-cleaning text-white",
+  OUT_OF_ORDER: "bg-room-maintenance text-white",
 } as const;
 
 export const HOTEL_NAME = process.env.NEXT_PUBLIC_APP_NAME ?? "Amar Residences";

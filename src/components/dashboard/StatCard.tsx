@@ -11,14 +11,14 @@ const variants = {
   occupied: "border-l-room-occupied",
   vacant: "border-l-room-vacant",
   reserved: "border-l-room-reserved",
-  dirty: "border-l-room-dirty",
+  dirty: "border-l-room-cleaning",
 };
 
 const countColors = {
   occupied: "text-room-occupied",
   vacant: "text-room-vacant",
   reserved: "text-room-reserved",
-  dirty: "text-room-dirty",
+  dirty: "text-room-cleaning",
 };
 
 export function StatCard({ label, count, subtitle, variant }: StatCardProps) {
