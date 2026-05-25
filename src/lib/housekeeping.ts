@@ -13,6 +13,14 @@ export type HousekeepingTaskItem = {
   notes: string | null;
 };
 
+export function isCleaningQueueStatus(status: HousekeepingStatus): boolean {
+  return status === "DIRTY" || status === "CLEANING";
+}
+
+export function filterCleaningQueueTasks(tasks: HousekeepingTaskItem[]): HousekeepingTaskItem[] {
+  return tasks.filter((task) => isCleaningQueueStatus(task.status));
+}
+
 export async function getHousekeepingTasks(): Promise<HousekeepingTaskItem[]> {
   const tasks = await prisma.housekeepingTask.findMany({
     include: {

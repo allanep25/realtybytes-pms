@@ -62,6 +62,10 @@ export function isSecurityRole(role: EmployeeRole): boolean {
   return role === "SECURITY";
 }
 
+export function isHousekeepingRole(role: EmployeeRole): boolean {
+  return role === "HOUSEKEEPING";
+}
+
 export function defaultRouteForRole(role: EmployeeRole): string {
   if (role === "HOUSEKEEPING") return "/housekeeping";
   if (role === "SECURITY") return "/guard";
