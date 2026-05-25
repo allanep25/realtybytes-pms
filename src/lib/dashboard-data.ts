@@ -22,6 +22,32 @@ const EMPTY_SUMMARY: DashboardSummary = {
   fromDatabase: false,
 };
 
+function isDirtyRoom(room: RoomGridItem): boolean {
+  return (
+    room.status === "DIRTY" ||
+    room.housekeepingStatus === "DIRTY" ||
+    room.housekeepingStatus === "CLEANING"
+  );
+}
+
+export type DashboardStatFilter = "occupied" | "vacant" | "reserved" | "dirty";
+
+export function roomMatchesDashboardFilter(
+  room: RoomGridItem,
+  filter: DashboardStatFilter,
+): boolean {
+  switch (filter) {
+    case "occupied":
+      return room.status === "OCCUPIED";
+    case "vacant":
+      return room.status === "VACANT";
+    case "reserved":
+      return room.status === "RESERVED";
+    case "dirty":
+      return isDirtyRoom(room);
+  }
+}
+
 function summarize(rooms: RoomGridItem[]): Omit<DashboardSummary, "rooms" | "fromDatabase"> {
   const total = rooms.length;
   const count = (status: RoomStatus) => rooms.filter((r) => r.status === status).length;
@@ -29,7 +55,7 @@ function summarize(rooms: RoomGridItem[]): Omit<DashboardSummary, "rooms" | "fro
     occupied: count("OCCUPIED"),
     vacant: count("VACANT"),
     reserved: count("RESERVED"),
-    dirty: count("DIRTY"),
+    dirty: rooms.filter(isDirtyRoom).length,
     total,
   };
 }

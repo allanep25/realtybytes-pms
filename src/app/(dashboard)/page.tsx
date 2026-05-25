@@ -2,9 +2,9 @@ import { DashboardShell } from "@/components/layout/DashboardShell";
 import { ActivityList } from "@/components/dashboard/ActivityList";
 import { CalendarTimeline } from "@/components/calendar/CalendarTimeline";
 import { RevenueCard } from "@/components/dashboard/RevenueCard";
+import { DashboardStatCards } from "@/components/dashboard/DashboardStatCards";
 import { RoomStatusGrid } from "@/components/dashboard/RoomStatusGrid";
-import { StatCard } from "@/components/dashboard/StatCard";
-import { getDashboardSummary, percent } from "@/lib/dashboard-data";
+import { getDashboardSummary } from "@/lib/dashboard-data";
 import {
   getReservationTimeline,
   getTimelineRange,
@@ -42,32 +42,14 @@ export default async function DashboardPage() {
         </p>
       )}
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard
-          label="Occupied Rooms"
-          count={summary.occupied}
-          subtitle={percent(summary.occupied, summary.total)}
-          variant="occupied"
-        />
-        <StatCard
-          label="Vacant Rooms"
-          count={summary.vacant}
-          subtitle={percent(summary.vacant, summary.total)}
-          variant="vacant"
-        />
-        <StatCard
-          label="Reserved Rooms"
-          count={summary.reserved}
-          subtitle={percent(summary.reserved, summary.total)}
-          variant="reserved"
-        />
-        <StatCard
-          label="Dirty Rooms"
-          count={summary.dirty}
-          subtitle="Needs Cleaning"
-          variant="dirty"
-        />
-      </div>
+      <DashboardStatCards
+        occupied={summary.occupied}
+        vacant={summary.vacant}
+        reserved={summary.reserved}
+        dirty={summary.dirty}
+        total={summary.total}
+        rooms={summary.rooms}
+      />
 
       <div className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-3">
         <div className="space-y-4 xl:col-span-2">
