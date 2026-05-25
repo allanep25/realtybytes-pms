@@ -33,7 +33,9 @@ export async function POST(request: Request) {
     const body = await request.json();
     const employee = await createEmployee({
       name: body.name,
+      email: body.email,
       role: body.role as EmployeeRole,
+      password: body.password,
     });
 
     revalidatePath("/employees");

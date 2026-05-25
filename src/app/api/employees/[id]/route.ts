@@ -27,11 +27,12 @@ export async function PATCH(request: Request, context: RouteContext) {
     }
 
     const hasProfileUpdate =
-      body.name != null || body.role != null || body.status != null;
+      body.name != null || body.email != null || body.role != null || body.status != null;
 
     const employee = hasProfileUpdate
       ? await updateEmployee(id, {
           name: body.name,
+          email: body.email,
           role: body.role as EmployeeRole | undefined,
           status: body.status as EmployeeStatus | undefined,
         })

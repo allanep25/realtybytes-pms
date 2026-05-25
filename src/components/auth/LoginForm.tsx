@@ -68,7 +68,7 @@ export function LoginForm() {
             className="rounded-xl border border-slate-200 bg-white p-8 shadow-sm"
           >
             <h1 className="text-xl font-semibold text-slate-800">Welcome back</h1>
-            <p className="mt-1 text-sm text-slate-500">Enter your credentials to continue</p>
+            <p className="mt-1 text-sm text-slate-500">Sign in with the email address from Employee Accounts</p>
 
             {error && (
               <p className="mt-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-room-dirty">

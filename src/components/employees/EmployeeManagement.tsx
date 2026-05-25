@@ -17,7 +17,19 @@ type EmployeeManagementProps = {
 
 const ROLES: EmployeeRole[] = ["ADMINISTRATOR", "FRONT_DESK", "HOUSEKEEPING"];
 
-type FormState = { name: string; role: EmployeeRole };
+type FormState = {
+  name: string;
+  email: string;
+  role: EmployeeRole;
+  password: string;
+};
+
+const EMPTY_FORM: FormState = {
+  name: "",
+  email: "",
+  role: "FRONT_DESK",
+  password: "",
+};
 
 function EmployeeActions({
   emp,
@@ -83,23 +95,35 @@ function StatusBadge({ status }: { status: EmployeeListItem["status"] }) {
   );
 }
 
+function EmailCell({ email }: { email: string | null }) {
+  if (!email) {
+    return <span className="text-slate-400">No login — add email in Edit</span>;
+  }
+  return <span className="text-slate-600">{email}</span>;
+}
+
 export function EmployeeManagement({ employees, isAdmin }: EmployeeManagementProps) {
   const router = useRouter();
   const currentUser = useAuth();
   const [showAdd, setShowAdd] = useState(false);
   const [editTarget, setEditTarget] = useState<EmployeeListItem | null>(null);
   const [resetTarget, setResetTarget] = useState<EmployeeListItem | null>(null);
-  const [form, setForm] = useState<FormState>({ name: "", role: "FRONT_DESK" });
+  const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   function openAdd() {
-    setForm({ name: "", role: "FRONT_DESK" });
+    setForm(EMPTY_FORM);
     setShowAdd(true);
   }
 
   function openEdit(emp: EmployeeListItem) {
-    setForm({ name: emp.name, role: emp.role });
+    setForm({
+      name: emp.name,
+      email: emp.email ?? "",
+      role: emp.role,
+      password: "",
+    });
     setEditTarget(emp);
   }
 
@@ -116,7 +140,7 @@ export function EmployeeManagement({ employees, isAdmin }: EmployeeManagementPro
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Failed to add");
       setShowAdd(false);
-      setForm({ name: "", role: "FRONT_DESK" });
+      setForm(EMPTY_FORM);
       router.refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed");
@@ -134,7 +158,11 @@ export function EmployeeManagement({ employees, isAdmin }: EmployeeManagementPro
       const res = await fetch(`/api/employees/${editTarget.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify({
+          name: form.name,
+          email: form.email,
+          role: form.role,
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Failed to update");
@@ -182,15 +210,23 @@ export function EmployeeManagement({ employees, isAdmin }: EmployeeManagementPro
   }
 
   const showFormModal = isAdmin && (showAdd || editTarget != null);
-  const columnCount = isAdmin ? 4 : 3;
+  const columnCount = isAdmin ? 5 : 4;
 
   return (
     <div className="space-y-4">
       {!isAdmin && (
         <p className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
-          This is your staff profile. To change your password, use{" "}
+          Sign in on any device with your email and password. To change your password, use{" "}
           <span className="font-medium">Change password</span> in the profile menu at the top
           right.
+        </p>
+      )}
+
+      {isAdmin && (
+        <p className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+          Staff log in with their <span className="font-medium">email</span> (not their display
+          name). Set email and password when adding an employee, or use Edit + Reset password for
+          existing staff.
         </p>
       )}
 
@@ -215,10 +251,11 @@ export function EmployeeManagement({ employees, isAdmin }: EmployeeManagementPro
 
       <div className="hidden overflow-hidden rounded-xl border border-slate-200 bg-card shadow-sm md:block">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[640px] text-sm">
+          <table className="w-full min-w-[720px] text-sm">
             <thead className="border-b border-slate-100 bg-slate-50 text-left text-xs font-medium uppercase text-slate-500">
               <tr>
                 <th className="px-4 py-3">Name</th>
+                <th className="px-4 py-3">Login email</th>
                 <th className="px-4 py-3">Role</th>
                 <th className="px-4 py-3">Status</th>
                 {isAdmin && <th className="px-4 py-3">Actions</th>}
@@ -235,6 +272,9 @@ export function EmployeeManagement({ employees, isAdmin }: EmployeeManagementPro
                 employees.map((emp) => (
                   <tr key={emp.id} className="border-b border-slate-50">
                     <td className="px-4 py-3 font-medium text-slate-800">{emp.name}</td>
+                    <td className="px-4 py-3">
+                      <EmailCell email={emp.email} />
+                    </td>
                     <td className="px-4 py-3 text-slate-600">
                       {EMPLOYEE_ROLE_LABELS[emp.role]}
                     </td>
@@ -275,6 +315,9 @@ export function EmployeeManagement({ employees, isAdmin }: EmployeeManagementPro
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <h3 className="font-medium text-slate-800">{emp.name}</h3>
+                  <p className="mt-0.5 text-sm">
+                    <EmailCell email={emp.email} />
+                  </p>
                   <p className="mt-0.5 text-sm text-slate-600">
                     {EMPLOYEE_ROLE_LABELS[emp.role]}
                   </p>
@@ -307,14 +350,31 @@ export function EmployeeManagement({ employees, isAdmin }: EmployeeManagementPro
             <h3 className="text-lg font-semibold text-slate-800">
               {editTarget ? "Edit Employee" : "Add Employee"}
             </h3>
+            <p className="mt-1 text-sm text-slate-500">
+              {editTarget
+                ? "Update login email if needed. Use Reset password to change their password."
+                : "Email and password are used to sign in on tablets and computers."}
+            </p>
             <div className="mt-4 space-y-3">
               <label className="block text-sm">
-                <span className="text-slate-500">Name</span>
+                <span className="text-slate-500">Display name</span>
                 <input
                   required
                   value={form.name}
                   onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
                   className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2"
+                />
+              </label>
+              <label className="block text-sm">
+                <span className="text-slate-500">Login email</span>
+                <input
+                  type="email"
+                  required
+                  autoComplete="off"
+                  value={form.email}
+                  onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
+                  className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2"
+                  placeholder="staff@amarresidence.com"
                 />
               </label>
               <label className="block text-sm">
@@ -333,6 +393,21 @@ export function EmployeeManagement({ employees, isAdmin }: EmployeeManagementPro
                   ))}
                 </select>
               </label>
+              {!editTarget && (
+                <label className="block text-sm">
+                  <span className="text-slate-500">Initial password</span>
+                  <input
+                    type="password"
+                    required
+                    minLength={6}
+                    autoComplete="new-password"
+                    value={form.password}
+                    onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
+                    className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2"
+                    placeholder="At least 6 characters"
+                  />
+                </label>
+              )}
             </div>
             <div className="mt-6 flex justify-end gap-2">
               <button

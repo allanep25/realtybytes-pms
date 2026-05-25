@@ -105,9 +105,9 @@ Quick summary:
 
 1. Push project to GitHub  
 2. Connect Railway + add PostgreSQL  
-3. Set `DATABASE_URL`, `AUTH_SECRET`, `NEXT_PUBLIC_APP_NAME`  
+3. Set `DATABASE_URL`, `AUTH_SECRET`, `SEED_ADMIN_PASSWORD`, `NEXT_PUBLIC_APP_NAME`  
 4. Open your public URL and log in as **Administrator**  
-5. Change all demo passwords  
+5. Add staff accounts under **Employee Accounts**
 
 ---
 
