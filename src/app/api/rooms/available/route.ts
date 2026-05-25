@@ -14,7 +14,8 @@ export async function GET(request: Request) {
   }
 
   try {
-    const rooms = await getAvailableRooms(checkIn, checkOut);
+    const vacantOnly = searchParams.get("vacantOnly") === "true";
+    const rooms = await getAvailableRooms(checkIn, checkOut, { vacantOnly });
     return NextResponse.json(rooms);
   } catch {
     return NextResponse.json({ error: "Failed to load rooms" }, { status: 500 });

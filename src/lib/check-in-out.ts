@@ -45,6 +45,9 @@ export type CheckInInput = {
   adults: number;
   children: number;
   arrivalTime?: string;
+  bookingSource?: BookingSource;
+  bookingPlatform?: BookingPlatform | null;
+  bookingReference?: string | null;
 };
 
 export type CheckInResult = {
@@ -158,6 +161,7 @@ export async function hasRoomConflict(
 export async function getAvailableRooms(
   checkInStr: string,
   checkOutStr: string,
+  options?: { vacantOnly?: boolean },
 ): Promise<AvailableRoom[]> {
   const checkIn = parseDateInput(checkInStr);
   const checkOut = parseDateInput(checkOutStr);
@@ -166,7 +170,7 @@ export async function getAvailableRooms(
 
   const rooms = await prisma.room.findMany({
     where: {
-      status: { not: "OUT_OF_ORDER" },
+      status: options?.vacantOnly ? "VACANT" : { not: "OUT_OF_ORDER" },
     },
     orderBy: [{ floor: "asc" }, { number: "asc" }],
   });
@@ -298,11 +302,8 @@ export async function performCheckIn(input: CheckInInput): Promise<CheckInResult
   if (room.status === "OUT_OF_ORDER") {
     throw new Error("Room is out of order");
   }
-  if (room.status === "OCCUPIED") {
-    throw new Error("Room is already occupied");
-  }
-  if (room.status === "DIRTY") {
-    throw new Error("Room needs cleaning before check-in");
+  if (room.status !== "VACANT") {
+    throw new Error("Only vacant rooms can be checked in — select another room");
   }
 
   if (await hasRoomConflict(room.id, checkIn, checkOut)) {
@@ -315,6 +316,8 @@ export async function performCheckIn(input: CheckInInput): Promise<CheckInResult
   const scheduledArrival = input.arrivalTime
     ? parseArrivalTime(checkIn, input.arrivalTime)
     : setTime(checkIn, 14, 0);
+
+  const booking = normalizeBookingFields(input);
 
   const guest = await prisma.guest.create({
     data: {
@@ -337,7 +340,9 @@ export async function performCheckIn(input: CheckInInput): Promise<CheckInResult
       children,
       status: "CHECKED_IN",
       bookingType: "GUEST",
-      bookingSource: "WALK_IN",
+      bookingSource: booking.bookingSource,
+      bookingPlatform: booking.bookingPlatform,
+      bookingReference: booking.bookingReference,
     },
   });
 

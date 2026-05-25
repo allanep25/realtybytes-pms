@@ -1,8 +1,13 @@
 "use client";
 
+import {
+  BOOKING_PLATFORM_OPTIONS,
+  BOOKING_SOURCE_OPTIONS,
+} from "@/lib/booking-source";
 import { formatPHP } from "@/lib/format";
 import type { AvailableRoom } from "@/lib/check-in-out";
 import { cn } from "@/lib/utils";
+import type { BookingPlatform, BookingSource } from "@prisma/client";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
@@ -20,6 +25,9 @@ const emptyForm = {
   adults: "1",
   children: "0",
   arrivalTime: "14:00",
+  bookingSource: "WALK_IN" as BookingSource,
+  bookingPlatform: "" as BookingPlatform | "",
+  bookingReference: "",
 };
 
 function todayInputValue() {
@@ -56,6 +64,7 @@ export function CheckInForm() {
       const params = new URLSearchParams({
         checkIn: form.checkIn,
         checkOut: form.checkOut,
+        vacantOnly: "true",
       });
       const res = await fetch(`/api/rooms/available?${params}`);
       const data = await res.json();
@@ -108,6 +117,11 @@ export function CheckInForm() {
           adults: Number(form.adults),
           children: Number(form.children),
           arrivalTime: form.arrivalTime,
+          bookingSource: form.bookingSource,
+          bookingPlatform:
+            form.bookingSource === "ONLINE" ? form.bookingPlatform || null : null,
+          bookingReference:
+            form.bookingSource === "ONLINE" ? form.bookingReference || null : null,
         }),
       });
 
@@ -241,6 +255,71 @@ export function CheckInForm() {
               />
             </label>
 
+            <div className="rounded-lg border border-slate-100 bg-slate-50 p-3">
+              <p className="mb-3 text-xs font-medium uppercase tracking-wide text-slate-500">
+                How was this booked?
+              </p>
+              <label className="block text-sm">
+                <span className="text-slate-500">Booking source *</span>
+                <select
+                  required
+                  value={form.bookingSource}
+                  onChange={(e) =>
+                    setForm((f) => ({
+                      ...f,
+                      bookingSource: e.target.value as BookingSource,
+                      bookingPlatform: "",
+                      bookingReference: "",
+                    }))
+                  }
+                  className={fieldClass}
+                >
+                  {BOOKING_SOURCE_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              {form.bookingSource === "ONLINE" && (
+                <div className="mt-3 space-y-3">
+                  <label className="block text-sm">
+                    <span className="text-slate-500">Online platform *</span>
+                    <select
+                      required
+                      value={form.bookingPlatform}
+                      onChange={(e) =>
+                        setForm((f) => ({
+                          ...f,
+                          bookingPlatform: e.target.value as BookingPlatform,
+                        }))
+                      }
+                      className={fieldClass}
+                    >
+                      <option value="">Select platform…</option>
+                      {BOOKING_PLATFORM_OPTIONS.map((opt) => (
+                        <option key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="block text-sm">
+                    <span className="text-slate-500">Booking reference #</span>
+                    <input
+                      value={form.bookingReference}
+                      onChange={(e) =>
+                        setForm((f) => ({ ...f, bookingReference: e.target.value }))
+                      }
+                      className={fieldClass}
+                      placeholder="Agoda / Booking.com confirmation number"
+                    />
+                  </label>
+                </div>
+              )}
+            </div>
+
             <label className="block text-sm">
               <span className="text-slate-500">
                 Room *{" "}
@@ -256,8 +335,8 @@ export function CheckInForm() {
               >
                 <option value="">
                   {rooms.length === 0
-                    ? "No rooms available for these dates"
-                    : "Select a room"}
+                    ? "No vacant rooms available for these dates"
+                    : "Select a vacant room"}
                 </option>
                 {rooms.map((r) => (
                   <option key={r.id} value={r.id}>
