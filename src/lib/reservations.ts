@@ -1,3 +1,4 @@
+import { PAYMENT_METHOD_OPTIONS } from "@/lib/constants";
 import { prisma } from "@/lib/db";
 import { formatBookingChannel } from "@/lib/booking-source";
 import { addDays, addHotelDays, daysBetween, eachDayOfInterval, startOfDay, startOfHotelDay } from "@/lib/dates";
@@ -78,10 +79,17 @@ export type ReservationTimelineData = {
   bars: TimelineBar[];
 };
 
+export type RevenueBreakdownItem = {
+  method: string;
+  label: string;
+  amount: number;
+};
+
 export type TodayRevenue = {
   today: number;
   yesterday: number;
   changePercent: number | null;
+  breakdown: RevenueBreakdownItem[];
 };
 
 function barColor(status: ReservationStatus, bookingType: BookingType): string {
@@ -272,7 +280,7 @@ export async function getTodayRevenue(): Promise<TodayRevenue> {
         paidAt: { gte: today, lt: tomorrow },
         folio: { reservation: { bookingType: BookingType.GUEST } },
       },
-      select: { amount: true },
+      select: { amount: true, method: true },
     }),
     prisma.folioPayment.findMany({
       where: {
@@ -286,6 +294,18 @@ export async function getTodayRevenue(): Promise<TodayRevenue> {
   const sum = (rows: { amount: unknown }[]) =>
     rows.reduce((acc, r) => acc + Number(r.amount), 0);
 
+  const totalsByMethod = new Map<string, number>();
+  for (const payment of todayPayments) {
+    const key = payment.method;
+    totalsByMethod.set(key, (totalsByMethod.get(key) ?? 0) + Number(payment.amount));
+  }
+
+  const breakdown: RevenueBreakdownItem[] = PAYMENT_METHOD_OPTIONS.map((option) => ({
+    method: option.value,
+    label: option.label,
+    amount: totalsByMethod.get(option.value) ?? 0,
+  }));
+
   const todayTotal = sum(todayPayments);
   const yesterdayTotal = sum(yesterdayPayments);
 
@@ -296,7 +316,7 @@ export async function getTodayRevenue(): Promise<TodayRevenue> {
         ? 100
         : null;
 
-  return { today: todayTotal, yesterday: yesterdayTotal, changePercent };
+  return { today: todayTotal, yesterday: yesterdayTotal, changePercent, breakdown };
 }
 
 export async function getReservationById(id: string): Promise<ReservationDetail | null> {
