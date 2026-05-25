@@ -14,6 +14,8 @@ import {
   getTodayRevenue,
 } from "@/lib/reservations";
 
+export const dynamic = "force-dynamic";
+
 export default async function DashboardPage() {
   const weekOffset = 0;
   const { start, end } = getTimelineRange(weekOffset);

@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { normalizeBookingFields } from "@/lib/booking-source";
 import { addDays, addHotelDays, daysBetween, parseHotelCalendarDate, setTime, startOfHotelDay } from "@/lib/dates";
+import { recordFolioPayment } from "@/lib/folio-payments";
 import { buildStayFolioLines, folioLinesTotal } from "@/lib/stay-pricing";
 import { compareRoomNumbers } from "@/lib/utils";
 import type { BookingPlatform, BookingSource, PaymentMethod, RoomType } from "@prisma/client";
@@ -127,7 +128,7 @@ async function createStayFolio(
   const paymentMethod =
     paid > 0 ? (options?.paymentMethod ?? "CASH") : options?.paymentMethod ?? null;
 
-  await prisma.folio.create({
+  const folio = await prisma.folio.create({
     data: {
       folioNumber,
       reservationId,
@@ -139,6 +140,10 @@ async function createStayFolio(
       lines: { create: lines },
     },
   });
+
+  if (paid > 0 && paymentMethod) {
+    await recordFolioPayment(folio.id, paid, paymentMethod);
+  }
 
   return folioNumber;
 }
@@ -668,13 +673,25 @@ export async function performCheckOut(
 
     if (input.paymentAmount != null && input.paymentAmount > 0) {
       paid = Math.min(paid + input.paymentAmount, total);
+      const method = input.paymentMethod ?? reservation.folio.paymentMethod ?? "CASH";
+      await recordFolioPayment(
+        reservation.folio.id,
+        input.paymentAmount,
+        method,
+        now,
+      );
     }
 
     await prisma.folio.update({
       where: { id: reservation.folio.id },
       data: {
         paid,
-        paidAt: paid >= total ? now : reservation.folio.paidAt,
+        paidAt:
+          input.paymentAmount != null && input.paymentAmount > 0
+            ? now
+            : paid >= total
+              ? now
+              : reservation.folio.paidAt,
         paymentMethod: input.paymentMethod ?? reservation.folio.paymentMethod ?? "CASH",
       },
     });

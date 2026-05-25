@@ -158,6 +158,19 @@ model Folio {
 
   reservation Reservation @relation(fields: [reservationId], references: [id])
   lines       FolioLine[]
+  payments    FolioPayment[]
+}
+
+model FolioPayment {
+  id      String        @id @default(cuid())
+  folioId String
+  amount  Decimal
+  method  PaymentMethod @default(CASH)
+  paidAt  DateTime      @default(now())
+
+  folio Folio @relation(fields: [folioId], references: [id], onDelete: Cascade)
+
+  @@index([paidAt])
 }
 
 model FolioLine {

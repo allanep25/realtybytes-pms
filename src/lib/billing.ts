@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import { recordFolioPayment } from "@/lib/folio-payments";
 import type { PaymentMethod } from "@prisma/client";
 
 export type FolioListItem = {
@@ -240,13 +241,15 @@ export async function updateFolio(folioId: string, input: UpdateFolioInput) {
   let paid = Number(folio.paid);
 
   if (input.paymentAmount != null && input.paymentAmount > 0) {
+    const method = input.paymentMethod ?? folio.paymentMethod ?? "CASH";
     paid = Math.min(paid + input.paymentAmount, total);
+    await recordFolioPayment(folioId, input.paymentAmount, method);
     await prisma.folio.update({
       where: { id: folioId },
       data: {
         paid,
-        paidAt: paid >= total ? new Date() : folio.paidAt,
-        paymentMethod: input.paymentMethod ?? folio.paymentMethod ?? "CASH",
+        paidAt: new Date(),
+        paymentMethod: method,
       },
     });
   } else if (input.paymentMethod) {

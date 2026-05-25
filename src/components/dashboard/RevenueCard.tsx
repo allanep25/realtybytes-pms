@@ -14,7 +14,9 @@ export function RevenueCard({ revenue }: RevenueCardProps) {
     <div className="rounded-xl border border-slate-200 bg-card p-4 shadow-sm">
       <p className="text-xs font-medium text-slate-500">Today&apos;s Revenue</p>
       <p className="mt-0.5 text-xl font-bold text-slate-800">{formatPHP(today)}</p>
-      {changePercent != null ? (
+      {today === 0 ? (
+        <p className="mt-1 text-sm text-slate-400">No payments yet today</p>
+      ) : changePercent != null ? (
         <p
           className={cn(
             "mt-1 text-sm font-medium",
@@ -25,7 +27,7 @@ export function RevenueCard({ revenue }: RevenueCardProps) {
           {changePercent.toFixed(1)}% vs yesterday
         </p>
       ) : (
-        <p className="mt-1 text-sm text-slate-400">No payments yesterday</p>
+        <p className="mt-1 text-sm text-slate-400">First payment of the day</p>
       )}
     </div>
   );

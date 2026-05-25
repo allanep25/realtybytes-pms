@@ -5,7 +5,6 @@ import { mapStaffAttribution, type StaffAttribution } from "@/lib/staff-attribut
 import { buildStayFolioLines, folioLinesTotal } from "@/lib/stay-pricing";
 import {
   BookingType,
-  Prisma,
   type BookingPlatform,
   type BookingSource,
   type ReservationStatus,
@@ -266,29 +265,29 @@ export async function getTodayRevenue(): Promise<TodayRevenue> {
   const today = startOfHotelDay();
   const tomorrow = addHotelDays(new Date(), 1);
   const yesterday = addHotelDays(new Date(), -1);
-  const paidFilter = { gt: new Prisma.Decimal(0) };
 
-  const todayFolios = await prisma.folio.findMany({
-    where: {
-      paidAt: { gte: today, lt: tomorrow, not: null },
-      paid: paidFilter,
-    },
-    select: { paid: true },
-  });
+  const [todayPayments, yesterdayPayments] = await Promise.all([
+    prisma.folioPayment.findMany({
+      where: {
+        paidAt: { gte: today, lt: tomorrow },
+        folio: { reservation: { bookingType: BookingType.GUEST } },
+      },
+      select: { amount: true },
+    }),
+    prisma.folioPayment.findMany({
+      where: {
+        paidAt: { gte: yesterday, lt: today },
+        folio: { reservation: { bookingType: BookingType.GUEST } },
+      },
+      select: { amount: true },
+    }),
+  ]);
 
-  const yesterdayFolios = await prisma.folio.findMany({
-    where: {
-      paidAt: { gte: yesterday, lt: today, not: null },
-      paid: paidFilter,
-    },
-    select: { paid: true },
-  });
+  const sum = (rows: { amount: unknown }[]) =>
+    rows.reduce((acc, r) => acc + Number(r.amount), 0);
 
-  const sum = (rows: { paid: unknown }[]) =>
-    rows.reduce((acc, r) => acc + Number(r.paid), 0);
-
-  const todayTotal = sum(todayFolios);
-  const yesterdayTotal = sum(yesterdayFolios);
+  const todayTotal = sum(todayPayments);
+  const yesterdayTotal = sum(yesterdayPayments);
 
   const changePercent =
     yesterdayTotal > 0
