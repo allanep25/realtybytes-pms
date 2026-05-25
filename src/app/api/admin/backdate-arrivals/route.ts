@@ -1,4 +1,7 @@
-import { backdateTodayArrivalsToCheckout } from "@/lib/backdate-arrivals";
+import {
+  backdateTodayArrivalsToCheckout,
+  shiftCheckInsFromDate,
+} from "@/lib/backdate-arrivals";
 import { getSession } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
@@ -9,11 +12,24 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Administrator access required" }, { status: 403 });
   }
 
-  const body = (await request.json().catch(() => ({}))) as { dryRun?: boolean };
+  const body = (await request.json().catch(() => ({}))) as {
+    dryRun?: boolean;
+    fromDate?: string;
+    roomNumber?: string;
+    reservationId?: string;
+    recentOnly?: boolean;
+  };
   const dryRun = body.dryRun === true;
 
   try {
-    const results = await backdateTodayArrivalsToCheckout({ dryRun });
+    const results = body.fromDate
+      ? await shiftCheckInsFromDate(body.fromDate, {
+          dryRun,
+          roomNumber: body.roomNumber,
+          reservationId: body.reservationId,
+          recentOnly: body.recentOnly,
+        })
+      : await backdateTodayArrivalsToCheckout({ dryRun });
 
     if (!dryRun) {
       revalidatePath("/");
