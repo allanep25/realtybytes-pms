@@ -1,9 +1,10 @@
 "use client";
 
+import { ChangePasswordModal } from "@/components/auth/ChangePasswordModal";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { getInitials } from "@/lib/auth-types";
 import { roleLabel } from "@/lib/permissions";
-import { Bell, ChevronDown, LogOut } from "lucide-react";
+import { Bell, ChevronDown, KeyRound, LogOut } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
@@ -15,6 +16,7 @@ export function TopBar({ title }: TopBarProps) {
   const user = useAuth();
   const router = useRouter();
   const [open, setOpen] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
 
   async function logout() {
@@ -68,6 +70,17 @@ export function TopBar({ title }: TopBarProps) {
                 </p>
                 <button
                   type="button"
+                  onClick={() => {
+                    setOpen(false);
+                    setShowPassword(true);
+                  }}
+                  className="flex w-full items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
+                >
+                  <KeyRound className="h-4 w-4" />
+                  Change password
+                </button>
+                <button
+                  type="button"
                   onClick={logout}
                   disabled={loggingOut}
                   className="flex w-full items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-50"
@@ -80,6 +93,12 @@ export function TopBar({ title }: TopBarProps) {
           )}
         </div>
       </div>
+
+      <ChangePasswordModal
+        open={showPassword}
+        onClose={() => setShowPassword(false)}
+        mode="self"
+      />
     </header>
   );
 }

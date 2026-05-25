@@ -31,6 +31,52 @@ export async function hashPassword(password: string): Promise<string> {
   return hash(password, 10);
 }
 
+function validateNewPassword(password: string): string | null {
+  if (password.length < 6) {
+    return "Password must be at least 6 characters";
+  }
+  return null;
+}
+
+export async function changeEmployeePassword(
+  employeeId: string,
+  currentPassword: string,
+  newPassword: string,
+): Promise<void> {
+  const passwordError = validateNewPassword(newPassword);
+  if (passwordError) throw new Error(passwordError);
+
+  const employee = await prisma.employee.findUnique({ where: { id: employeeId } });
+  if (!employee || !employee.passwordHash) {
+    throw new Error("Account not found");
+  }
+
+  const valid = await compare(currentPassword, employee.passwordHash);
+  if (!valid) {
+    throw new Error("Current password is incorrect");
+  }
+
+  const passwordHash = await hashPassword(newPassword);
+  await prisma.employee.update({
+    where: { id: employeeId },
+    data: { passwordHash },
+  });
+}
+
+export async function setEmployeePassword(employeeId: string, newPassword: string): Promise<void> {
+  const passwordError = validateNewPassword(newPassword);
+  if (passwordError) throw new Error(passwordError);
+
+  const employee = await prisma.employee.findUnique({ where: { id: employeeId } });
+  if (!employee) throw new Error("Employee not found");
+
+  const passwordHash = await hashPassword(newPassword);
+  await prisma.employee.update({
+    where: { id: employeeId },
+    data: { passwordHash },
+  });
+}
+
 export type LoginAccount = {
   email: string;
   role: EmployeeRole;

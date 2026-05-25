@@ -7,6 +7,7 @@ import type { EmployeeRole } from "@prisma/client";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Plus } from "lucide-react";
+import { ChangePasswordModal } from "@/components/auth/ChangePasswordModal";
 
 type EmployeeManagementProps = {
   employees: EmployeeListItem[];
@@ -17,6 +18,7 @@ const ROLES: EmployeeRole[] = ["ADMINISTRATOR", "FRONT_DESK", "HOUSEKEEPING"];
 export function EmployeeManagement({ employees }: EmployeeManagementProps) {
   const router = useRouter();
   const [showAdd, setShowAdd] = useState(false);
+  const [resetTarget, setResetTarget] = useState<EmployeeListItem | null>(null);
   const [form, setForm] = useState({ name: "", role: "FRONT_DESK" as EmployeeRole });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -114,13 +116,22 @@ export function EmployeeManagement({ employees }: EmployeeManagementProps) {
                     </span>
                   </td>
                   <td className="px-4 py-3">
-                    <button
-                      type="button"
-                      onClick={() => toggleStatus(emp.id, emp.status)}
-                      className="text-sm text-room-occupied hover:underline"
-                    >
-                      {emp.status === "ACTIVE" ? "Deactivate" : "Activate"}
-                    </button>
+                    <div className="flex flex-wrap gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setResetTarget(emp)}
+                        className="text-sm text-room-occupied hover:underline"
+                      >
+                        Reset password
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => toggleStatus(emp.id, emp.status)}
+                        className="text-sm text-slate-600 hover:underline"
+                      >
+                        {emp.status === "ACTIVE" ? "Deactivate" : "Activate"}
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))
@@ -182,6 +193,14 @@ export function EmployeeManagement({ employees }: EmployeeManagementProps) {
           </form>
         </div>
       )}
+
+      <ChangePasswordModal
+        open={resetTarget != null}
+        onClose={() => setResetTarget(null)}
+        mode="admin"
+        employeeId={resetTarget?.id}
+        employeeName={resetTarget?.name}
+      />
     </div>
   );
 }
