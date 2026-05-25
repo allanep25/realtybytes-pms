@@ -375,7 +375,11 @@ export function BillingWorkspace({
                   <span className="text-slate-500">Payment method</span>
                   <select
                     value={paymentMethod}
-                    onChange={(e) => setPaymentMethod(e.target.value)}
+                    onChange={(e) =>
+                      setPaymentMethod(
+                        e.target.value as "CASH" | "CARD" | "GCASH" | "BANK_TRANSFER",
+                      )
+                    }
                     className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2"
                   >
                     {PAYMENT_METHODS.map((m) => (
