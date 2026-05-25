@@ -1,3 +1,4 @@
+import type { HousekeepingStatus, RoomStatus } from "@prisma/client";
 import type { LucideIcon } from "lucide-react";
 import {
   BarChart3,
@@ -41,6 +42,24 @@ export const ROOM_STATUS_COLORS = {
   DIRTY: "bg-room-cleaning text-white",
   OUT_OF_ORDER: "bg-room-maintenance text-white",
 } as const;
+
+/** Dashboard grid colors: housekeeping tags override room status when relevant. */
+export function getRoomGridColor(
+  status: RoomStatus,
+  housekeepingStatus?: HousekeepingStatus | null,
+): string {
+  if (status === "OUT_OF_ORDER" || housekeepingStatus === "OUT_OF_ORDER") {
+    return ROOM_STATUS_COLORS.OUT_OF_ORDER;
+  }
+  if (
+    status === "DIRTY" ||
+    housekeepingStatus === "DIRTY" ||
+    housekeepingStatus === "CLEANING"
+  ) {
+    return ROOM_STATUS_COLORS.DIRTY;
+  }
+  return ROOM_STATUS_COLORS[status];
+}
 
 export const HOTEL_NAME = process.env.NEXT_PUBLIC_APP_NAME ?? "Amar Residences";
 

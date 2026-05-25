@@ -1,9 +1,9 @@
 "use client";
 
 import { ReservationFormModal } from "@/components/reservations/ReservationFormModal";
-import { ROOM_STATUS_COLORS } from "@/lib/constants";
+import { getRoomGridColor } from "@/lib/constants";
 import { cn } from "@/lib/utils";
-import type { RoomStatus } from "@prisma/client";
+import type { HousekeepingStatus, RoomStatus } from "@prisma/client";
 import Link from "next/link";
 import { useState } from "react";
 
@@ -12,6 +12,7 @@ export type RoomGridItem = {
   number: string;
   floor: number;
   status: RoomStatus;
+  housekeepingStatus?: HousekeepingStatus | null;
   description: string;
   maxPax: number;
   baseRate: number;
@@ -58,7 +59,7 @@ export function RoomStatusGrid({ rooms, bookable = true }: RoomStatusGridProps) 
               title={`${room.description} · up to ${room.maxPax} guests · Click to book`}
               className={cn(
                 "flex h-9 cursor-pointer items-center justify-center rounded-md text-xs font-semibold shadow-sm transition hover:ring-2 hover:ring-room-occupied/60 hover:ring-offset-1",
-                ROOM_STATUS_COLORS[room.status],
+                getRoomGridColor(room.status, room.housekeepingStatus),
               )}
             >
               {room.number}

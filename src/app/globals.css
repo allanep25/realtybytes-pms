@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@source inline("bg-room-cleaning", "text-room-cleaning", "border-l-room-cleaning", "bg-room-maintenance");
+
 @theme {
   --color-sidebar: #1a233a;
   --color-sidebar-hover: #243049;

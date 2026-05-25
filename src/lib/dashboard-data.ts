@@ -61,6 +61,7 @@ export async function getDashboardSummary(): Promise<DashboardSummary> {
         maxPax: true,
         baseRate: true,
         breakfastRate: true,
+        housekeepingTask: { select: { status: true } },
       },
     });
 
@@ -69,6 +70,7 @@ export async function getDashboardSummary(): Promise<DashboardSummary> {
       number: r.number,
       floor: r.floor,
       status: r.status,
+      housekeepingStatus: r.housekeepingTask?.status ?? null,
       description: r.description,
       maxPax: r.maxPax,
       baseRate: Number(r.baseRate),
