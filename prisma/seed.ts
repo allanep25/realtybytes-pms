@@ -48,12 +48,12 @@ async function main() {
   await prisma.hotelSettings.create({
     data: {
       id: "default",
-      name: "Amar Residence",
-      tagline: "HOTEL",
+      name: "Amar Residences",
+      tagline: "",
       address: "",
       phone: "",
       email: adminEmail,
-      receiptFooter: "Thank you for staying at Amar Residence!",
+      receiptFooter: "Thank you for staying at Amar Residences!",
     },
   });
 

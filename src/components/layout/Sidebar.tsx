@@ -4,7 +4,8 @@ import { useAuth } from "@/components/auth/AuthProvider";
 import { NAV_ITEMS } from "@/lib/constants";
 import { filterNavItems } from "@/lib/permissions";
 import { cn } from "@/lib/utils";
-import { Flower2, X } from "lucide-react";
+import { X } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -15,7 +16,7 @@ type SidebarProps = {
 };
 
 export function Sidebar({
-  hotelName = "Amar Residence",
+  hotelName = "Amar Residences",
   mobileOpen = false,
   onMobileClose,
 }: SidebarProps) {
@@ -30,20 +31,28 @@ export function Sidebar({
         mobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0",
       )}
     >
-      <div className="flex items-center justify-between gap-3 border-b border-white/10 px-5 py-5">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-room-vacant/20 text-room-vacant">
-            <Flower2 className="h-6 w-6" aria-hidden />
-          </div>
-          <div>
-            <p className="text-sm font-semibold leading-tight text-white">{hotelName}</p>
-            <p className="text-[10px] font-medium tracking-[0.2em] text-slate-400">HOTEL</p>
-          </div>
-        </div>
+      <div className="flex items-center justify-between gap-2 border-b border-white/10 px-4 py-4">
+        <Link
+          href="/"
+          onClick={onMobileClose}
+          className="flex min-w-0 flex-1 flex-col items-center gap-2 lg:items-start"
+        >
+          <Image
+            src="/amar-residences-logo.png"
+            alt={hotelName}
+            width={128}
+            height={128}
+            className="h-[4.5rem] w-[4.5rem] rounded-full object-cover ring-1 ring-white/10"
+            priority
+          />
+          <p className="text-center text-sm font-semibold leading-tight text-white lg:text-left">
+            {hotelName}
+          </p>
+        </Link>
         <button
           type="button"
           onClick={onMobileClose}
-          className="rounded-lg p-1.5 text-slate-300 hover:bg-sidebar-hover hover:text-white lg:hidden"
+          className="shrink-0 rounded-lg p-1.5 text-slate-300 hover:bg-sidebar-hover hover:text-white lg:hidden"
           aria-label="Close menu"
         >
           <X className="h-5 w-5" />

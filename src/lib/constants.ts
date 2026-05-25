@@ -42,7 +42,7 @@ export const ROOM_STATUS_COLORS = {
   OUT_OF_ORDER: "bg-room-dirty text-white",
 } as const;
 
-export const HOTEL_NAME = process.env.NEXT_PUBLIC_APP_NAME ?? "Amar Residence";
+export const HOTEL_NAME = process.env.NEXT_PUBLIC_APP_NAME ?? "Amar Residences";
 
 export const ROOM_STATUS_LABELS: Record<string, string> = {
   VACANT: "Vacant",

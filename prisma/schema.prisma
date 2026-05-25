@@ -191,8 +191,8 @@ model HousekeepingTask {
 
 model HotelSettings {
   id           String  @id @default("default")
-  name         String  @default("Amar Residence")
-  tagline      String  @default("HOTEL")
+  name         String  @default("Amar Residences")
+  tagline      String  @default("")
   address      String?
   phone        String?
   email        String?
