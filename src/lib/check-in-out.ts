@@ -603,7 +603,10 @@ export async function performCheckInFromReservation(
   };
 }
 
-export async function performCheckOut(input: CheckOutInput): Promise<{ roomNumber: string }> {
+export async function performCheckOut(
+  input: CheckOutInput,
+  staff: StaffActionContext,
+): Promise<{ roomNumber: string }> {
   const reservation = await prisma.reservation.findUnique({
     where: { id: input.reservationId },
     include: { room: true, folio: true },
@@ -621,6 +624,7 @@ export async function performCheckOut(input: CheckOutInput): Promise<{ roomNumbe
     data: {
       status: "CHECKED_OUT",
       scheduledDeparture: now,
+      checkedOutById: staff.employeeId,
     },
   });
 

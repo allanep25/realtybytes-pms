@@ -1,6 +1,7 @@
 import { RESERVATION_STATUS_LABELS } from "@/lib/constants";
 import { prisma } from "@/lib/db";
 import { addDays, daysBetween, startOfDay } from "@/lib/dates";
+import { formatStaffTrail, mapStaffAttribution } from "@/lib/staff-attribution";
 import type { ReservationStatus } from "@prisma/client";
 
 export type ReportType = "DAILY_SALES" | "OCCUPANCY" | "REVENUE_SUMMARY";
@@ -90,6 +91,9 @@ async function getGuestStaysInRange(from: Date, toExclusive: Date) {
           paymentMethod: true,
         },
       },
+      encodedBy: { select: { name: true, role: true } },
+      checkedInBy: { select: { name: true, role: true } },
+      checkedOutBy: { select: { name: true, role: true } },
     },
     orderBy: [{ checkIn: "asc" }, { room: { number: "asc" } }],
   });
@@ -131,10 +135,16 @@ function buildStayRows(
     const balance = Math.max(0, total - paid);
     const statusLabel =
       RESERVATION_STATUS_LABELS[res.status as ReservationStatus] ?? res.status;
+    const staffTrail = formatStaffTrail(
+      mapStaffAttribution(res.encodedBy),
+      mapStaffAttribution(res.checkedInBy),
+      mapStaffAttribution(res.checkedOutBy),
+    );
+    const stayInfo = `${formatReportDate(res.checkIn)} – ${formatReportDate(res.checkOut)} · ${statusLabel} · Paid ${formatMoney(paid)} · Balance ${formatMoney(balance)}`;
 
     return {
       label: `${res.folio?.folioNumber ?? "Stay"} — ${res.guest.fullName} (Rm ${res.room.number})`,
-      value: `${formatReportDate(res.checkIn)} – ${formatReportDate(res.checkOut)} · ${statusLabel} · Paid ${formatMoney(paid)} · Balance ${formatMoney(balance)}`,
+      value: staffTrail ? `${stayInfo} · ${staffTrail}` : stayInfo,
       amount: total,
     };
   });

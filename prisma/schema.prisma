@@ -130,14 +130,16 @@ model Reservation {
   bookingReference   String?
   encodedById        String?
   checkedInById      String?
+  checkedOutById     String?
   createdAt          DateTime          @default(now())
   updatedAt          DateTime          @updatedAt
 
-  guest       Guest     @relation(fields: [guestId], references: [id])
-  room        Room      @relation(fields: [roomId], references: [id])
-  folio       Folio?
-  encodedBy   Employee? @relation("ReservationEncodedBy", fields: [encodedById], references: [id])
-  checkedInBy Employee? @relation("ReservationCheckedInBy", fields: [checkedInById], references: [id])
+  guest        Guest     @relation(fields: [guestId], references: [id])
+  room         Room      @relation(fields: [roomId], references: [id])
+  folio        Folio?
+  encodedBy    Employee? @relation("ReservationEncodedBy", fields: [encodedById], references: [id])
+  checkedInBy  Employee? @relation("ReservationCheckedInBy", fields: [checkedInById], references: [id])
+  checkedOutBy Employee? @relation("ReservationCheckedOutBy", fields: [checkedOutById], references: [id])
 }
 
 model Folio {
@@ -178,9 +180,10 @@ model Employee {
   createdAt    DateTime       @default(now())
   updatedAt    DateTime       @updatedAt
 
-  housekeepingTasks     HousekeepingTask[]
-  encodedReservations   Reservation[] @relation("ReservationEncodedBy")
-  checkedInReservations Reservation[] @relation("ReservationCheckedInBy")
+  housekeepingTasks      HousekeepingTask[]
+  encodedReservations    Reservation[] @relation("ReservationEncodedBy")
+  checkedInReservations  Reservation[] @relation("ReservationCheckedInBy")
+  checkedOutReservations Reservation[] @relation("ReservationCheckedOutBy")
 }
 
 model HousekeepingTask {

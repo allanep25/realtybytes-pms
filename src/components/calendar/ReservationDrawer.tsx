@@ -242,10 +242,11 @@ export function ReservationDrawer({ reservationId, onClose }: ReservationDrawerP
               )}
 
               {detail.bookingType === "GUEST" &&
-                (detail.encodedBy || detail.checkedInBy) && (
+                (detail.encodedBy || detail.checkedInBy || detail.checkedOutBy) && (
                   <div className="rounded-lg border border-slate-100 bg-slate-50 p-3">
                     {detail.encodedBy &&
                     detail.checkedInBy &&
+                    !detail.checkedOutBy &&
                     formatStaffAttribution(detail.encodedBy) ===
                       formatStaffAttribution(detail.checkedInBy) ? (
                       <div>
@@ -269,6 +270,14 @@ export function ReservationDrawer({ reservationId, onClose }: ReservationDrawerP
                             <dt className="text-slate-500">Checked in by</dt>
                             <dd className="mt-0.5 font-medium text-slate-800">
                               {formatStaffAttribution(detail.checkedInBy)}
+                            </dd>
+                          </div>
+                        )}
+                        {detail.checkedOutBy && (
+                          <div>
+                            <dt className="text-slate-500">Checked out by</dt>
+                            <dd className="mt-0.5 font-medium text-slate-800">
+                              {formatStaffAttribution(detail.checkedOutBy)}
                             </dd>
                           </div>
                         )}

@@ -97,6 +97,7 @@ export async function getReceiptData(folioId: string): Promise<ReceiptData | nul
           checkOut: true,
           encodedBy: { select: { name: true, role: true } },
           checkedInBy: { select: { name: true, role: true } },
+          checkedOutBy: { select: { name: true, role: true } },
         },
       },
     },
@@ -127,6 +128,7 @@ export async function getReceiptData(folioId: string): Promise<ReceiptData | nul
     staffLines: getReceiptStaffLines(
       mapStaffAttribution(full.reservation.encodedBy),
       mapStaffAttribution(full.reservation.checkedInBy),
+      mapStaffAttribution(full.reservation.checkedOutBy),
     ),
   };
 }

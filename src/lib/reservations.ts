@@ -68,6 +68,7 @@ export type ReservationDetail = {
   paymentMethod: string | null;
   encodedBy: StaffAttribution | null;
   checkedInBy: StaffAttribution | null;
+  checkedOutBy: StaffAttribution | null;
 };
 
 export type ReservationTimelineData = {
@@ -315,6 +316,7 @@ export async function getReservationById(id: string): Promise<ReservationDetail 
       },
       encodedBy: { select: { name: true, role: true } },
       checkedInBy: { select: { name: true, role: true } },
+      checkedOutBy: { select: { name: true, role: true } },
     },
   });
 
@@ -362,5 +364,6 @@ export async function getReservationById(id: string): Promise<ReservationDetail 
     paymentMethod: res.folio?.paymentMethod ?? null,
     encodedBy: mapStaffAttribution(res.encodedBy),
     checkedInBy: mapStaffAttribution(res.checkedInBy),
+    checkedOutBy: mapStaffAttribution(res.checkedOutBy),
   };
 }
