@@ -4,7 +4,7 @@ import { formatPHP } from "@/lib/format";
 import type { ReportSummary, ReportType } from "@/lib/reports";
 import { cn } from "@/lib/utils";
 import { FileSpreadsheet, FileText } from "lucide-react";
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 type ReportsGeneratorProps = {
   defaultFrom: string;
@@ -25,7 +25,7 @@ export function ReportsGenerator({ defaultFrom, defaultTo }: ReportsGeneratorPro
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function generate() {
+  const generate = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -33,14 +33,21 @@ export function ReportsGenerator({ defaultFrom, defaultTo }: ReportsGeneratorPro
       const res = await fetch(`/api/reports?${params}`);
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Failed to generate");
-      setReport(data);
+      setReport({
+        ...data,
+        totalCollected: data.totalCollected ?? 0,
+      });
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed");
       setReport(null);
     } finally {
       setLoading(false);
     }
-  }
+  }, [type, from, to]);
+
+  useEffect(() => {
+    void generate();
+  }, [generate]);
 
   function exportFile(format: "csv" | "pdf") {
     const params = new URLSearchParams({ type, from, to, format });
@@ -56,6 +63,11 @@ export function ReportsGenerator({ defaultFrom, defaultTo }: ReportsGeneratorPro
 
   return (
     <div className="space-y-6">
+      <p className="text-sm text-slate-600">
+        Daily Sales lists every guest stay in the date range with room charges, paid amount, and
+        balance. Collected shows payments actually received — record payments in Billing or at
+        check-out.
+      </p>
       <div className="flex flex-wrap items-end gap-3 rounded-xl border border-slate-200 bg-card p-4 shadow-sm">
         <label className="text-sm">
           <span className="mb-1 block text-slate-500">Report Type</span>
@@ -92,7 +104,7 @@ export function ReportsGenerator({ defaultFrom, defaultTo }: ReportsGeneratorPro
         </label>
         <button
           type="button"
-          onClick={generate}
+          onClick={() => void generate()}
           disabled={loading}
           className="rounded-lg bg-sidebar px-5 py-2 text-sm font-medium text-white hover:bg-sidebar-hover disabled:opacity-50"
         >
@@ -157,7 +169,8 @@ export function ReportsGenerator({ defaultFrom, defaultTo }: ReportsGeneratorPro
                 {report.rows.length === 0 ? (
                   <tr>
                     <td colSpan={3} className="px-4 py-8 text-center text-slate-400">
-                      No data for this period.
+                      No guest stays in this date range. Widen the From/To dates or add
+                      reservations that overlap the period.
                     </td>
                   </tr>
                 ) : (
