@@ -3,7 +3,7 @@
 import { HOTEL_NAME } from "@/lib/constants";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 export function LoginForm() {
   const router = useRouter();
@@ -12,6 +12,13 @@ export function LoginForm() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const signedOut = searchParams.get("signedOut") === "1";
+  const idleTimeout = searchParams.get("reason") === "idle";
+
+  useEffect(() => {
+    setEmail("");
+    setPassword("");
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -76,12 +83,24 @@ export function LoginForm() {
 
           <form
             onSubmit={handleSubmit}
+            autoComplete="off"
             className="rounded-xl border border-slate-200 bg-white p-8 shadow-sm"
           >
             <h1 className="text-xl font-semibold text-slate-800">Welcome back</h1>
             <p className="mt-1 text-sm text-slate-500">
               Sign in with the email address from Employee Accounts
             </p>
+            <p className="mt-2 text-xs text-slate-400">
+              Shared front desk computer? Always use Sign out before you leave.
+            </p>
+
+            {signedOut && (
+              <p className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+                {idleTimeout
+                  ? "Signed out automatically after 15 minutes of inactivity."
+                  : "You have been signed out."}
+              </p>
+            )}
 
             {error && (
               <p className="mt-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-room-dirty">
@@ -94,7 +113,8 @@ export function LoginForm() {
               <input
                 type="email"
                 required
-                autoComplete="username"
+                name="staff-email"
+                autoComplete="off"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2.5 focus:border-room-occupied focus:outline-none focus:ring-1 focus:ring-room-occupied"
@@ -106,7 +126,8 @@ export function LoginForm() {
               <input
                 type="password"
                 required
-                autoComplete="current-password"
+                name="staff-password"
+                autoComplete="new-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2.5 focus:border-room-occupied focus:outline-none focus:ring-1 focus:ring-room-occupied"

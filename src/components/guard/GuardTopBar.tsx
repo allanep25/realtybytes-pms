@@ -5,7 +5,7 @@ import { useAuth } from "@/components/auth/AuthProvider";
 import { getInitials } from "@/lib/auth-types";
 import { roleLabel } from "@/lib/permissions";
 import { ChevronDown, KeyRound, LogOut, Shield } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { signOut } from "@/components/auth/sign-out";
 import { useState } from "react";
 
 type GuardTopBarProps = {
@@ -14,16 +14,13 @@ type GuardTopBarProps = {
 
 export function GuardTopBar({ hotelName }: GuardTopBarProps) {
   const user = useAuth();
-  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
 
   async function logout() {
     setLoggingOut(true);
-    await fetch("/api/auth/logout", { method: "POST" });
-    router.push("/login");
-    router.refresh();
+    await signOut();
   }
 
   return (

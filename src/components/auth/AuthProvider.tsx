@@ -1,5 +1,6 @@
 "use client";
 
+import { IdleTimeout } from "@/components/auth/IdleTimeout";
 import type { SessionUser } from "@/lib/auth-types";
 import { createContext, useContext } from "react";
 
@@ -12,7 +13,12 @@ export function AuthProvider({
   user: SessionUser;
   children: React.ReactNode;
 }) {
-  return <AuthContext.Provider value={user}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={user}>
+      <IdleTimeout />
+      {children}
+    </AuthContext.Provider>
+  );
 }
 
 export function useAuth(): SessionUser {

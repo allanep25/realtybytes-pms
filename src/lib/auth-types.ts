@@ -1,6 +1,7 @@
 import type { EmployeeRole } from "@prisma/client";
 
 export const SESSION_COOKIE = "amar_session";
+export const SESSION_IDLE_TIMEOUT_MS = 15 * 60 * 1000;
 
 export type SessionUser = {
   id: string;

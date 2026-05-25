@@ -12,18 +12,34 @@ export async function getSession(): Promise<SessionUser | null> {
   return verifySessionToken(token);
 }
 
+const SESSION_COOKIE_OPTIONS = {
+  httpOnly: true,
+  secure: process.env.NODE_ENV === "production",
+  sameSite: "lax" as const,
+  path: "/",
+};
+
 export async function setSessionCookie(token: string) {
   const cookieStore = await cookies();
   cookieStore.set(SESSION_COOKIE, token, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    path: "/",
+    ...SESSION_COOKIE_OPTIONS,
     maxAge: 60 * 60 * 8,
   });
 }
 
 export async function clearSessionCookie() {
   const cookieStore = await cookies();
-  cookieStore.delete(SESSION_COOKIE);
+  cookieStore.set(SESSION_COOKIE, "", {
+    ...SESSION_COOKIE_OPTIONS,
+    maxAge: 0,
+    expires: new Date(0),
+  });
+}
+
+export function getExpiredSessionCookieOptions() {
+  return {
+    ...SESSION_COOKIE_OPTIONS,
+    maxAge: 0,
+    expires: new Date(0),
+  };
 }
