@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
-    "build": "prisma generate && next build",
+    "build": "prisma generate --schema=./prisma/schema.prisma && next build",
     "start": "next start --hostname 0.0.0.0",
     "lint": "next lint",
     "db:generate": "prisma generate",
@@ -13,7 +13,7 @@
     "db:deploy": "prisma db push && tsx prisma/deploy-seed-if-empty.ts",
     "db:update-rates": "tsx prisma/update-rates.ts",
     "db:studio": "prisma studio",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate --schema=./prisma/schema.prisma"
   },
   "dependencies": {
     "@prisma/client": "^6.9.0",
@@ -22,9 +22,11 @@
     "jose": "^6.2.3",
     "lucide-react": "^0.511.0",
     "next": "^15.3.3",
+    "prisma": "^6.9.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
-    "tailwind-merge": "^3.3.0"
+    "tailwind-merge": "^3.3.0",
+    "tsx": "^4.19.4"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.1",
@@ -35,9 +37,7 @@
     "@types/react-dom": "^19.1.5",
     "eslint": "^9.28.0",
     "eslint-config-next": "^15.3.3",
-    "prisma": "^6.9.0",
     "tailwindcss": "^4.1.8",
-    "tsx": "^4.19.4",
     "typescript": "^5.8.3"
   },
   "prisma": {
