@@ -2,7 +2,7 @@
 
 import { formatDate, formatPHP } from "@/lib/format";
 import type { ActiveStay } from "@/lib/check-in-out";
-import { cn } from "@/lib/utils";
+import { cn, compareRoomNumbers } from "@/lib/utils";
 import { Search } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -135,7 +135,10 @@ export function GuardDesk({ activeStays }: GuardDeskProps) {
   const [success, setSuccess] = useState<string | null>(null);
 
   const filtered = useMemo(
-    () => activeStays.filter((stay) => matchesSearch(stay, search)),
+    () =>
+      activeStays
+        .filter((stay) => matchesSearch(stay, search))
+        .sort((a, b) => compareRoomNumbers(a.roomNumber, b.roomNumber)),
     [activeStays, search],
   );
 
@@ -178,8 +181,8 @@ export function GuardDesk({ activeStays }: GuardDeskProps) {
 
       setSuccess(
         stay.balanceDue > 0
-          ? `Room ${data.roomNumber} checked out. ${formatPHP(stay.balanceDue)} collected.`
-          : `Room ${data.roomNumber} checked out.`,
+          ? `Room ${data.roomNumber} checked out. ${formatPHP(stay.balanceDue)} collected. Housekeeping notified.`
+          : `Room ${data.roomNumber} checked out. Housekeeping notified.`,
       );
       router.refresh();
     } catch (e) {

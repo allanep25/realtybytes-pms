@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import { compareRoomNumbers } from "@/lib/utils";
 import type { HousekeepingStatus, RoomStatus } from "@prisma/client";
 
 export type HousekeepingTaskItem = {
@@ -21,16 +22,23 @@ export async function getHousekeepingTasks(): Promise<HousekeepingTaskItem[]> {
     orderBy: { room: { number: "asc" } },
   });
 
-  return tasks.map((t) => ({
-    id: t.id,
-    roomId: t.roomId,
-    roomNumber: t.room.number,
-    roomStatus: t.room.status,
-    status: t.status,
-    assignedTo: t.assignedTo,
-    assignedName: t.employee?.name ?? null,
-    notes: t.notes,
-  }));
+  return tasks
+    .map((t) => ({
+      id: t.id,
+      roomId: t.roomId,
+      roomNumber: t.room.number,
+      roomStatus: t.room.status,
+      status: t.status,
+      assignedTo: t.assignedTo,
+      assignedName: t.employee?.name ?? null,
+      notes: t.notes,
+    }))
+    .sort((a, b) => {
+      const aNeedsCleaning = a.status === "DIRTY" || a.status === "CLEANING";
+      const bNeedsCleaning = b.status === "DIRTY" || b.status === "CLEANING";
+      if (aNeedsCleaning !== bNeedsCleaning) return aNeedsCleaning ? -1 : 1;
+      return compareRoomNumbers(a.roomNumber, b.roomNumber);
+    });
 }
 
 export async function getHousekeepingStaff() {

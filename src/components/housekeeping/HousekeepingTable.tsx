@@ -18,9 +18,9 @@ type HousekeepingTableProps = {
 
 const STATUS_BADGE: Record<string, string> = {
   CLEAN: "bg-room-vacant text-white",
-  DIRTY: "bg-room-reserved text-slate-900",
-  CLEANING: "bg-room-occupied text-white",
-  OUT_OF_ORDER: "bg-room-dirty text-white",
+  DIRTY: "bg-room-cleaning text-white",
+  CLEANING: "bg-room-cleaning text-white",
+  OUT_OF_ORDER: "bg-room-maintenance text-white",
 };
 
 export function HousekeepingTable({ tasks, staff }: HousekeepingTableProps) {

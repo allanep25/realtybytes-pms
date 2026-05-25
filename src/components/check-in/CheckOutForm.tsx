@@ -52,7 +52,7 @@ export function CheckOutForm({ activeStays }: CheckOutFormProps) {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Check-out failed");
 
-      setSuccess(`Room ${data.roomNumber} checked out. Room marked for cleaning.`);
+      setSuccess(`Room ${data.roomNumber} checked out. Housekeeping notified to clean the room.`);
       setSelectedId("");
       router.refresh();
     } catch (e) {

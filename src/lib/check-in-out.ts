@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import { normalizeBookingFields } from "@/lib/booking-source";
 import { addDays, daysBetween, setTime, startOfDay } from "@/lib/dates";
 import { buildStayFolioLines, folioLinesTotal } from "@/lib/stay-pricing";
+import { compareRoomNumbers } from "@/lib/utils";
 import type { BookingPlatform, BookingSource, PaymentMethod, RoomType } from "@prisma/client";
 
 export type StaffActionContext = {
@@ -296,29 +297,31 @@ export async function getActiveStays(): Promise<ActiveStay[]> {
       room: { select: { number: true, type: true, description: true } },
       folio: { select: { id: true, folioNumber: true, total: true, paid: true } },
     },
-    orderBy: { checkOut: "asc" },
+    orderBy: { room: { number: "asc" } },
   });
 
-  return rows.map((r) => {
-    const total = Number(r.folio?.total ?? 0);
-    const paid = Number(r.folio?.paid ?? 0);
-    return {
-      reservationId: r.id,
-      guestName: r.guest.fullName,
-      roomNumber: r.room.number,
-      roomType: r.room.type,
-      roomDescription: r.room.description,
-      checkIn: r.checkIn.toISOString(),
-      checkOut: r.checkOut.toISOString(),
-      adults: r.adults,
-      children: r.children,
-      folioNumber: r.folio?.folioNumber ?? null,
-      folioId: r.folio?.id ?? null,
-      total,
-      paid,
-      balanceDue: Math.max(0, total - paid),
-    };
-  });
+  return rows
+    .map((r) => {
+      const total = Number(r.folio?.total ?? 0);
+      const paid = Number(r.folio?.paid ?? 0);
+      return {
+        reservationId: r.id,
+        guestName: r.guest.fullName,
+        roomNumber: r.room.number,
+        roomType: r.room.type,
+        roomDescription: r.room.description,
+        checkIn: r.checkIn.toISOString(),
+        checkOut: r.checkOut.toISOString(),
+        adults: r.adults,
+        children: r.children,
+        folioNumber: r.folio?.folioNumber ?? null,
+        folioId: r.folio?.id ?? null,
+        total,
+        paid,
+        balanceDue: Math.max(0, total - paid),
+      };
+    })
+    .sort((a, b) => compareRoomNumbers(a.roomNumber, b.roomNumber));
 }
 
 export async function performCheckIn(
@@ -646,11 +649,17 @@ export async function performCheckOut(
     data: { status: "DIRTY" },
   });
 
-  await prisma.housekeepingTask.updateMany({
+  await prisma.housekeepingTask.upsert({
     where: { roomId: reservation.roomId },
-    data: {
+    create: {
+      roomId: reservation.roomId,
       status: "DIRTY",
       notes: "Checked out — needs cleaning",
+    },
+    update: {
+      status: "DIRTY",
+      notes: "Checked out — needs cleaning",
+      assignedTo: null,
     },
   });
 

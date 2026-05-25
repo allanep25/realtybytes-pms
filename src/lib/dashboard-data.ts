@@ -1,5 +1,6 @@
 import type { RoomGridItem } from "@/components/dashboard/RoomStatusGrid";
 import { prisma } from "@/lib/db";
+import { compareRoomNumbers } from "@/lib/utils";
 import type { RoomStatus } from "@prisma/client";
 
 export type DashboardSummary = {
@@ -91,17 +92,19 @@ export async function getDashboardSummary(): Promise<DashboardSummary> {
       },
     });
 
-    const grid: RoomGridItem[] = rooms.map((r) => ({
-      id: r.id,
-      number: r.number,
-      floor: r.floor,
-      status: r.status,
-      housekeepingStatus: r.housekeepingTask?.status ?? null,
-      description: r.description,
-      maxPax: r.maxPax,
-      baseRate: Number(r.baseRate),
-      breakfastRate: r.breakfastRate != null ? Number(r.breakfastRate) : null,
-    }));
+    const grid: RoomGridItem[] = rooms
+      .map((r) => ({
+        id: r.id,
+        number: r.number,
+        floor: r.floor,
+        status: r.status,
+        housekeepingStatus: r.housekeepingTask?.status ?? null,
+        description: r.description,
+        maxPax: r.maxPax,
+        baseRate: Number(r.baseRate),
+        breakfastRate: r.breakfastRate != null ? Number(r.breakfastRate) : null,
+      }))
+      .sort((a, b) => compareRoomNumbers(a.number, b.number));
 
     return { ...summarize(grid), rooms: grid, fromDatabase: true };
   } catch {
