@@ -1,6 +1,8 @@
 import { DashboardShell } from "@/components/layout/DashboardShell";
 import { GuestProfileCard } from "@/components/guests/GuestProfileCard";
+import { getSession } from "@/lib/auth";
 import { getGuestProfile } from "@/lib/guests";
+import { isAdministrator } from "@/lib/permissions";
 import { notFound } from "next/navigation";
 
 type PageProps = {
@@ -9,7 +11,7 @@ type PageProps = {
 
 export default async function GuestDetailPage({ params }: PageProps) {
   const { id } = await params;
-  const guest = await getGuestProfile(id);
+  const [guest, session] = await Promise.all([getGuestProfile(id), getSession()]);
 
   if (!guest) {
     notFound();
@@ -17,7 +19,7 @@ export default async function GuestDetailPage({ params }: PageProps) {
 
   return (
     <DashboardShell title="Guest Profile">
-      <GuestProfileCard guest={guest} />
+      <GuestProfileCard guest={guest} canEdit={session ? isAdministrator(session.role) : false} />
     </DashboardShell>
   );
 }

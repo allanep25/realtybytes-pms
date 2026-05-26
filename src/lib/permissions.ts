@@ -21,7 +21,7 @@ const ROLE_ROUTES: Record<EmployeeRole, string[]> = {
 };
 
 /** Admin-only routes */
-export const ADMIN_ONLY_ROUTES = ["/settings"];
+export const ADMIN_ONLY_ROUTES = ["/settings", "/settings/edit-records"];
 
 export function isAdministrator(role: EmployeeRole): boolean {
   return role === "ADMINISTRATOR";

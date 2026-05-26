@@ -1,4 +1,5 @@
 import { getGuestProfile, updateGuest } from "@/lib/guests";
+import { getSession } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
 
@@ -16,6 +17,11 @@ export async function GET(_request: Request, context: RouteContext) {
 }
 
 export async function PATCH(request: Request, context: RouteContext) {
+  const session = await getSession();
+  if (!session || session.role !== "ADMINISTRATOR") {
+    return NextResponse.json({ error: "Administrator access required" }, { status: 403 });
+  }
+
   const { id } = await context.params;
 
   try {

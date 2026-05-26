@@ -12,9 +12,10 @@ const ID_TYPES = ["Passport", "Driver License", "National ID", "Other"];
 
 type GuestProfileCardProps = {
   guest: GuestProfile;
+  canEdit?: boolean;
 };
 
-export function GuestProfileCard({ guest: initial }: GuestProfileCardProps) {
+export function GuestProfileCard({ guest: initial, canEdit = false }: GuestProfileCardProps) {
   const router = useRouter();
   const [editing, setEditing] = useState(false);
   const [guest, setGuest] = useState(initial);
@@ -85,7 +86,7 @@ export function GuestProfileCard({ guest: initial }: GuestProfileCardProps) {
                 VIP Guest
               </span>
             )}
-            {!editing && (
+            {!editing && canEdit && (
               <button
                 type="button"
                 onClick={() => setEditing(true)}
@@ -93,6 +94,11 @@ export function GuestProfileCard({ guest: initial }: GuestProfileCardProps) {
               >
                 Edit Profile
               </button>
+            )}
+            {!editing && !canEdit && (
+              <p className="mt-4 text-xs text-slate-400">
+                Profile edits are limited to administrators. Use Edit Records in Settings.
+              </p>
             )}
           </div>
 
