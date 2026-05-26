@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/db";
-import { daysBetween } from "@/lib/dates";
+import { daysBetween, hotelCalendarDate } from "@/lib/dates";
 
 export type GuestListItem = {
   id: string;
@@ -7,6 +7,24 @@ export type GuestListItem = {
   contactNumber: string | null;
   isVip: boolean;
   stayCount: number;
+};
+
+export type GuestStayPreview = {
+  reservationId: string;
+  checkIn: string;
+  checkOut: string;
+  roomNumber: string;
+  nights: number;
+  status: string;
+};
+
+export type GuestHistoryGroup = {
+  id: string;
+  fullName: string;
+  contactNumber: string | null;
+  isVip: boolean;
+  firstStayDate: string;
+  stays: GuestStayPreview[];
 };
 
 export type StayHistoryItem = {
@@ -40,65 +58,176 @@ export type UpdateGuestInput = {
   notes?: string | null;
 };
 
-export async function getGuests(search?: string): Promise<GuestListItem[]> {
+function normalizeGuestKey(fullName: string): string {
+  return fullName.trim().replace(/\s+/g, " ").toLowerCase();
+}
+
+function mapReservationToStayPreview(reservation: {
+  id: string;
+  checkIn: Date;
+  checkOut: Date;
+  status: string;
+  room: { number: string };
+}): GuestStayPreview {
+  return {
+    reservationId: reservation.id,
+    checkIn: reservation.checkIn.toISOString(),
+    checkOut: reservation.checkOut.toISOString(),
+    roomNumber: reservation.room.number,
+    nights: Math.max(1, daysBetween(reservation.checkIn, reservation.checkOut)),
+    status: reservation.status,
+  };
+}
+
+function buildGuestHistoryGroups(
+  guests: Array<{
+    id: string;
+    fullName: string;
+    contactNumber: string | null;
+    isVip: boolean;
+    reservations: Array<{
+      id: string;
+      checkIn: Date;
+      checkOut: Date;
+      status: string;
+      room: { number: string };
+    }>;
+  }>,
+): GuestHistoryGroup[] {
+  const groups = new Map<
+    string,
+    GuestHistoryGroup & { reservationOwners: Map<string, string> }
+  >();
+
+  for (const guest of guests) {
+    if (guest.reservations.length === 0) continue;
+
+    const key = normalizeGuestKey(guest.fullName);
+    const stayPreviews = guest.reservations.map(mapReservationToStayPreview);
+    const existing = groups.get(key);
+
+    if (!existing) {
+      const sortedStays = [...stayPreviews].sort(
+        (a, b) => new Date(a.checkIn).getTime() - new Date(b.checkIn).getTime(),
+      );
+      const reservationOwners = new Map<string, string>();
+      for (const reservation of guest.reservations) {
+        reservationOwners.set(reservation.id, guest.id);
+      }
+      groups.set(key, {
+        id: guest.id,
+        fullName: guest.fullName,
+        contactNumber: guest.contactNumber,
+        isVip: guest.isVip,
+        firstStayDate: hotelCalendarDate(new Date(sortedStays[0].checkIn)),
+        stays: sortedStays,
+        reservationOwners,
+      });
+      continue;
+    }
+
+    for (const reservation of guest.reservations) {
+      existing.reservationOwners.set(reservation.id, guest.id);
+    }
+    existing.stays.push(...stayPreviews);
+    existing.stays.sort(
+      (a, b) => new Date(a.checkIn).getTime() - new Date(b.checkIn).getTime(),
+    );
+    existing.firstStayDate = hotelCalendarDate(new Date(existing.stays[0].checkIn));
+    existing.isVip = existing.isVip || guest.isVip;
+    if (!existing.contactNumber && guest.contactNumber) {
+      existing.contactNumber = guest.contactNumber;
+    }
+  }
+
+  return Array.from(groups.values())
+    .map(({ reservationOwners, stays, ...group }) => ({
+      ...group,
+      stays,
+      id: reservationOwners.get(stays[0]?.reservationId ?? "") ?? group.id,
+    }))
+    .sort((a, b) => a.firstStayDate.localeCompare(b.firstStayDate));
+}
+
+const guestReservationsInclude = {
+  reservations: {
+    where: { bookingType: "GUEST" as const },
+    include: { room: { select: { number: true } } },
+    orderBy: { checkIn: "asc" as const },
+  },
+};
+
+export async function getGuestHistoryGroups(search?: string): Promise<GuestHistoryGroup[]> {
+  const q = search?.trim();
+
   const guests = await prisma.guest.findMany({
     where: {
       fullName: { not: "Maintenance Block" },
-      ...(search
+      ...(q
         ? {
             OR: [
-              { fullName: { contains: search } },
-              { contactNumber: { contains: search } },
-              { idNumber: { contains: search } },
+              { fullName: { contains: q, mode: "insensitive" } },
+              { contactNumber: { contains: q, mode: "insensitive" } },
+              { idNumber: { contains: q, mode: "insensitive" } },
             ],
           }
         : {}),
     },
-    include: {
-      _count: { select: { reservations: true } },
-    },
-    orderBy: { fullName: "asc" },
+    include: guestReservationsInclude,
   });
 
-  return guests.map((g) => ({
-    id: g.id,
-    fullName: g.fullName,
-    contactNumber: g.contactNumber,
-    isVip: g.isVip,
-    stayCount: g._count.reservations,
+  return buildGuestHistoryGroups(guests);
+}
+
+export async function getGuests(search?: string): Promise<GuestListItem[]> {
+  const groups = await getGuestHistoryGroups(search);
+  return groups.map((group) => ({
+    id: group.id,
+    fullName: group.fullName,
+    contactNumber: group.contactNumber,
+    isVip: group.isVip,
+    stayCount: group.stays.length,
   }));
 }
 
 export async function getGuestProfile(id: string): Promise<GuestProfile | null> {
   const guest = await prisma.guest.findUnique({
     where: { id },
-    include: {
-      reservations: {
-        where: { bookingType: "GUEST" },
-        include: { room: { select: { number: true } } },
-        orderBy: { checkIn: "desc" },
-      },
-    },
+    include: guestReservationsInclude,
   });
 
   if (!guest || guest.fullName === "Maintenance Block") return null;
 
+  const relatedGuests = await prisma.guest.findMany({
+    where: {
+      fullName: { equals: guest.fullName, mode: "insensitive" },
+      NOT: { fullName: "Maintenance Block" },
+    },
+    include: guestReservationsInclude,
+  });
+
+  const mergedStays = relatedGuests
+    .flatMap((relatedGuest) => relatedGuest.reservations.map(mapReservationToStayPreview))
+    .sort((a, b) => new Date(a.checkIn).getTime() - new Date(b.checkIn).getTime());
+
+  const isVip = relatedGuests.some((relatedGuest) => relatedGuest.isVip);
+
   return {
     id: guest.id,
     fullName: guest.fullName,
-    contactNumber: guest.contactNumber,
-    idType: guest.idType,
-    idNumber: guest.idNumber,
-    address: guest.address,
-    isVip: guest.isVip,
-    notes: guest.notes,
-    stayHistory: guest.reservations.map((r) => ({
-      id: r.id,
-      checkIn: r.checkIn.toISOString(),
-      checkOut: r.checkOut.toISOString(),
-      roomNumber: r.room.number,
-      nights: Math.max(1, daysBetween(r.checkIn, r.checkOut)),
-      status: r.status,
+    contactNumber: guest.contactNumber ?? relatedGuests.find((g) => g.contactNumber)?.contactNumber ?? null,
+    idType: guest.idType ?? relatedGuests.find((g) => g.idType)?.idType ?? null,
+    idNumber: guest.idNumber ?? relatedGuests.find((g) => g.idNumber)?.idNumber ?? null,
+    address: guest.address ?? relatedGuests.find((g) => g.address)?.address ?? null,
+    isVip,
+    notes: guest.notes ?? relatedGuests.find((g) => g.notes)?.notes ?? null,
+    stayHistory: mergedStays.map((stay) => ({
+      id: stay.reservationId,
+      checkIn: stay.checkIn,
+      checkOut: stay.checkOut,
+      roomNumber: stay.roomNumber,
+      nights: stay.nights,
+      status: stay.status,
     })),
   };
 }

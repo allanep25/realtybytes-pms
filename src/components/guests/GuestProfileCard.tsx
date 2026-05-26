@@ -2,6 +2,7 @@
 
 import { RESERVATION_STATUS_LABELS } from "@/lib/constants";
 import { formatDate } from "@/lib/format";
+import { cn } from "@/lib/utils";
 import type { GuestProfile } from "@/lib/guests";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -222,7 +223,10 @@ export function GuestProfileCard({ guest: initial, canEdit = false }: GuestProfi
         </div>
 
         <div className="rounded-xl border border-slate-200 bg-card p-6 shadow-sm lg:col-span-2">
-          <h3 className="mb-4 font-semibold text-slate-800">Stay History</h3>
+          <h3 className="mb-1 font-semibold text-slate-800">Stay History</h3>
+          <p className="mb-4 text-xs text-slate-500">
+            Ordered from first stay · return visits listed below
+          </p>
           {guest.stayHistory.length === 0 ? (
             <p className="text-sm text-slate-400">No stays recorded yet.</p>
           ) : (
@@ -238,9 +242,23 @@ export function GuestProfileCard({ guest: initial, canEdit = false }: GuestProfi
                   </tr>
                 </thead>
                 <tbody>
-                  {guest.stayHistory.map((stay) => (
+                  {guest.stayHistory.map((stay, index) => (
                     <tr key={stay.id} className="border-b border-slate-50">
-                      <td className="py-3 pr-4">{formatDate(stay.checkIn)}</td>
+                      <td className="py-3 pr-4">
+                        <div className="flex items-center gap-2">
+                          <span
+                            className={cn(
+                              "inline-flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold",
+                              index === 0
+                                ? "bg-room-occupied/15 text-room-occupied"
+                                : "bg-slate-100 text-slate-500",
+                            )}
+                          >
+                            {index + 1}
+                          </span>
+                          {formatDate(stay.checkIn)}
+                        </div>
+                      </td>
                       <td className="py-3 pr-4">{formatDate(stay.checkOut)}</td>
                       <td className="py-3 pr-4 font-medium">{stay.roomNumber}</td>
                       <td className="py-3 pr-4">{stay.nights}</td>

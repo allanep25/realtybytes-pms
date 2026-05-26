@@ -1,18 +1,20 @@
 "use client";
 
+import { RESERVATION_STATUS_LABELS } from "@/lib/constants";
+import { formatDate } from "@/lib/format";
+import type { GuestHistoryGroup } from "@/lib/guests";
 import { cn } from "@/lib/utils";
-import type { GuestListItem } from "@/lib/guests";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Search, Star } from "lucide-react";
 
 type GuestListProps = {
-  guests: GuestListItem[];
+  groups: GuestHistoryGroup[];
   initialSearch?: string;
 };
 
-export function GuestList({ guests, initialSearch = "" }: GuestListProps) {
+export function GuestList({ groups, initialSearch = "" }: GuestListProps) {
   const router = useRouter();
   const [search, setSearch] = useState(initialSearch);
 
@@ -42,34 +44,78 @@ export function GuestList({ guests, initialSearch = "" }: GuestListProps) {
         </button>
       </form>
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {guests.length === 0 ? (
-          <p className="col-span-full py-8 text-center text-slate-400">No guests found.</p>
+      <p className="text-xs text-slate-500">
+        Sorted by first stay date · repeat visits listed under each guest
+      </p>
+
+      <div className="space-y-3">
+        {groups.length === 0 ? (
+          <p className="py-8 text-center text-slate-400">No guests found.</p>
         ) : (
-          guests.map((guest) => (
-            <Link
-              key={guest.id}
-              href={`/guests/${guest.id}`}
-              className="rounded-xl border border-slate-200 bg-card p-4 shadow-sm transition hover:border-room-occupied/40 hover:shadow-md"
+          groups.map((group) => (
+            <article
+              key={`${group.id}-${group.firstStayDate}`}
+              className="rounded-xl border border-slate-200 bg-card shadow-sm"
             >
-              <div className="flex items-start justify-between gap-2">
-                <div>
-                  <p className="font-semibold text-slate-800">{guest.fullName}</p>
-                  {guest.contactNumber && (
-                    <p className="mt-0.5 text-sm text-slate-500">{guest.contactNumber}</p>
+              <Link
+                href={`/guests/${group.id}`}
+                className="block border-b border-slate-100 px-4 py-4 transition hover:bg-slate-50/80"
+              >
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <p className="font-semibold text-slate-800">{group.fullName}</p>
+                    {group.contactNumber && (
+                      <p className="mt-0.5 text-sm text-slate-500">{group.contactNumber}</p>
+                    )}
+                    <p className="mt-1 text-xs text-slate-400">
+                      First stay {formatDate(group.firstStayDate)} · {group.stays.length} stay
+                      {group.stays.length !== 1 ? "s" : ""}
+                    </p>
+                  </div>
+                  {group.isVip && (
+                    <span className="flex items-center gap-0.5 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">
+                      <Star className="h-3 w-3 fill-current" />
+                      VIP
+                    </span>
                   )}
                 </div>
-                {guest.isVip && (
-                  <span className="flex items-center gap-0.5 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">
-                    <Star className="h-3 w-3 fill-current" />
-                    VIP
-                  </span>
-                )}
-              </div>
-              <p className={cn("mt-2 text-xs text-slate-400")}>
-                {guest.stayCount} stay{guest.stayCount !== 1 ? "s" : ""}
-              </p>
-            </Link>
+              </Link>
+
+              <ol className="divide-y divide-slate-50 px-4 py-2">
+                {group.stays.map((stay, index) => (
+                  <li
+                    key={stay.reservationId}
+                    className="flex flex-wrap items-center justify-between gap-2 py-2.5 text-sm"
+                  >
+                    <div className="flex min-w-0 items-center gap-3">
+                      <span
+                        className={cn(
+                          "flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[10px] font-bold",
+                          index === 0
+                            ? "bg-room-occupied/15 text-room-occupied"
+                            : "bg-slate-100 text-slate-500",
+                        )}
+                      >
+                        {index + 1}
+                      </span>
+                      <div className="min-w-0">
+                        <p className="font-medium text-slate-800">
+                          {formatDate(stay.checkIn)} – {formatDate(stay.checkOut)}
+                        </p>
+                        <p className="text-xs text-slate-500">
+                          Room {stay.roomNumber} · {stay.nights} night
+                          {stay.nights !== 1 ? "s" : ""}
+                          {index === 0 ? " · First stay" : " · Return visit"}
+                        </p>
+                      </div>
+                    </div>
+                    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600">
+                      {RESERVATION_STATUS_LABELS[stay.status] ?? stay.status}
+                    </span>
+                  </li>
+                ))}
+              </ol>
+            </article>
           ))
         )}
       </div>
