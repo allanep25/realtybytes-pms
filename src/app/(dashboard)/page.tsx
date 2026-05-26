@@ -11,8 +11,8 @@ import {
   serializeTimeline,
   getTodayArrivals,
   getTodayDepartures,
-  getTodayRevenue,
 } from "@/lib/reservations";
+import { getTodayRevenueSummary } from "@/lib/revenue";
 
 export const dynamic = "force-dynamic";
 
@@ -20,10 +20,10 @@ export default async function DashboardPage() {
   const weekOffset = 0;
   const { start, end } = getTimelineRange(weekOffset);
 
-  const [summary, timeline, revenue, arrivals, departures] = await Promise.all([
+  const [summary, timeline, revenueSummary, arrivals, departures] = await Promise.all([
     getDashboardSummary(),
     getReservationTimeline(start, end),
-    getTodayRevenue(),
+    getTodayRevenueSummary(),
     getTodayArrivals(),
     getTodayDepartures(),
   ]);
@@ -66,7 +66,7 @@ export default async function DashboardPage() {
         </div>
 
         <div className="space-y-3">
-          <RevenueCard revenue={revenue} />
+          <RevenueCard initialSummary={revenueSummary} />
           <ActivityList
             title="Today's Arrivals"
             items={arrivals}

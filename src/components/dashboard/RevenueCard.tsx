@@ -1,55 +1,167 @@
-import { formatPHP } from "@/lib/format";
-import type { TodayRevenue } from "@/lib/reservations";
+"use client";
+
+import { RevenueTransactionsModal } from "@/components/dashboard/RevenueTransactionsModal";
+import { hotelCalendarDate } from "@/lib/dates";
+import { formatDate, formatPHP } from "@/lib/format";
+import type { RevenueSummary } from "@/lib/revenue";
 import { cn } from "@/lib/utils";
+import { CalendarRange, List } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
 
 type RevenueCardProps = {
-  revenue: TodayRevenue;
+  initialSummary: RevenueSummary;
 };
 
-export function RevenueCard({ revenue }: RevenueCardProps) {
-  const { today, changePercent, breakdown } = revenue;
+function periodTitle(from: string, to: string) {
+  const today = hotelCalendarDate();
+  if (from === to && from === today) return "Today's Revenue";
+  if (from === to) return `Revenue · ${formatDate(from)}`;
+  return `Revenue · ${formatDate(from)} — ${formatDate(to)}`;
+}
+
+export function RevenueCard({ initialSummary }: RevenueCardProps) {
+  const today = hotelCalendarDate();
+  const [from, setFrom] = useState(initialSummary.from);
+  const [to, setTo] = useState(initialSummary.to);
+  const [summary, setSummary] = useState(initialSummary);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [showTransactions, setShowTransactions] = useState(false);
+
+  const loadSummary = useCallback(async (fromDate: string, toDate: string) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const params = new URLSearchParams({ from: fromDate, to: toDate });
+      const res = await fetch(`/api/revenue?${params.toString()}`, { cache: "no-store" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Failed to load revenue");
+      setSummary(data as RevenueSummary);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to load revenue");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (from === initialSummary.from && to === initialSummary.to) {
+      setSummary(initialSummary);
+      return;
+    }
+    if (to < from) return;
+    void loadSummary(from, to);
+  }, [from, to, initialSummary, loadSummary]);
+
+  const { total, changePercent, breakdown, transactions } = summary;
   const positive = changePercent != null && changePercent >= 0;
+  const isToday = from === to && from === today;
+  const showComparison = isToday && total > 0 && changePercent != null;
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-card p-4 shadow-sm">
-      <p className="text-xs font-medium text-slate-500">Today&apos;s Revenue</p>
+    <>
+      <div className="rounded-xl border border-slate-200 bg-card p-4 shadow-sm">
+        <div className="flex items-start justify-between gap-3">
+          <p className="text-xs font-medium text-slate-500">{periodTitle(from, to)}</p>
+          <CalendarRange className="h-4 w-4 shrink-0 text-slate-400" aria-hidden />
+        </div>
 
-      <ul className="mt-3 space-y-1.5 border-b border-slate-100 pb-3 text-sm">
-        {breakdown.map((item) => (
-          <li key={item.method} className="flex items-center justify-between gap-3">
-            <span className="text-slate-600">{item.label}</span>
-            <span
-              className={cn(
-                "font-medium tabular-nums",
-                item.amount > 0 ? "text-slate-800" : "text-slate-400",
-              )}
-            >
-              {formatPHP(item.amount)}
-            </span>
-          </li>
-        ))}
-      </ul>
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          <label className="text-xs">
+            <span className="mb-1 block text-slate-400">From</span>
+            <input
+              type="date"
+              value={from}
+              max={to}
+              onChange={(e) => setFrom(e.target.value)}
+              className="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-sm"
+            />
+          </label>
+          <label className="text-xs">
+            <span className="mb-1 block text-slate-400">To</span>
+            <input
+              type="date"
+              value={to}
+              min={from}
+              onChange={(e) => setTo(e.target.value)}
+              className="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-sm"
+            />
+          </label>
+        </div>
 
-      <div className="mt-3 flex items-center justify-between gap-3">
-        <span className="text-sm font-semibold text-slate-800">Total today</span>
-        <span className="text-xl font-bold tabular-nums text-slate-900">{formatPHP(today)}</span>
-      </div>
+        {error && (
+          <p className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-room-dirty">
+            {error}
+          </p>
+        )}
 
-      {today === 0 ? (
-        <p className="mt-2 text-sm text-slate-400">No payments yet today</p>
-      ) : changePercent != null ? (
-        <p
+        <ul
           className={cn(
-            "mt-2 text-sm font-medium",
-            positive ? "text-room-vacant" : "text-room-dirty",
+            "mt-3 space-y-1.5 border-b border-slate-100 pb-3 text-sm",
+            loading && "opacity-50",
           )}
         >
-          {positive ? "+" : ""}
-          {changePercent.toFixed(1)}% vs yesterday
-        </p>
-      ) : (
-        <p className="mt-2 text-sm text-slate-400">First payment of the day</p>
-      )}
-    </div>
+          {breakdown.map((item) => (
+            <li key={item.method} className="flex items-center justify-between gap-3">
+              <span className="text-slate-600">{item.label}</span>
+              <span
+                className={cn(
+                  "font-medium tabular-nums",
+                  item.amount > 0 ? "text-slate-800" : "text-slate-400",
+                )}
+              >
+                {formatPHP(item.amount)}
+              </span>
+            </li>
+          ))}
+        </ul>
+
+        <button
+          type="button"
+          onClick={() => setShowTransactions(true)}
+          className={cn(
+            "mt-3 flex w-full items-center justify-between gap-3 rounded-lg px-1 py-1 text-left transition hover:bg-slate-50",
+            loading && "pointer-events-none opacity-50",
+          )}
+        >
+          <span className="text-sm font-semibold text-slate-800">
+            {from === to ? "Total for day" : "Total for period"}
+          </span>
+          <span className="text-xl font-bold tabular-nums text-slate-900">{formatPHP(total)}</span>
+        </button>
+
+        {total === 0 && !loading ? (
+          <p className="mt-2 text-sm text-slate-400">No payments in this period</p>
+        ) : showComparison ? (
+          <p
+            className={cn(
+              "mt-2 text-sm font-medium",
+              positive ? "text-room-vacant" : "text-room-dirty",
+            )}
+          >
+            {positive ? "+" : ""}
+            {changePercent.toFixed(1)}% vs yesterday
+          </p>
+        ) : isToday && total > 0 ? (
+          <p className="mt-2 text-sm text-slate-400">First payment of the day</p>
+        ) : null}
+
+        <button
+          type="button"
+          onClick={() => setShowTransactions(true)}
+          disabled={loading}
+          className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+        >
+          <List className="h-4 w-4" />
+          View transactions ({transactions.length})
+        </button>
+      </div>
+
+      <RevenueTransactionsModal
+        open={showTransactions}
+        onClose={() => setShowTransactions(false)}
+        summary={summary}
+      />
+    </>
   );
 }

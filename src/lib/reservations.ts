@@ -1,4 +1,3 @@
-import { PAYMENT_METHOD_OPTIONS } from "@/lib/constants";
 import { prisma } from "@/lib/db";
 import { formatBookingChannel } from "@/lib/booking-source";
 import { addDays, addHotelDays, daysBetween, eachDayOfInterval, startOfDay, startOfHotelDay } from "@/lib/dates";
@@ -270,53 +269,14 @@ export async function getTodayDepartures(): Promise<ActivityItem[]> {
 }
 
 export async function getTodayRevenue(): Promise<TodayRevenue> {
-  const today = startOfHotelDay();
-  const tomorrow = addHotelDays(new Date(), 1);
-  const yesterday = addHotelDays(new Date(), -1);
-
-  const [todayPayments, yesterdayPayments] = await Promise.all([
-    prisma.folioPayment.findMany({
-      where: {
-        paidAt: { gte: today, lt: tomorrow },
-        folio: { reservation: { bookingType: BookingType.GUEST } },
-      },
-      select: { amount: true, method: true },
-    }),
-    prisma.folioPayment.findMany({
-      where: {
-        paidAt: { gte: yesterday, lt: today },
-        folio: { reservation: { bookingType: BookingType.GUEST } },
-      },
-      select: { amount: true },
-    }),
-  ]);
-
-  const sum = (rows: { amount: unknown }[]) =>
-    rows.reduce((acc, r) => acc + Number(r.amount), 0);
-
-  const totalsByMethod = new Map<string, number>();
-  for (const payment of todayPayments) {
-    const key = payment.method;
-    totalsByMethod.set(key, (totalsByMethod.get(key) ?? 0) + Number(payment.amount));
-  }
-
-  const breakdown: RevenueBreakdownItem[] = PAYMENT_METHOD_OPTIONS.map((option) => ({
-    method: option.value,
-    label: option.label,
-    amount: totalsByMethod.get(option.value) ?? 0,
-  }));
-
-  const todayTotal = sum(todayPayments);
-  const yesterdayTotal = sum(yesterdayPayments);
-
-  const changePercent =
-    yesterdayTotal > 0
-      ? ((todayTotal - yesterdayTotal) / yesterdayTotal) * 100
-      : todayTotal > 0
-        ? 100
-        : null;
-
-  return { today: todayTotal, yesterday: yesterdayTotal, changePercent, breakdown };
+  const { getTodayRevenueSummary } = await import("@/lib/revenue");
+  const summary = await getTodayRevenueSummary();
+  return {
+    today: summary.total,
+    yesterday: summary.previousPeriodTotal ?? 0,
+    changePercent: summary.changePercent,
+    breakdown: summary.breakdown,
+  };
 }
 
 export async function getReservationById(id: string): Promise<ReservationDetail | null> {
