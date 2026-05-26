@@ -11,7 +11,7 @@
     "db:push": "prisma db push",
     "db:seed": "prisma db seed",
     "db:reset": "tsx prisma/seed.ts",
-    "db:deploy": "prisma db push && tsx prisma/deploy-seed-if-empty.ts",
+    "db:deploy": "prisma db push && tsx prisma/deploy-seed-if-empty.ts && tsx prisma/backfill-folio-payments.ts",
     "db:update-rates": "tsx prisma/update-rates.ts",
     "db:backdate-arrivals": "tsx prisma/backdate-today-arrivals.ts",
     "db:shift-checkin-date": "tsx prisma/shift-checkin-date.ts",

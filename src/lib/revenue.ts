@@ -5,7 +5,7 @@ import {
   hotelCalendarDate,
   parseHotelCalendarDate,
 } from "@/lib/dates";
-import { BookingType } from "@prisma/client";
+import { BookingType, type PaymentMethod } from "@prisma/client";
 
 export type RevenueBreakdownItem = {
   method: string;
@@ -34,18 +34,26 @@ export type RevenueSummary = {
   transactions: PaymentTransaction[];
 };
 
-function sumPayments(rows: { amount: unknown }[]) {
-  return rows.reduce((acc, row) => acc + Number(row.amount), 0);
+type PaymentRow = {
+  id: string;
+  paidAt: Date;
+  amount: number;
+  method: string;
+  guestName: string;
+  roomNumber: string;
+  folioNumber: string;
+};
+
+function sumPayments(rows: { amount: number }[]) {
+  return rows.reduce((acc, row) => acc + row.amount, 0);
 }
 
-function buildBreakdown(
-  payments: { amount: unknown; method: string }[],
-): RevenueBreakdownItem[] {
+function buildBreakdown(payments: { amount: number; method: string }[]): RevenueBreakdownItem[] {
   const totalsByMethod = new Map<string, number>();
   for (const payment of payments) {
     totalsByMethod.set(
       payment.method,
-      (totalsByMethod.get(payment.method) ?? 0) + Number(payment.amount),
+      (totalsByMethod.get(payment.method) ?? 0) + payment.amount,
     );
   }
 
@@ -72,44 +80,93 @@ function parsePeriod(fromStr: string, toStr: string) {
   return { from, toExclusive: addHotelDays(to, 1) };
 }
 
+async function getLegacyFolioPayments(from: Date, toExclusive: Date): Promise<PaymentRow[]> {
+  const folios = await prisma.folio.findMany({
+    where: {
+      paid: { gt: 0 },
+      payments: { none: {} },
+      reservation: { bookingType: BookingType.GUEST },
+      OR: [
+        { paidAt: { gte: from, lt: toExclusive } },
+        {
+          paidAt: null,
+          updatedAt: { gte: from, lt: toExclusive },
+        },
+      ],
+    },
+    include: {
+      reservation: {
+        include: {
+          guest: { select: { fullName: true } },
+          room: { select: { number: true } },
+        },
+      },
+    },
+  });
+
+  return folios.map((folio) => ({
+    id: `legacy-${folio.id}`,
+    paidAt: folio.paidAt ?? folio.updatedAt,
+    amount: Number(folio.paid),
+    method: (folio.paymentMethod ?? "CASH") as PaymentMethod,
+    guestName: folio.reservation.guest.fullName,
+    roomNumber: folio.reservation.room.number,
+    folioNumber: folio.folioNumber,
+  }));
+}
+
+async function getPaymentRowsForPeriod(from: Date, toExclusive: Date): Promise<PaymentRow[]> {
+  const [folioPayments, legacyPayments] = await Promise.all([
+    prisma.folioPayment.findMany({
+      where: {
+        paidAt: { gte: from, lt: toExclusive },
+        folio: { reservation: { bookingType: BookingType.GUEST } },
+      },
+      include: {
+        folio: {
+          include: {
+            reservation: {
+              include: {
+                guest: { select: { fullName: true } },
+                room: { select: { number: true } },
+              },
+            },
+          },
+        },
+      },
+      orderBy: { paidAt: "desc" },
+    }),
+    getLegacyFolioPayments(from, toExclusive),
+  ]);
+
+  const tracked = folioPayments.map((payment) => ({
+    id: payment.id,
+    paidAt: payment.paidAt,
+    amount: Number(payment.amount),
+    method: payment.method,
+    guestName: payment.folio.reservation.guest.fullName,
+    roomNumber: payment.folio.reservation.room.number,
+    folioNumber: payment.folio.folioNumber,
+  }));
+
+  return [...tracked, ...legacyPayments].sort(
+    (a, b) => b.paidAt.getTime() - a.paidAt.getTime(),
+  );
+}
+
 export async function getRevenueForPeriod(
   fromStr: string,
   toStr: string,
 ): Promise<RevenueSummary> {
   const { from, toExclusive } = parsePeriod(fromStr, toStr);
-
-  const payments = await prisma.folioPayment.findMany({
-    where: {
-      paidAt: { gte: from, lt: toExclusive },
-      folio: { reservation: { bookingType: BookingType.GUEST } },
-    },
-    include: {
-      folio: {
-        include: {
-          reservation: {
-            include: {
-              guest: { select: { fullName: true } },
-              room: { select: { number: true } },
-            },
-          },
-        },
-      },
-    },
-    orderBy: { paidAt: "desc" },
-  });
+  const payments = await getPaymentRowsForPeriod(from, toExclusive);
 
   let previousPeriodTotal: number | null = null;
   let changePercent: number | null = null;
 
   if (fromStr === toStr) {
     const previousFrom = addHotelDays(from, -1);
-    const previousPayments = await prisma.folioPayment.findMany({
-      where: {
-        paidAt: { gte: previousFrom, lt: from },
-        folio: { reservation: { bookingType: BookingType.GUEST } },
-      },
-      select: { amount: true },
-    });
+    const previousPayments = await getPaymentRowsForPeriod(previousFrom, from);
     previousPeriodTotal = sumPayments(previousPayments);
     const total = sumPayments(payments);
     changePercent =
@@ -123,12 +180,12 @@ export async function getRevenueForPeriod(
   const transactions: PaymentTransaction[] = payments.map((payment) => ({
     id: payment.id,
     paidAt: payment.paidAt.toISOString(),
-    amount: Number(payment.amount),
+    amount: payment.amount,
     method: payment.method,
     methodLabel: methodLabel(payment.method),
-    guestName: payment.folio.reservation.guest.fullName,
-    roomNumber: payment.folio.reservation.room.number,
-    folioNumber: payment.folio.folioNumber,
+    guestName: payment.guestName,
+    roomNumber: payment.roomNumber,
+    folioNumber: payment.folioNumber,
   }));
 
   return {
@@ -140,6 +197,37 @@ export async function getRevenueForPeriod(
     breakdown: buildBreakdown(payments),
     transactions,
   };
+}
+
+export async function backfillMissingFolioPayments(): Promise<number> {
+  const folios = await prisma.folio.findMany({
+    where: {
+      paid: { gt: 0 },
+      payments: { none: {} },
+      reservation: { bookingType: BookingType.GUEST },
+    },
+    select: {
+      id: true,
+      paid: true,
+      paymentMethod: true,
+      paidAt: true,
+      updatedAt: true,
+    },
+  });
+
+  for (const folio of folios) {
+    const paidAt = folio.paidAt ?? folio.updatedAt;
+    await prisma.folioPayment.create({
+      data: {
+        folioId: folio.id,
+        amount: folio.paid,
+        method: folio.paymentMethod ?? "CASH",
+        paidAt,
+      },
+    });
+  }
+
+  return folios.length;
 }
 
 export async function getTodayRevenueSummary(): Promise<RevenueSummary> {
