@@ -10,15 +10,19 @@ import type { EditableReservationListItem, EditableReservationRecord } from "@/l
 import type { BookingPlatform, BookingSource } from "@prisma/client";
 import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 const ID_TYPES = ["Passport", "Driver License", "National ID", "Other"];
 
 type EditRecordsWorkspaceProps = {
   initialTodayRecords?: EditableReservationListItem[];
+  initialReservationId?: string | null;
 };
 
-export function EditRecordsWorkspace({ initialTodayRecords = [] }: EditRecordsWorkspaceProps) {
+export function EditRecordsWorkspace({
+  initialTodayRecords = [],
+  initialReservationId = null,
+}: EditRecordsWorkspaceProps) {
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<EditableReservationListItem[]>(initialTodayRecords);
@@ -139,12 +143,19 @@ export function EditRecordsWorkspace({ initialTodayRecords = [] }: EditRecordsWo
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Failed to load record");
       applyRecord(data);
+      setShowingToday(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load record");
     } finally {
       setLoadingRecord(false);
     }
   }
+
+  useEffect(() => {
+    if (initialReservationId) {
+      void loadRecord(initialReservationId);
+    }
+  }, [initialReservationId]);
 
   async function saveChanges() {
     if (!selectedId) return;

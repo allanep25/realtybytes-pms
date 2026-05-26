@@ -1,14 +1,18 @@
 "use client";
 
+import { useAuth } from "@/components/auth/AuthProvider";
+import { CalendarBookingActions } from "@/components/calendar/CalendarBookingActions";
 import { ReservationDrawer } from "@/components/calendar/ReservationDrawer";
 import type { RoomGridItem } from "@/components/dashboard/RoomStatusGrid";
 import { MaintenanceBlockModal } from "@/components/maintenance/MaintenanceBlockModal";
 import { ReservationFormModal } from "@/components/reservations/ReservationFormModal";
-import type { MonthCalendarGrid } from "@/lib/reservations";
+import { nextHotelCalendarDate } from "@/lib/dates";
+import type { CalendarDayBooking, MonthCalendarGrid } from "@/lib/reservations";
+import { isAdministrator } from "@/lib/permissions";
 import { cn } from "@/lib/utils";
 import { ChevronLeft, ChevronRight, Plus, Wrench } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 
 type CalendarMonthGridProps = {
   data: MonthCalendarGrid;
@@ -22,19 +26,45 @@ const LEGEND = [
   { label: "Maintenance", className: "bg-room-dirty" },
 ];
 
+type ActionState = {
+  dateKey: string;
+  reservationId: string | null;
+  guestLabel?: string;
+  roomNumber?: string;
+};
+
 export function CalendarMonthGrid({
   data,
   rooms = [],
   bookable = true,
 }: CalendarMonthGridProps) {
   const router = useRouter();
+  const user = useAuth();
+  const isAdmin = isAdministrator(user.role);
+
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [bookingCheckIn, setBookingCheckIn] = useState<string | null>(null);
   const [blockOpen, setBlockOpen] = useState(false);
+  const [actionOpen, setActionOpen] = useState(false);
+  const [actionState, setActionState] = useState<ActionState | null>(null);
+  const [availableRooms, setAvailableRooms] = useState<number | null>(null);
+  const [checkingAvailability, setCheckingAvailability] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
 
   const { monthOffset, monthLabel, weekdayHeaders, weeks } = data;
   const weekCount = weeks.length;
+
+  const fetchAvailableRoomCount = useCallback(async (checkIn: string) => {
+    const params = new URLSearchParams({
+      checkIn,
+      checkOut: nextHotelCalendarDate(checkIn),
+    });
+    const res = await fetch(`/api/rooms/available?${params}`);
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error ?? "Failed to check availability");
+    return Array.isArray(data) ? data.length : 0;
+  }, []);
 
   function navigateMonth(delta: number) {
     router.push(`/calendar?month=${monthOffset + delta}`);
@@ -48,6 +78,71 @@ export function CalendarMonthGrid({
   function closeReservationModal() {
     setModalOpen(false);
     setBookingCheckIn(null);
+  }
+
+  function closeActions() {
+    setActionOpen(false);
+    setActionState(null);
+    setAvailableRooms(null);
+    setCheckingAvailability(false);
+  }
+
+  async function openDayActions(
+    dateKey: string,
+    options?: { booking?: CalendarDayBooking; hasBookings?: boolean },
+  ) {
+    if (!bookable) return;
+
+    setNotice(null);
+    setActionState({
+      dateKey,
+      reservationId: options?.booking?.id ?? null,
+      guestLabel: options?.booking?.guestName,
+      roomNumber: options?.booking?.roomNumber,
+    });
+    setActionOpen(true);
+    setCheckingAvailability(true);
+    setAvailableRooms(null);
+
+    try {
+      const count = await fetchAvailableRoomCount(dateKey);
+      setAvailableRooms(count);
+
+      const showMenu = Boolean(options?.booking) || Boolean(options?.hasBookings);
+
+      if (!showMenu) {
+        closeActions();
+        if (count > 0) {
+          openReservationModal(dateKey);
+        } else {
+          setNotice(`No vacant rooms available for ${dateKey}.`);
+        }
+        return;
+      }
+
+      if (count === 0) {
+        setNotice(`All rooms are booked on ${dateKey}.`);
+      }
+    } catch (e) {
+      setNotice(e instanceof Error ? e.message : "Failed to check room availability");
+      closeActions();
+    } finally {
+      setCheckingAvailability(false);
+    }
+  }
+
+  async function handleDayClick(day: { dateKey: string; bookings: CalendarDayBooking[] }) {
+    if (!bookable) return;
+    await openDayActions(day.dateKey, { hasBookings: day.bookings.length > 0 });
+  }
+
+  function handleBookingChipClick(
+    e: React.MouseEvent,
+    day: { dateKey: string },
+    booking: CalendarDayBooking,
+  ) {
+    e.stopPropagation();
+    void openDayActions(day.dateKey, { booking, hasBookings: true });
   }
 
   return (
@@ -110,8 +205,15 @@ export function CalendarMonthGrid({
           </div>
         </div>
 
+        {notice && (
+          <p className="border-b border-amber-100 bg-amber-50 px-4 py-2 text-sm text-amber-900">
+            {notice}
+          </p>
+        )}
+
         <p className="border-b border-slate-50 px-4 py-1.5 text-xs text-slate-400">
-          Click any day to add a reservation · click a booking chip to view details
+          Click any day to book if a room is vacant · click a booking chip for view, add, or edit
+          {isAdmin ? " (admin)" : ""}
         </p>
 
         <div className="p-3">
@@ -136,19 +238,26 @@ export function CalendarMonthGrid({
                   key={day.dateKey}
                   role={bookable ? "button" : undefined}
                   tabIndex={bookable ? 0 : undefined}
-                  onClick={() => bookable && openReservationModal(day.dateKey)}
+                  onClick={() => void handleDayClick(day)}
                   onKeyDown={(e) => {
                     if (!bookable) return;
                     if (e.key === "Enter" || e.key === " ") {
                       e.preventDefault();
-                      openReservationModal(day.dateKey);
+                      void handleDayClick(day);
                     }
                   }}
-                  title={bookable ? `New reservation — check-in ${day.dateKey}` : undefined}
+                  title={
+                    bookable
+                      ? day.bookings.length > 0
+                        ? `Options for ${day.dateKey}`
+                        : `New reservation — check-in ${day.dateKey}`
+                      : undefined
+                  }
                   className={cn(
                     "group flex min-h-[140px] flex-col border-b border-r border-slate-200 p-2 text-left transition last:border-r-0",
                     !day.inMonth && "bg-slate-50/80",
                     day.isToday && "bg-amber-50/60 ring-1 ring-inset ring-amber-200",
+                    day.bookings.length > 0 && "bg-slate-50/40",
                     bookable &&
                       "cursor-pointer hover:bg-amber-50/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-room-occupied/40",
                   )}
@@ -181,10 +290,7 @@ export function CalendarMonthGrid({
                         key={`${day.dateKey}-${booking.id}`}
                         type="button"
                         title={booking.title}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setSelectedId(booking.id);
-                        }}
+                        onClick={(e) => handleBookingChipClick(e, day, booking)}
                         className={cn(
                           "flex w-full items-center gap-1 rounded px-1.5 py-0.5 text-left text-[10px] font-medium text-white hover:ring-2 hover:ring-room-occupied/40",
                           booking.colorClass,
@@ -211,7 +317,42 @@ export function CalendarMonthGrid({
         </div>
       </div>
 
-      <ReservationDrawer reservationId={selectedId} onClose={() => setSelectedId(null)} />
+      <CalendarBookingActions
+        open={actionOpen}
+        onClose={closeActions}
+        dateKey={actionState?.dateKey ?? ""}
+        guestLabel={actionState?.guestLabel}
+        roomNumber={actionState?.roomNumber}
+        isAdmin={isAdmin}
+        availableRooms={availableRooms}
+        checkingAvailability={checkingAvailability}
+        onView={() => {
+          if (actionState?.reservationId) {
+            setSelectedId(actionState.reservationId);
+          }
+          closeActions();
+        }}
+        onAddBooking={() => {
+          if (actionState?.dateKey) {
+            openReservationModal(actionState.dateKey);
+          }
+          closeActions();
+        }}
+        onEdit={() => {
+          if (actionState?.reservationId) {
+            router.push(
+              `/settings/edit-records?reservationId=${encodeURIComponent(actionState.reservationId)}`,
+            );
+          }
+          closeActions();
+        }}
+      />
+
+      <ReservationDrawer
+        reservationId={selectedId}
+        onClose={() => setSelectedId(null)}
+        isAdmin={isAdmin}
+      />
 
       <ReservationFormModal
         open={modalOpen}

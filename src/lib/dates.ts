@@ -86,3 +86,7 @@ export function formatDayOfMonth(date: Date): string {
     timeZone: HOTEL_TIMEZONE,
   });
 }
+
+export function nextHotelCalendarDate(dateKey: string): string {
+  return hotelCalendarDate(addHotelDays(parseHotelCalendarDate(dateKey), 1));
+}

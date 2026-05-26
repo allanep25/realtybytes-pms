@@ -3,7 +3,12 @@ import { DashboardShell } from "@/components/layout/DashboardShell";
 import { listTodayEditableReservations } from "@/lib/admin-edit";
 import Link from "next/link";
 
-export default async function EditRecordsPage() {
+type PageProps = {
+  searchParams: Promise<{ reservationId?: string }>;
+};
+
+export default async function EditRecordsPage({ searchParams }: PageProps) {
+  const params = await searchParams;
   const todayRecords = await listTodayEditableReservations();
 
   return (
@@ -15,7 +20,10 @@ export default async function EditRecordsPage() {
       <Link href="/settings" className="mb-6 inline-block text-sm text-room-occupied hover:underline">
         ← Back to Settings
       </Link>
-      <EditRecordsWorkspace initialTodayRecords={todayRecords} />
+      <EditRecordsWorkspace
+        initialTodayRecords={todayRecords}
+        initialReservationId={params.reservationId ?? null}
+      />
     </DashboardShell>
   );
 }

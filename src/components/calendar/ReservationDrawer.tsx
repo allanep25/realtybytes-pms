@@ -24,11 +24,13 @@ type ReservationDrawerProps = {
 
   onClose: () => void;
 
+  isAdmin?: boolean;
+
 };
 
 
 
-export function ReservationDrawer({ reservationId, onClose }: ReservationDrawerProps) {
+export function ReservationDrawer({ reservationId, onClose, isAdmin = false }: ReservationDrawerProps) {
 
   const router = useRouter();
 
@@ -622,6 +624,23 @@ export function ReservationDrawer({ reservationId, onClose }: ReservationDrawerP
               className="w-full rounded-lg border border-red-200 bg-red-50 py-2.5 text-sm font-medium text-room-dirty hover:bg-red-100 disabled:opacity-50"
             >
               {actionLoading ? "Removing…" : "Remove maintenance block"}
+            </button>
+          </div>
+        )}
+
+        {isAdmin && reservationId && detail?.bookingType === "GUEST" && (
+          <div className="border-t border-slate-100 p-5">
+            <button
+              type="button"
+              onClick={() => {
+                router.push(
+                  `/settings/edit-records?reservationId=${encodeURIComponent(reservationId)}`,
+                );
+                onClose();
+              }}
+              className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2.5 text-sm font-medium text-slate-800 hover:bg-slate-100"
+            >
+              Edit record (Administrator)
             </button>
           </div>
         )}

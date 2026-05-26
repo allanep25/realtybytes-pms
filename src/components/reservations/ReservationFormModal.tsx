@@ -10,7 +10,7 @@ import { PAYMENT_METHOD_OPTIONS } from "@/lib/constants";
 import { formatPHP } from "@/lib/format";
 import type { AvailableRoom } from "@/lib/check-in-out";
 import { calcHourlyExtensionRate, calcStayQuote } from "@/lib/stay-pricing";
-import { addHotelDays, hotelCalendarDate, parseHotelCalendarDate } from "@/lib/dates";
+import { nextHotelCalendarDate } from "@/lib/dates";
 import { cn } from "@/lib/utils";
 import type { BookingPlatform, BookingSource, PaymentMethod } from "@prisma/client";
 import { X } from "lucide-react";
@@ -28,7 +28,7 @@ type ReservationFormModalProps = {
 };
 
 function defaultCheckOutFromCheckIn(checkIn: string): string {
-  return hotelCalendarDate(addHotelDays(parseHotelCalendarDate(checkIn), 1));
+  return nextHotelCalendarDate(checkIn);
 }
 
 function tomorrowInputValue() {
