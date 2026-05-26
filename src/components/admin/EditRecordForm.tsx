@@ -29,6 +29,7 @@ export function EditRecordForm({ reservationId, onClose, onSaved }: EditRecordFo
   const [record, setRecord] = useState<EditableReservationRecord | null>(null);
   const [loadingRecord, setLoadingRecord] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
@@ -178,6 +179,35 @@ export function EditRecordForm({ reservationId, onClose, onSaved }: EditRecordFo
       setError(err instanceof Error ? err.message : "Save failed");
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function deleteRecord() {
+    if (!record) return;
+    if (
+      !confirm(
+        `Permanently delete ${record.guest.fullName}'s reservation (Room ${record.reservation.roomNumber})? This cannot be undone.`,
+      )
+    ) {
+      return;
+    }
+
+    setDeleting(true);
+    setError(null);
+    setMessage(null);
+
+    try {
+      const res = await fetch(`/api/admin/edit-records/${reservationId}`, { method: "DELETE" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Delete failed");
+
+      setMessage(`Deleted reservation for ${data.guestName}. Room ${data.roomNumber} released.`);
+      router.refresh();
+      onClose?.();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Delete failed");
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -536,7 +566,16 @@ export function EditRecordForm({ reservationId, onClose, onSaved }: EditRecordFo
         </p>
       )}
 
-      <div className="mt-6 flex justify-end gap-3 border-t border-slate-100 pt-4">
+      <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-4">
+        <button
+          type="button"
+          disabled={deleting || saving || record.reservation.status === "CHECKED_OUT"}
+          onClick={() => void deleteRecord()}
+          className="rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm font-medium text-room-dirty hover:bg-red-100 disabled:opacity-50"
+        >
+          {deleting ? "Deleting…" : "Delete reservation"}
+        </button>
+        <div className="flex gap-3">
         {onClose && (
           <button
             type="button"
@@ -548,12 +587,13 @@ export function EditRecordForm({ reservationId, onClose, onSaved }: EditRecordFo
         )}
         <button
           type="button"
-          disabled={saving}
+          disabled={saving || deleting}
           onClick={() => void saveChanges()}
           className="rounded-lg bg-room-vacant px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
         >
           {saving ? "Saving…" : "Save changes"}
         </button>
+        </div>
       </div>
     </div>
   );

@@ -1,4 +1,5 @@
 import {
+  adminDeleteReservation,
   adminUpdateReservationRecord,
   getEditableReservation,
   type AdminUpdateRecordInput,
@@ -47,6 +48,32 @@ export async function PATCH(request: Request, context: RouteContext) {
     return NextResponse.json(record);
   } catch (e) {
     const message = e instanceof Error ? e.message : "Update failed";
+    return NextResponse.json({ error: message }, { status: 400 });
+  }
+}
+
+export async function DELETE(_request: Request, context: RouteContext) {
+  const session = await getSession();
+  if (!session || session.role !== "ADMINISTRATOR") {
+    return NextResponse.json({ error: "Administrator access required" }, { status: 403 });
+  }
+
+  const { id } = await context.params;
+
+  try {
+    const result = await adminDeleteReservation(id);
+
+    revalidatePath("/");
+    revalidatePath("/calendar");
+    revalidatePath("/check-in");
+    revalidatePath("/guests");
+    revalidatePath("/billing");
+    revalidatePath("/settings/edit-records");
+    revalidatePath("/lobby");
+
+    return NextResponse.json(result);
+  } catch (e) {
+    const message = e instanceof Error ? e.message : "Delete failed";
     return NextResponse.json({ error: message }, { status: 400 });
   }
 }

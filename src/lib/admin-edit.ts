@@ -482,3 +482,78 @@ export async function adminUpdateReservationRecord(
   if (!updated) throw new Error("Failed to load updated record");
   return updated;
 }
+
+export async function adminRevertCheckIn(
+  reservationId: string,
+): Promise<{ roomNumber: string; guestName: string }> {
+  const reservation = await prisma.reservation.findUnique({
+    where: { id: reservationId },
+    include: { room: true, guest: { select: { fullName: true } } },
+  });
+
+  if (!reservation) throw new Error("Reservation not found");
+  if (reservation.bookingType !== "GUEST") {
+    throw new Error("Only guest reservations can be reverted");
+  }
+  if (reservation.status !== "CHECKED_IN") {
+    throw new Error("Only checked-in stays can be reverted to reserved");
+  }
+
+  await prisma.reservation.update({
+    where: { id: reservationId },
+    data: {
+      status: "RESERVED",
+      checkedInById: null,
+    },
+  });
+
+  await syncRoomOperationalStatus(reservation.roomId);
+
+  return {
+    roomNumber: reservation.room.number,
+    guestName: reservation.guest.fullName,
+  };
+}
+
+export async function adminDeleteReservation(
+  reservationId: string,
+): Promise<{ roomNumber: string; guestName: string }> {
+  const reservation = await prisma.reservation.findUnique({
+    where: { id: reservationId },
+    include: {
+      room: { select: { number: true } },
+      guest: { select: { fullName: true } },
+      folio: { select: { id: true } },
+    },
+  });
+
+  if (!reservation) throw new Error("Reservation not found");
+  if (reservation.bookingType !== "GUEST") {
+    throw new Error("Only guest reservations can be deleted here");
+  }
+
+  const roomId = reservation.roomId;
+  const guestId = reservation.guestId;
+
+  await prisma.$transaction(async (tx) => {
+    if (reservation.folio) {
+      await tx.folioPayment.deleteMany({ where: { folioId: reservation.folio!.id } });
+      await tx.folioLine.deleteMany({ where: { folioId: reservation.folio!.id } });
+      await tx.folio.delete({ where: { id: reservation.folio!.id } });
+    }
+
+    await tx.reservation.delete({ where: { id: reservationId } });
+
+    const remaining = await tx.reservation.count({ where: { guestId } });
+    if (remaining === 0 && reservation.guest.fullName !== "Maintenance Block") {
+      await tx.guest.delete({ where: { id: guestId } });
+    }
+  });
+
+  await syncRoomOperationalStatus(roomId);
+
+  return {
+    roomNumber: reservation.room.number,
+    guestName: reservation.guest.fullName,
+  };
+}

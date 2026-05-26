@@ -239,6 +239,62 @@ export function ReservationDrawer({
     }
   }
 
+  async function handleRevertCheckIn() {
+    if (!reservationId || !detail) return;
+    if (
+      !confirm(
+        `Revert ${detail.guestName} to Reserved? This undoes check-in. Room ${detail.roomNumber} will show as arriving, not in-house.`,
+      )
+    ) {
+      return;
+    }
+
+    setActionLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/admin/edit-records/${reservationId}/revert-check-in`, {
+        method: "POST",
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Revert failed");
+
+      setSuccess(`${data.guestName} reverted to Reserved. Room ${data.roomNumber}.`);
+      router.refresh();
+      await reloadDetail();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Revert failed");
+    } finally {
+      setActionLoading(false);
+    }
+  }
+
+  async function handleDeleteReservation() {
+    if (!reservationId || !detail) return;
+    if (
+      !confirm(
+        `Permanently delete ${detail.guestName}'s reservation (Room ${detail.roomNumber})? Folio and payments will be removed. This cannot be undone.`,
+      )
+    ) {
+      return;
+    }
+
+    setActionLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/admin/edit-records/${reservationId}`, { method: "DELETE" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Delete failed");
+
+      setSuccess(`Deleted reservation for ${data.guestName}. Room ${data.roomNumber} released.`);
+      router.refresh();
+      onClose();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Delete failed");
+    } finally {
+      setActionLoading(false);
+    }
+  }
+
   async function handleCancelReservation() {
     if (!reservationId || !detail) return;
     if (!cancelReason.trim()) {
@@ -1056,18 +1112,46 @@ export function ReservationDrawer({
           </div>
         )}
 
-        {isAdmin && reservationId && detail?.bookingType === "GUEST" && onEditRequest && (
-          <div className="border-t border-slate-100 p-5">
-            <button
-              type="button"
-              onClick={() => {
-                onEditRequest(reservationId);
-                onClose();
-              }}
-              className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2.5 text-sm font-medium text-slate-800 hover:bg-slate-100"
-            >
-              Edit record &amp; discount (Administrator)
-            </button>
+        {isAdmin && reservationId && detail?.bookingType === "GUEST" && (
+          <div className="border-t border-slate-100 p-5 space-y-2">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+              Administrator
+            </p>
+            {detail.status === "CHECKED_IN" && (
+              <button
+                type="button"
+                onClick={() => void handleRevertCheckIn()}
+                disabled={actionLoading || checkingOut}
+                className="w-full rounded-lg border border-amber-200 bg-amber-50 py-2.5 text-sm font-medium text-amber-900 hover:bg-amber-100 disabled:opacity-50"
+              >
+                Revert to reserved (undo check-in)
+              </button>
+            )}
+            {onEditRequest && (
+              <button
+                type="button"
+                onClick={() => {
+                  onEditRequest(reservationId);
+                  onClose();
+                }}
+                className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2.5 text-sm font-medium text-slate-800 hover:bg-slate-100"
+              >
+                Edit record &amp; discount
+              </button>
+            )}
+            {detail.status !== "CHECKED_OUT" && (
+              <button
+                type="button"
+                onClick={() => void handleDeleteReservation()}
+                disabled={actionLoading}
+                className="w-full rounded-lg border border-red-200 bg-red-50 py-2.5 text-sm font-medium text-room-dirty hover:bg-red-100 disabled:opacity-50"
+              >
+                Delete reservation
+              </button>
+            )}
+            <p className="text-center text-[10px] text-slate-400">
+              Delete removes the encoded booking entirely. Use revert if check-in was done by mistake.
+            </p>
           </div>
         )}
       </aside>
