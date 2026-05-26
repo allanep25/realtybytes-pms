@@ -22,7 +22,7 @@ export function RevenueTransactionsModal({
 }: RevenueTransactionsModalProps) {
   if (!open || !summary) return null;
 
-  const { transactions, from, to, total } = summary;
+  const { transactions, from, to, total, totalDiscount } = summary;
 
   return (
     <div
@@ -39,6 +39,7 @@ export function RevenueTransactionsModal({
             <p className="text-xs text-slate-400">
               {periodLabel(from, to)} · {transactions.length} payment
               {transactions.length === 1 ? "" : "s"} · {formatPHP(total)}
+              {totalDiscount > 0 ? ` · −${formatPHP(totalDiscount)} discounts` : ""}
             </p>
           </div>
           <button

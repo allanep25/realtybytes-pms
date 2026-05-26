@@ -28,6 +28,7 @@ export type RevenueSummary = {
   from: string;
   to: string;
   total: number;
+  totalDiscount: number;
   previousPeriodTotal: number | null;
   changePercent: number | null;
   breakdown: RevenueBreakdownItem[];
@@ -154,12 +155,29 @@ async function getPaymentRowsForPeriod(from: Date, toExclusive: Date): Promise<P
   );
 }
 
+/** Guest discounts applied on folios updated during the hotel business period. */
+async function getDiscountTotalForPeriod(from: Date, toExclusive: Date): Promise<number> {
+  const folios = await prisma.folio.findMany({
+    where: {
+      discount: { gt: 0 },
+      reservation: { bookingType: BookingType.GUEST },
+      updatedAt: { gte: from, lt: toExclusive },
+    },
+    select: { discount: true },
+  });
+
+  return folios.reduce((sum, folio) => sum + Number(folio.discount), 0);
+}
+
 export async function getRevenueForPeriod(
   fromStr: string,
   toStr: string,
 ): Promise<RevenueSummary> {
   const { from, toExclusive } = parsePeriod(fromStr, toStr);
-  const payments = await getPaymentRowsForPeriod(from, toExclusive);
+  const [payments, totalDiscount] = await Promise.all([
+    getPaymentRowsForPeriod(from, toExclusive),
+    getDiscountTotalForPeriod(from, toExclusive),
+  ]);
 
   let previousPeriodTotal: number | null = null;
   let changePercent: number | null = null;
@@ -192,6 +210,7 @@ export async function getRevenueForPeriod(
     from: fromStr,
     to: toStr,
     total: sumPayments(payments),
+    totalDiscount,
     previousPeriodTotal,
     changePercent,
     breakdown: buildBreakdown(payments),

@@ -53,7 +53,7 @@ export function RevenueCard({ initialSummary }: RevenueCardProps) {
     void loadSummary(from, to);
   }, [from, to, initialSummary, loadSummary]);
 
-  const { total, changePercent, breakdown, transactions } = summary;
+  const { total, totalDiscount, changePercent, breakdown, transactions } = summary;
   const positive = changePercent != null && changePercent >= 0;
   const isToday = from === to && from === today;
   const showComparison = isToday && total > 0 && changePercent != null;
@@ -114,6 +114,14 @@ export function RevenueCard({ initialSummary }: RevenueCardProps) {
               </span>
             </li>
           ))}
+          {totalDiscount > 0 && (
+            <li className="flex items-center justify-between gap-3 border-t border-dashed border-slate-200 pt-2">
+              <span className="font-semibold text-amber-900">Guest discounts</span>
+              <span className="text-base font-bold tabular-nums text-amber-900">
+                − {formatPHP(totalDiscount)}
+              </span>
+            </li>
+          )}
         </ul>
 
         <button
@@ -129,6 +137,12 @@ export function RevenueCard({ initialSummary }: RevenueCardProps) {
           </span>
           <span className="text-2xl font-bold tabular-nums text-slate-900">{formatPHP(total)}</span>
         </button>
+
+        {totalDiscount > 0 && !loading && (
+          <p className="mt-2 text-xs text-amber-800">
+            {formatPHP(totalDiscount)} in guest discounts recorded for this period.
+          </p>
+        )}
 
         {total === 0 && !loading ? (
           <p className="mt-2 text-sm font-medium text-slate-500">No payments in this period</p>
