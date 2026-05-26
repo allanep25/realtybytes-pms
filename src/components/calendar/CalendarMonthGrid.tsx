@@ -252,7 +252,7 @@ export function CalendarMonthGrid({
                     bookable
                       ? day.bookings.length > 0
                         ? `Options for ${day.dateKey}`
-                        : `New reservation — check-in ${day.dateKey}`
+                        : `Reserve room — arrival ${day.dateKey}`
                       : undefined
                   }
                   className={cn(

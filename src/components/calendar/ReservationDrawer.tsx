@@ -4,6 +4,7 @@ import { formatBookingChannel, BOOKING_SOURCE_LABELS } from "@/lib/booking-sourc
 import {
   calculateCancellationSettlement,
   isHotelCheckInDay,
+  isHotelFutureArrival,
 } from "@/lib/cancellation-policy";
 import { calcPresetDiscount, DISCOUNT_PRESETS } from "@/lib/billing";
 import { PAYMENT_METHOD_OPTIONS, RESERVATION_STATUS_LABELS } from "@/lib/constants";
@@ -85,13 +86,31 @@ export function ReservationDrawer({
   }, [detail]);
 
   useEffect(() => {
-    if (!detail || detail.status !== "CHECKED_IN") return;
+    if (!detail || detail.status !== "CHECKED_IN" || isHotelFutureArrival(detail.checkIn)) return;
     setCheckoutDiscount(String(detail.discount || 0));
     setCheckoutPaymentAmount(detail.balanceDue > 0 ? String(detail.balanceDue) : "");
     setCheckoutPaymentMethod(detail.paymentMethod ?? "CASH");
   }, [detail]);
 
   const isArrivalDay = detail ? isHotelCheckInDay(detail.checkIn) : false;
+  const isFutureArrival = detail ? isHotelFutureArrival(detail.checkIn) : false;
+  const showsAsReserved =
+    detail?.status === "RESERVED" || (detail?.status === "CHECKED_IN" && isFutureArrival);
+  const showFutureReservedActions =
+    detail?.bookingType === "GUEST" && isFutureArrival && showsAsReserved;
+  const showReservedManagement =
+    detail?.bookingType === "GUEST" && !isArrivalDay && showsAsReserved;
+  const showArrivalCheckIn =
+    detail?.status === "RESERVED" &&
+    detail?.bookingType === "GUEST" &&
+    isArrivalDay &&
+    !isFutureArrival;
+  const showActiveCheckout =
+    detail?.status === "CHECKED_IN" && detail?.bookingType === "GUEST" && !isFutureArrival;
+  const drawerStatusLabel =
+    detail?.status === "CHECKED_IN" && isFutureArrival
+      ? "Reserved"
+      : (RESERVATION_STATUS_LABELS[detail?.status ?? ""] ?? detail?.status);
   const discountLocked = detail != null && detail.discount > 0;
   const checkInPreview = useMemo(() => {
     if (!detail) return null;
@@ -510,8 +529,15 @@ export function ReservationDrawer({
                 <div>
                   <dt className="text-slate-500">Status</dt>
                   <dd className="mt-0.5">
-                    <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-700">
-                      {RESERVATION_STATUS_LABELS[detail.status] ?? detail.status}
+                    <span
+                      className={cn(
+                        "rounded-full px-2.5 py-0.5 text-xs font-medium",
+                        showsAsReserved
+                          ? "bg-room-reserved/25 text-slate-900"
+                          : "bg-slate-100 text-slate-700",
+                      )}
+                    >
+                      {drawerStatusLabel}
                     </span>
                   </dd>
                 </div>
@@ -576,11 +602,27 @@ export function ReservationDrawer({
           )}
         </div>
 
-        {detail?.status === "RESERVED" && detail.bookingType === "GUEST" && !isArrivalDay && (
+        {showReservedManagement && detail && (
           <div className="border-t border-slate-100 p-5 space-y-3">
+            {showFutureReservedActions && (
+              <button
+                type="button"
+                disabled
+                className="w-full cursor-default rounded-lg bg-room-reserved py-2.5 text-sm font-semibold text-slate-900"
+              >
+                Reserved · Arrives {formatDate(detail.checkIn)}
+              </button>
+            )}
+            {detail.status === "CHECKED_IN" && isFutureArrival && (
+              <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                Check-in was recorded early by mistake. An administrator can revert to reserved, or
+                rebook or cancel below.
+              </p>
+            )}
             <p className="rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-xs text-blue-900">
-              Arrival is {formatDate(detail.checkIn)}. Check-in and no-show are available on that
-              day only.
+              {showFutureReservedActions
+                ? `Arrival is ${formatDate(detail.checkIn)}. Check-in is available on that day only.`
+                : `Arrival was ${formatDate(detail.checkIn)}. Check-in and no-show are only available on the arrival date.`}
             </p>
 
             {actionPanel === "rebook" ? (
@@ -689,6 +731,15 @@ export function ReservationDrawer({
               </div>
             ) : (
               <div className="grid grid-cols-1 gap-2">
+                {!showFutureReservedActions && (
+                  <button
+                    type="button"
+                    disabled
+                    className="cursor-default rounded-lg bg-room-reserved py-2.5 text-sm font-semibold text-slate-900"
+                  >
+                    Reserved
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => {
@@ -717,7 +768,7 @@ export function ReservationDrawer({
           </div>
         )}
 
-        {detail?.status === "RESERVED" && detail.bookingType === "GUEST" && isArrivalDay && (
+        {showArrivalCheckIn && detail && (
           <div className="border-t border-slate-100 p-5 space-y-3">
             <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 space-y-3">
               <h4 className="text-sm font-semibold text-slate-800">Payment &amp; discount</h4>
@@ -928,7 +979,7 @@ export function ReservationDrawer({
           </div>
         )}
 
-        {detail?.status === "CHECKED_IN" && detail.bookingType === "GUEST" && (
+        {showActiveCheckout && detail && (
           <div className="border-t border-slate-100 p-5 space-y-3">
             <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 space-y-3">
               <h4 className="text-sm font-semibold text-slate-800">Check-out payment</h4>

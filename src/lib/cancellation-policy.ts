@@ -15,6 +15,13 @@ export function isHotelCheckInDay(checkIn: Date | string, now: Date = new Date()
   return checkInKey === hotelCalendarDate(now);
 }
 
+/** True when the guest's arrival date is still in the future (hotel calendar day). */
+export function isHotelFutureArrival(checkIn: Date | string, now: Date = new Date()): boolean {
+  const checkInKey =
+    typeof checkIn === "string" ? hotelCalendarDate(new Date(checkIn)) : hotelCalendarDate(checkIn);
+  return checkInKey > hotelCalendarDate(now);
+}
+
 /** True when cancellation is at least 24 hours before check-in day starts (hotel time). */
 export function isFreeCancellationWindow(checkIn: Date | string, now: Date = new Date()): boolean {
   const checkInDate =

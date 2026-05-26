@@ -86,7 +86,7 @@ export function CalendarBookingActions({
           >
             <CalendarPlus className="h-4 w-4 text-room-occupied" />
             <span>
-              <span className="font-medium text-slate-800">Add reservation</span>
+              <span className="font-medium text-slate-800">Reserve room</span>
               <span className="mt-0.5 block text-xs text-slate-500">
                 {checkingAvailability
                   ? "Checking vacant rooms…"
