@@ -61,12 +61,12 @@ export function RevenueCard({ initialSummary }: RevenueCardProps) {
   return (
     <>
       <div className="rounded-xl border border-slate-200 bg-card p-4 shadow-sm">
-        <div className="flex items-start justify-between gap-3 border-b border-slate-100 pb-3">
-          <h3 className="text-base font-bold text-slate-900">{periodTitle(from, to)}</h3>
+        <div className="flex items-center justify-between gap-3">
+          <h3 className="text-lg font-bold text-slate-800">{periodTitle(from, to)}</h3>
           <CalendarRange className="h-5 w-5 shrink-0 text-slate-400" aria-hidden />
         </div>
 
-        <div className="mt-3 grid grid-cols-2 gap-2">
+        <div className="mt-3 grid grid-cols-2 gap-2 border-t border-slate-100 pt-3">
           <label className="text-xs">
             <span className="mb-1 block font-medium text-slate-500">From</span>
             <input
