@@ -77,20 +77,33 @@ export async function getDashboardSummary(): Promise<DashboardSummary> {
   }
 
   try {
-    const rooms = await prisma.room.findMany({
-      orderBy: [{ floor: "asc" }, { number: "asc" }],
-      select: {
-        id: true,
-        number: true,
-        floor: true,
-        status: true,
-        description: true,
-        maxPax: true,
-        baseRate: true,
-        breakfastRate: true,
-        housekeepingTask: { select: { status: true } },
-      },
-    });
+    const [rooms, activeReservations] = await Promise.all([
+      prisma.room.findMany({
+        orderBy: [{ floor: "asc" }, { number: "asc" }],
+        select: {
+          id: true,
+          number: true,
+          floor: true,
+          status: true,
+          description: true,
+          maxPax: true,
+          baseRate: true,
+          breakfastRate: true,
+          housekeepingTask: { select: { status: true } },
+        },
+      }),
+      prisma.reservation.findMany({
+        where: {
+          bookingType: "GUEST",
+          status: { in: ["RESERVED", "CHECKED_IN"] },
+        },
+        select: { id: true, roomId: true },
+      }),
+    ]);
+
+    const reservationByRoom = new Map(
+      activeReservations.map((reservation) => [reservation.roomId, reservation.id]),
+    );
 
     const grid: RoomGridItem[] = rooms
       .map((r) => ({
@@ -103,6 +116,7 @@ export async function getDashboardSummary(): Promise<DashboardSummary> {
         maxPax: r.maxPax,
         baseRate: Number(r.baseRate),
         breakfastRate: r.breakfastRate != null ? Number(r.breakfastRate) : null,
+        activeReservationId: reservationByRoom.get(r.id) ?? null,
       }))
       .sort((a, b) => compareRoomNumbers(a.number, b.number));
 
