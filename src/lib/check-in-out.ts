@@ -2,6 +2,7 @@ import { isHotelCheckInDay } from "@/lib/cancellation-policy";
 import { prisma } from "@/lib/db";
 import { normalizeBookingFields, validateGuestIdAtCheckIn } from "@/lib/booking-source";
 import { addDays, addHotelDays, daysBetween, parseHotelCalendarDate, setHotelTime, startOfHotelDay } from "@/lib/dates";
+import { updateFolio } from "@/lib/billing";
 import { recordFolioPayment } from "@/lib/folio-payments";
 import { syncRoomOperationalStatus } from "@/lib/room-status";
 import { buildStayFolioLines, folioLinesTotal } from "@/lib/stay-pricing";
@@ -70,6 +71,7 @@ export type CheckInFromReservationInput = {
   address?: string;
   paymentAmount?: number;
   paymentMethod?: PaymentMethod;
+  discount?: number;
 };
 
 export type CheckInResult = {
@@ -111,7 +113,22 @@ export type CheckOutInput = {
   reservationId: string;
   paymentAmount?: number;
   paymentMethod?: PaymentMethod;
+  discount?: number;
 };
+
+function resolveFolioDiscountUpdate(
+  existingDiscount: number,
+  requestedDiscount: number | undefined,
+): number | undefined {
+  if (requestedDiscount == null) return undefined;
+  if (existingDiscount > 0) {
+    if (Math.abs(requestedDiscount - existingDiscount) > 0.001) {
+      throw new Error("A discount has already been applied to this stay");
+    }
+    return undefined;
+  }
+  return requestedDiscount;
+}
 
 function parseDateInput(value: string): Date {
   return parseHotelCalendarDate(value);
@@ -640,9 +657,11 @@ export async function performCheckInFromReservation(
 
   const nights = Math.max(1, daysBetween(reservation.checkIn, reservation.checkOut));
   const rate = Number(room.baseRate);
+  let folioId: string;
   let folioNumber: string;
 
   if (reservation.folio) {
+    folioId = reservation.folio.id;
     folioNumber = reservation.folio.folioNumber;
   } else {
     folioNumber = await createStayFolio(
@@ -653,6 +672,10 @@ export async function performCheckInFromReservation(
       reservation.extensionDays,
       reservation.extensionHours,
     );
+    const created = await prisma.folio.findFirstOrThrow({
+      where: { reservationId: reservation.id },
+    });
+    folioId = created.id;
   }
 
   if (
@@ -674,15 +697,29 @@ export async function performCheckInFromReservation(
     });
   }
 
-  if (input.paymentAmount != null && input.paymentAmount > 0 && reservation.folio) {
-    const method = input.paymentMethod ?? reservation.folio.paymentMethod ?? "CASH";
-    const total = Number(reservation.folio.total);
-    const paid = Math.min(Number(reservation.folio.paid) + input.paymentAmount, total);
-    await recordFolioPayment(reservation.folio.id, input.paymentAmount, method);
-    await prisma.folio.update({
-      where: { id: reservation.folio.id },
-      data: { paid, paidAt: new Date(), paymentMethod: method },
-    });
+  const folioUpdate: {
+    discount?: number;
+    paymentAmount?: number;
+    paymentMethod?: PaymentMethod;
+  } = {};
+
+  const existingFolio = await prisma.folio.findUniqueOrThrow({ where: { id: folioId } });
+  const discountUpdate = resolveFolioDiscountUpdate(
+    Number(existingFolio.discount),
+    input.discount,
+  );
+  if (discountUpdate != null) {
+    folioUpdate.discount = discountUpdate;
+  }
+  if (input.paymentAmount != null && input.paymentAmount > 0) {
+    folioUpdate.paymentAmount = input.paymentAmount;
+    folioUpdate.paymentMethod = input.paymentMethod;
+  } else if (input.paymentMethod) {
+    folioUpdate.paymentMethod = input.paymentMethod;
+  }
+
+  if (Object.keys(folioUpdate).length > 0) {
+    await updateFolio(folioId, folioUpdate);
   }
 
   await prisma.reservation.update({
@@ -727,6 +764,34 @@ export async function performCheckOut(
 
   const now = new Date();
 
+  if (reservation.folio) {
+    const folioUpdate: {
+      discount?: number;
+      paymentAmount?: number;
+      paymentMethod?: PaymentMethod;
+    } = {};
+
+    if (input.discount != null) {
+      const discountUpdate = resolveFolioDiscountUpdate(
+        Number(reservation.folio.discount),
+        input.discount,
+      );
+      if (discountUpdate != null) {
+        folioUpdate.discount = discountUpdate;
+      }
+    }
+    if (input.paymentAmount != null && input.paymentAmount > 0) {
+      folioUpdate.paymentAmount = input.paymentAmount;
+      folioUpdate.paymentMethod = input.paymentMethod;
+    } else if (input.paymentMethod) {
+      folioUpdate.paymentMethod = input.paymentMethod;
+    }
+
+    if (Object.keys(folioUpdate).length > 0) {
+      await updateFolio(reservation.folio.id, folioUpdate);
+    }
+  }
+
   await prisma.reservation.update({
     where: { id: reservation.id },
     data: {
@@ -754,36 +819,6 @@ export async function performCheckOut(
       assignedTo: null,
     },
   });
-
-  if (reservation.folio) {
-    const total = Number(reservation.folio.total);
-    let paid = Number(reservation.folio.paid);
-
-    if (input.paymentAmount != null && input.paymentAmount > 0) {
-      paid = Math.min(paid + input.paymentAmount, total);
-      const method = input.paymentMethod ?? reservation.folio.paymentMethod ?? "CASH";
-      await recordFolioPayment(
-        reservation.folio.id,
-        input.paymentAmount,
-        method,
-        now,
-      );
-    }
-
-    await prisma.folio.update({
-      where: { id: reservation.folio.id },
-      data: {
-        paid,
-        paidAt:
-          input.paymentAmount != null && input.paymentAmount > 0
-            ? now
-            : paid >= total
-              ? now
-              : reservation.folio.paidAt,
-        paymentMethod: input.paymentMethod ?? reservation.folio.paymentMethod ?? "CASH",
-      },
-    });
-  }
 
   return { roomNumber: reservation.room.number };
 }

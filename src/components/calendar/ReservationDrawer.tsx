@@ -5,6 +5,7 @@ import {
   calculateCancellationSettlement,
   isHotelCheckInDay,
 } from "@/lib/cancellation-policy";
+import { calcPresetDiscount, DISCOUNT_PRESETS } from "@/lib/billing";
 import { PAYMENT_METHOD_OPTIONS, RESERVATION_STATUS_LABELS } from "@/lib/constants";
 import { hotelCalendarDate } from "@/lib/dates";
 import { formatDate, formatPHP, formatTime } from "@/lib/format";
@@ -46,6 +47,13 @@ export function ReservationDrawer({
   const [rebookCheckIn, setRebookCheckIn] = useState("");
   const [rebookCheckOut, setRebookCheckOut] = useState("");
   const [rebookReason, setRebookReason] = useState("");
+  const [checkInDiscount, setCheckInDiscount] = useState("0");
+  const [paymentAmount, setPaymentAmount] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState("CASH");
+  const [checkoutDiscount, setCheckoutDiscount] = useState("0");
+  const [checkoutPaymentAmount, setCheckoutPaymentAmount] = useState("");
+  const [checkoutPaymentMethod, setCheckoutPaymentMethod] = useState("CASH");
+  const [checkingOut, setCheckingOut] = useState(false);
 
   useEffect(() => {
     if (!reservationId) {
@@ -69,7 +77,44 @@ export function ReservationDrawer({
       .finally(() => setLoading(false));
   }, [reservationId]);
 
+  useEffect(() => {
+    if (!detail || !isHotelCheckInDay(detail.checkIn)) return;
+    setCheckInDiscount(String(detail.discount || 0));
+    setPaymentAmount(detail.balanceDue > 0 ? String(detail.balanceDue) : "");
+    setPaymentMethod(detail.paymentMethod ?? "CASH");
+  }, [detail]);
+
+  useEffect(() => {
+    if (!detail || detail.status !== "CHECKED_IN") return;
+    setCheckoutDiscount(String(detail.discount || 0));
+    setCheckoutPaymentAmount(detail.balanceDue > 0 ? String(detail.balanceDue) : "");
+    setCheckoutPaymentMethod(detail.paymentMethod ?? "CASH");
+  }, [detail]);
+
   const isArrivalDay = detail ? isHotelCheckInDay(detail.checkIn) : false;
+  const discountLocked = detail != null && detail.discount > 0;
+  const checkInPreview = useMemo(() => {
+    if (!detail) return null;
+    const subtotal = detail.estimatedTotal;
+    const discount = discountLocked
+      ? detail.discount
+      : Math.min(subtotal, Math.max(0, Number.parseFloat(checkInDiscount) || 0));
+    const total = Math.max(0, subtotal - discount);
+    const collect = Math.max(0, Number.parseFloat(paymentAmount) || 0);
+    const balanceAfter = Math.max(0, total - detail.paid - collect);
+    return { subtotal, discount, total, collect, balanceAfter };
+  }, [detail, checkInDiscount, paymentAmount, discountLocked]);
+  const checkoutPreview = useMemo(() => {
+    if (!detail) return null;
+    const subtotal = detail.estimatedTotal;
+    const discount = discountLocked
+      ? detail.discount
+      : Math.min(subtotal, Math.max(0, Number.parseFloat(checkoutDiscount) || 0));
+    const total = Math.max(0, subtotal - discount);
+    const collect = Math.max(0, Number.parseFloat(checkoutPaymentAmount) || 0);
+    const balanceAfter = Math.max(0, total - detail.paid - collect);
+    return { subtotal, discount, total, collect, balanceAfter };
+  }, [detail, checkoutDiscount, checkoutPaymentAmount, discountLocked]);
   const cancelPreview = useMemo(
     () =>
       detail
@@ -87,13 +132,35 @@ export function ReservationDrawer({
   }
 
   async function handleCheckIn() {
-    if (!reservationId) return;
+    if (!reservationId || !detail || !checkInPreview) return;
+
+    const collect = checkInPreview.collect;
+    const maxCollect = Math.max(0, checkInPreview.total - detail.paid);
+
+    if (collect > maxCollect + 0.001) {
+      setError(`Payment cannot exceed balance due (${formatPHP(maxCollect)}).`);
+      return;
+    }
+
     setCheckingIn(true);
     setError(null);
     setSuccess(null);
 
     try {
-      const res = await fetch(`/api/reservations/${reservationId}/check-in`, { method: "POST" });
+      const body: Record<string, unknown> = {};
+      if (!discountLocked) {
+        body.discount = checkInPreview.discount;
+      }
+      if (collect > 0) {
+        body.paymentAmount = collect;
+        body.paymentMethod = paymentMethod;
+      }
+
+      const res = await fetch(`/api/reservations/${reservationId}/check-in`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Check-in failed");
 
@@ -104,6 +171,71 @@ export function ReservationDrawer({
       setError(e instanceof Error ? e.message : "Check-in failed");
     } finally {
       setCheckingIn(false);
+    }
+  }
+
+  function applyDiscountPreset(preset: (typeof DISCOUNT_PRESETS)[number]) {
+    if (!detail) return;
+    const subtotal = detail.estimatedTotal;
+    const discount = calcPresetDiscount(subtotal, preset);
+    const total = Math.max(0, subtotal - discount);
+    const balance = Math.max(0, total - detail.paid);
+    setCheckInDiscount(String(discount));
+    setPaymentAmount(balance > 0 ? String(balance) : "");
+  }
+
+  function applyCheckoutDiscountPreset(preset: (typeof DISCOUNT_PRESETS)[number]) {
+    if (!detail) return;
+    const subtotal = detail.estimatedTotal;
+    const discount = calcPresetDiscount(subtotal, preset);
+    const total = Math.max(0, subtotal - discount);
+    const balance = Math.max(0, total - detail.paid);
+    setCheckoutDiscount(String(discount));
+    setCheckoutPaymentAmount(balance > 0 ? String(balance) : "");
+  }
+
+  async function handleCheckOut() {
+    if (!reservationId || !detail || !checkoutPreview) return;
+
+    const collect = checkoutPreview.collect;
+    const maxCollect = Math.max(0, checkoutPreview.total - detail.paid);
+
+    if (collect > maxCollect + 0.001) {
+      setError(`Payment cannot exceed balance due (${formatPHP(maxCollect)}).`);
+      return;
+    }
+
+    setCheckingOut(true);
+    setError(null);
+    setSuccess(null);
+
+    try {
+      const body: Record<string, unknown> = { reservationId };
+      if (!discountLocked) {
+        body.discount = checkoutPreview.discount;
+      }
+      if (collect > 0) {
+        body.paymentAmount = collect;
+        body.paymentMethod = checkoutPaymentMethod;
+      }
+
+      const res = await fetch("/api/check-out", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Check-out failed");
+
+      setSuccess(
+        `Room ${data.roomNumber} checked out. Housekeeping notified to clean the room.`,
+      );
+      router.refresh();
+      onClose();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Check-out failed");
+    } finally {
+      setCheckingOut(false);
     }
   }
 
@@ -530,7 +662,153 @@ export function ReservationDrawer({
         )}
 
         {detail?.status === "RESERVED" && detail.bookingType === "GUEST" && isArrivalDay && (
-          <div className="border-t border-slate-100 p-5 space-y-2">
+          <div className="border-t border-slate-100 p-5 space-y-3">
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 space-y-3">
+              <h4 className="text-sm font-semibold text-slate-800">Payment &amp; discount</h4>
+              <p className="text-xs text-slate-500">
+                {discountLocked
+                  ? "Discount was applied at reservation. Record payment before checking the guest in."
+                  : "Apply discounts and record payment before checking the guest in."}
+              </p>
+
+              <div>
+                <p className="text-xs font-medium text-slate-600">Guest discount</p>
+                {discountLocked ? (
+                  <p className="mt-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700">
+                    {formatPHP(detail.discount)} already applied — discount cannot be changed.
+                  </p>
+                ) : (
+                  <>
+                <div className="mt-2 flex flex-wrap gap-1">
+                  {DISCOUNT_PRESETS.map((preset) => (
+                    <button
+                      key={preset.label}
+                      type="button"
+                      onClick={() => applyDiscountPreset(preset)}
+                      disabled={checkingIn || actionLoading || detail.estimatedTotal <= 0}
+                      className={cn(
+                        "rounded border px-2 py-0.5 text-xs font-medium disabled:opacity-50",
+                        preset.label.startsWith("Senior/PWD")
+                          ? "border-room-vacant/40 bg-room-vacant/15 text-room-vacant hover:bg-room-vacant/25"
+                          : "border-amber-200 bg-amber-50 text-amber-900 hover:bg-amber-100",
+                      )}
+                    >
+                      {preset.label}
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCheckInDiscount("0");
+                      const balance = Math.max(0, detail.estimatedTotal - detail.paid);
+                      setPaymentAmount(balance > 0 ? String(balance) : "");
+                    }}
+                    disabled={checkingIn || actionLoading}
+                    className="rounded border border-slate-200 px-2 py-0.5 text-xs text-slate-600 hover:bg-white disabled:opacity-50"
+                  >
+                    Clear
+                  </button>
+                </div>
+                <p className="mt-1 text-[10px] leading-snug text-slate-400">
+                  Senior/PWD 20% — verify valid OSCA or PWD ID before applying.
+                </p>
+                <div className="mt-2 flex items-center gap-2">
+                  <input
+                    type="number"
+                    min={0}
+                    max={detail.estimatedTotal}
+                    step={1}
+                    value={checkInDiscount}
+                    onChange={(e) => {
+                      const subtotal = detail.estimatedTotal;
+                      const discount = Math.min(
+                        subtotal,
+                        Math.max(0, Number.parseFloat(e.target.value) || 0),
+                      );
+                      setCheckInDiscount(e.target.value);
+                      const total = Math.max(0, subtotal - discount);
+                      const balance = Math.max(0, total - detail.paid);
+                      setPaymentAmount(balance > 0 ? String(balance) : "");
+                    }}
+                    className="w-24 rounded border border-slate-200 px-2 py-1 text-right text-sm"
+                    aria-label="Discount amount in pesos"
+                  />
+                  <span className="text-xs text-slate-500">peso discount</span>
+                </div>
+                  </>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <label className="text-sm">
+                  <span className="text-slate-500">Payment method</span>
+                  <select
+                    value={paymentMethod}
+                    onChange={(e) => setPaymentMethod(e.target.value)}
+                    disabled={checkingIn || actionLoading}
+                    className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                  >
+                    {PAYMENT_METHOD_OPTIONS.map((m) => (
+                      <option key={m.value} value={m.value}>
+                        {m.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="text-sm">
+                  <span className="text-slate-500">Amount to collect</span>
+                  <input
+                    type="number"
+                    min={0}
+                    max={checkInPreview?.total ? checkInPreview.total - detail.paid : undefined}
+                    step={0.01}
+                    value={paymentAmount}
+                    onChange={(e) => setPaymentAmount(e.target.value)}
+                    disabled={checkingIn || actionLoading}
+                    placeholder="0.00"
+                    className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                  />
+                </label>
+              </div>
+
+              {checkInPreview && (
+                <dl className="space-y-1 border-t border-slate-200 pt-2 text-xs">
+                  {checkInPreview.discount > 0 && (
+                    <div className="flex justify-between text-room-vacant">
+                      <dt>After discount</dt>
+                      <dd>− {formatPHP(checkInPreview.discount)}</dd>
+                    </div>
+                  )}
+                  <div className="flex justify-between">
+                    <dt className="text-slate-500">Total after discount</dt>
+                    <dd className="font-medium">{formatPHP(checkInPreview.total)}</dd>
+                  </div>
+                  {detail.paid > 0 && (
+                    <div className="flex justify-between text-room-vacant">
+                      <dt>Already paid</dt>
+                      <dd>− {formatPHP(detail.paid)}</dd>
+                    </div>
+                  )}
+                  {checkInPreview.collect > 0 && (
+                    <div className="flex justify-between text-room-vacant">
+                      <dt>Collecting now</dt>
+                      <dd>− {formatPHP(checkInPreview.collect)}</dd>
+                    </div>
+                  )}
+                  <div className="flex justify-between border-t border-slate-200 pt-1 font-semibold">
+                    <dt>Balance after check-in</dt>
+                    <dd
+                      className={cn(
+                        checkInPreview.balanceAfter > 0 ? "text-room-occupied" : "text-room-vacant",
+                      )}
+                    >
+                      {formatPHP(checkInPreview.balanceAfter)}
+                    </dd>
+                  </div>
+                </dl>
+              )}
+            </div>
+
             <button
               type="button"
               onClick={() => void handleCheckIn()}
@@ -591,6 +869,177 @@ export function ReservationDrawer({
               </div>
             )}
             <p className="text-center text-xs text-slate-400">Guest arrival day</p>
+          </div>
+        )}
+
+        {detail?.status === "CHECKED_IN" && detail.bookingType === "GUEST" && (
+          <div className="border-t border-slate-100 p-5 space-y-3">
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 space-y-3">
+              <h4 className="text-sm font-semibold text-slate-800">Check-out payment</h4>
+              <p className="text-xs text-slate-500">
+                {discountLocked
+                  ? "Discount was already applied. Collect the remaining balance before check-out."
+                  : "Apply final discounts and collect balance before checking the guest out."}
+              </p>
+
+              <div>
+                <p className="text-xs font-medium text-slate-600">Guest discount</p>
+                {discountLocked ? (
+                  <p className="mt-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700">
+                    {formatPHP(detail.discount)} already applied — discount cannot be changed.
+                  </p>
+                ) : (
+                  <>
+                <div className="mt-2 flex flex-wrap gap-1">
+                  {DISCOUNT_PRESETS.map((preset) => (
+                    <button
+                      key={preset.label}
+                      type="button"
+                      onClick={() => applyCheckoutDiscountPreset(preset)}
+                      disabled={checkingOut || detail.estimatedTotal <= 0}
+                      className={cn(
+                        "rounded border px-2 py-0.5 text-xs font-medium disabled:opacity-50",
+                        preset.label.startsWith("Senior/PWD")
+                          ? "border-room-vacant/40 bg-room-vacant/15 text-room-vacant hover:bg-room-vacant/25"
+                          : "border-amber-200 bg-amber-50 text-amber-900 hover:bg-amber-100",
+                      )}
+                    >
+                      {preset.label}
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCheckoutDiscount("0");
+                      const balance = Math.max(0, detail.estimatedTotal - detail.paid);
+                      setCheckoutPaymentAmount(balance > 0 ? String(balance) : "");
+                    }}
+                    disabled={checkingOut}
+                    className="rounded border border-slate-200 px-2 py-0.5 text-xs text-slate-600 hover:bg-white disabled:opacity-50"
+                  >
+                    Clear
+                  </button>
+                </div>
+                <p className="mt-1 text-[10px] leading-snug text-slate-400">
+                  Senior/PWD 20% — verify valid OSCA or PWD ID before applying.
+                </p>
+                <div className="mt-2 flex items-center gap-2">
+                  <input
+                    type="number"
+                    min={0}
+                    max={detail.estimatedTotal}
+                    step={1}
+                    value={checkoutDiscount}
+                    onChange={(e) => {
+                      const subtotal = detail.estimatedTotal;
+                      const discount = Math.min(
+                        subtotal,
+                        Math.max(0, Number.parseFloat(e.target.value) || 0),
+                      );
+                      setCheckoutDiscount(e.target.value);
+                      const total = Math.max(0, subtotal - discount);
+                      const balance = Math.max(0, total - detail.paid);
+                      setCheckoutPaymentAmount(balance > 0 ? String(balance) : "");
+                    }}
+                    disabled={checkingOut}
+                    className="w-24 rounded border border-slate-200 px-2 py-1 text-right text-sm"
+                    aria-label="Discount amount in pesos"
+                  />
+                  <span className="text-xs text-slate-500">peso discount</span>
+                </div>
+                  </>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <label className="text-sm">
+                  <span className="text-slate-500">Payment method</span>
+                  <select
+                    value={checkoutPaymentMethod}
+                    onChange={(e) => setCheckoutPaymentMethod(e.target.value)}
+                    disabled={checkingOut}
+                    className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                  >
+                    {PAYMENT_METHOD_OPTIONS.map((m) => (
+                      <option key={m.value} value={m.value}>
+                        {m.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="text-sm">
+                  <span className="text-slate-500">Amount to collect</span>
+                  <input
+                    type="number"
+                    min={0}
+                    max={
+                      checkoutPreview?.total
+                        ? checkoutPreview.total - detail.paid
+                        : undefined
+                    }
+                    step={0.01}
+                    value={checkoutPaymentAmount}
+                    onChange={(e) => setCheckoutPaymentAmount(e.target.value)}
+                    disabled={checkingOut}
+                    placeholder="0.00"
+                    className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                  />
+                </label>
+              </div>
+
+              {checkoutPreview && (
+                <dl className="space-y-1 border-t border-slate-200 pt-2 text-xs">
+                  {checkoutPreview.discount > 0 && (
+                    <div className="flex justify-between text-room-vacant">
+                      <dt>After discount</dt>
+                      <dd>− {formatPHP(checkoutPreview.discount)}</dd>
+                    </div>
+                  )}
+                  <div className="flex justify-between">
+                    <dt className="text-slate-500">Total after discount</dt>
+                    <dd className="font-medium">{formatPHP(checkoutPreview.total)}</dd>
+                  </div>
+                  {detail.paid > 0 && (
+                    <div className="flex justify-between text-room-vacant">
+                      <dt>Already paid</dt>
+                      <dd>− {formatPHP(detail.paid)}</dd>
+                    </div>
+                  )}
+                  {checkoutPreview.collect > 0 && (
+                    <div className="flex justify-between text-room-vacant">
+                      <dt>Collecting now</dt>
+                      <dd>− {formatPHP(checkoutPreview.collect)}</dd>
+                    </div>
+                  )}
+                  <div className="flex justify-between border-t border-slate-200 pt-1 font-semibold">
+                    <dt>Balance after check-out</dt>
+                    <dd
+                      className={cn(
+                        checkoutPreview.balanceAfter > 0
+                          ? "text-room-occupied"
+                          : "text-room-vacant",
+                      )}
+                    >
+                      {formatPHP(checkoutPreview.balanceAfter)}
+                    </dd>
+                  </div>
+                </dl>
+              )}
+            </div>
+
+            <button
+              type="button"
+              onClick={() => void handleCheckOut()}
+              disabled={checkingOut}
+              className="w-full rounded-lg bg-room-occupied py-2.5 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
+            >
+              {checkingOut ? "Checking out…" : "Check Out Guest"}
+            </button>
+            {checkoutPreview && checkoutPreview.balanceAfter > 0 && (
+              <p className="text-center text-xs text-amber-800">
+                Guest will check out with {formatPHP(checkoutPreview.balanceAfter)} still owing.
+              </p>
+            )}
           </div>
         )}
 
