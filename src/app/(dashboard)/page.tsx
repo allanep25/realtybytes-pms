@@ -21,8 +21,8 @@ import { getTodayRevenueSummary } from "@/lib/revenue";
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
-  const weekOffset = 0;
-  const { start, end } = getTimelineRange(weekOffset);
+  const monthOffset = 0;
+  const { start, end } = getTimelineRange(monthOffset);
 
   const [summary, timeline, revenueSummary, arrivals, departures, shiftNotes, checkoutAlerts] =
     await Promise.all([
@@ -66,7 +66,7 @@ export default async function DashboardPage() {
         <div className="space-y-4 xl:col-span-2">
           <RoomStatusGrid rooms={summary.rooms} bookable={summary.fromDatabase} />
           <CalendarTimeline
-            data={serializeTimeline(timeline, weekOffset)}
+            data={serializeTimeline(timeline, monthOffset)}
             compact
             showNav={false}
             rooms={summary.rooms}

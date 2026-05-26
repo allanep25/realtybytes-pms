@@ -71,3 +71,18 @@ export function formatShortDate(date: Date): string {
 export function formatWeekdayShort(date: Date): string {
   return date.toLocaleDateString("en-PH", { weekday: "short" });
 }
+
+export function formatMonthYear(date: Date): string {
+  return date.toLocaleDateString("en-PH", {
+    month: "long",
+    year: "numeric",
+    timeZone: HOTEL_TIMEZONE,
+  });
+}
+
+export function formatDayOfMonth(date: Date): string {
+  return date.toLocaleDateString("en-PH", {
+    day: "numeric",
+    timeZone: HOTEL_TIMEZONE,
+  });
+}

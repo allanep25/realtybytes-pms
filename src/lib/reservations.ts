@@ -37,7 +37,7 @@ export type ReservationTimelineSerialized = {
   days: string[];
   roomNumbers: string[];
   bars: TimelineBar[];
-  weekOffset: number;
+  monthOffset: number;
 };
 
 export type ReservationDetail = {
@@ -117,11 +117,13 @@ function barLabel(status: ReservationStatus, bookingType: BookingType): string {
   }
 }
 
-export function getTimelineRange(weekOffset = 0): { start: Date; end: Date } {
-  const today = startOfDay(new Date());
-  const anchor = addDays(today, -3 + weekOffset * 7);
-  const start = startOfDay(anchor);
-  const end = addDays(start, 6);
+export function getTimelineRange(monthOffset = 0): { start: Date; end: Date } {
+  const anchor = new Date();
+  anchor.setDate(1);
+  anchor.setMonth(anchor.getMonth() + monthOffset);
+
+  const start = startOfDay(new Date(anchor.getFullYear(), anchor.getMonth(), 1));
+  const end = startOfDay(new Date(anchor.getFullYear(), anchor.getMonth() + 1, 0));
   return { start, end };
 }
 
@@ -131,7 +133,7 @@ export function getDefaultTimelineRange(): { start: Date; end: Date } {
 
 export function serializeTimeline(
   data: ReservationTimelineData,
-  weekOffset: number,
+  monthOffset: number,
 ): ReservationTimelineSerialized {
   return {
     rangeStart: data.rangeStart.toISOString(),
@@ -139,7 +141,7 @@ export function serializeTimeline(
     days: data.days.map((d) => d.toISOString()),
     roomNumbers: data.roomNumbers,
     bars: data.bars,
-    weekOffset,
+    monthOffset,
   };
 }
 
