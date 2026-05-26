@@ -48,6 +48,12 @@ type PaymentRow = {
   guestName: string;
   roomNumber: string;
   folioNumber: string;
+  reservationStatus: string;
+  checkIn: Date;
+  checkOut: Date;
+  folioTotal: number;
+  folioPaid: number;
+  folioDiscount: number;
 };
 
 function sumPayments(rows: { amount: number }[]) {
@@ -72,6 +78,30 @@ function buildBreakdown(payments: { amount: number; method: string }[]): Revenue
 
 function methodLabel(method: string) {
   return PAYMENT_METHOD_OPTIONS.find((option) => option.value === method)?.label ?? method;
+}
+
+function formatPaymentDetail(row: PaymentRow): string {
+  const checkIn = hotelCalendarDate(row.checkIn);
+  const checkOut = hotelCalendarDate(row.checkOut);
+  const balance = Math.max(0, row.folioTotal - row.folioPaid);
+
+  if (row.reservationStatus === "RESERVED") {
+    if (row.folioPaid >= row.folioTotal && row.folioTotal > 0) {
+      return `Future booking · Paid in full · Check-in ${checkIn}`;
+    }
+    if (balance > 0) {
+      return `Future booking deposit · Check-in ${checkIn} · Balance ${formatPHP(balance)}`;
+    }
+    return `Future booking · Check-in ${checkIn}`;
+  }
+  if (row.reservationStatus === "CHECKED_IN") {
+    return `In-house guest payment · ${checkIn} – ${checkOut}`;
+  }
+  if (row.reservationStatus === "CHECKED_OUT") {
+    return `Check-out payment · ${checkIn} – ${checkOut}`;
+  }
+
+  return `Payment · ${checkIn} – ${checkOut}`;
 }
 
 function parsePeriod(fromStr: string, toStr: string) {
@@ -102,7 +132,10 @@ async function getLegacyFolioPayments(from: Date, toExclusive: Date): Promise<Pa
     },
     include: {
       reservation: {
-        include: {
+        select: {
+          status: true,
+          checkIn: true,
+          checkOut: true,
           guest: { select: { fullName: true } },
           room: { select: { number: true } },
         },
@@ -118,6 +151,12 @@ async function getLegacyFolioPayments(from: Date, toExclusive: Date): Promise<Pa
     guestName: folio.reservation.guest.fullName,
     roomNumber: folio.reservation.room.number,
     folioNumber: folio.folioNumber,
+    reservationStatus: folio.reservation.status,
+    checkIn: folio.reservation.checkIn,
+    checkOut: folio.reservation.checkOut,
+    folioTotal: Number(folio.total),
+    folioPaid: Number(folio.paid),
+    folioDiscount: Number(folio.discount),
   }));
 }
 
@@ -132,7 +171,10 @@ async function getPaymentRowsForPeriod(from: Date, toExclusive: Date): Promise<P
         folio: {
           include: {
             reservation: {
-              include: {
+              select: {
+                status: true,
+                checkIn: true,
+                checkOut: true,
                 guest: { select: { fullName: true } },
                 room: { select: { number: true } },
               },
@@ -153,6 +195,12 @@ async function getPaymentRowsForPeriod(from: Date, toExclusive: Date): Promise<P
     guestName: payment.folio.reservation.guest.fullName,
     roomNumber: payment.folio.reservation.room.number,
     folioNumber: payment.folio.folioNumber,
+    reservationStatus: payment.folio.reservation.status,
+    checkIn: payment.folio.reservation.checkIn,
+    checkOut: payment.folio.reservation.checkOut,
+    folioTotal: Number(payment.folio.total),
+    folioPaid: Number(payment.folio.paid),
+    folioDiscount: Number(payment.folio.discount),
   }));
 
   return [...tracked, ...legacyPayments].sort(
@@ -168,6 +216,8 @@ type DiscountRow = {
   roomNumber: string;
   folioNumber: string;
   subtotal: number;
+  folioTotal: number;
+  folioPaid: number;
   reservationStatus: string;
   checkIn: Date;
   checkOut: Date;
@@ -176,25 +226,30 @@ type DiscountRow = {
 function formatDiscountDetail(row: DiscountRow): string {
   const checkIn = hotelCalendarDate(row.checkIn);
   const checkOut = hotelCalendarDate(row.checkOut);
-  const statusLabel = RESERVATION_STATUS_LABELS[row.reservationStatus] ?? row.reservationStatus;
 
   if (row.reservationStatus === "RESERVED") {
-    return `Future booking · Check-in ${checkIn} · ${statusLabel}`;
+    if (row.folioPaid >= row.folioTotal && row.folioTotal > 0) {
+      return `Future booking · Paid in full · Check-in ${checkIn}`;
+    }
+    return `Future booking · Check-in ${checkIn} · Collected ${formatPHP(row.folioPaid)}`;
   }
   if (row.reservationStatus === "CHECKED_IN") {
-    return `In-house stay · ${checkIn} – ${checkOut}`;
+    return `In-house stay · ${checkIn} – ${checkOut} · Collected ${formatPHP(row.folioPaid)}`;
   }
   if (row.reservationStatus === "CHECKED_OUT") {
     return `Completed stay · ${checkIn} – ${checkOut}`;
   }
 
-  return `${statusLabel} · ${checkIn} – ${checkOut} · Room ${row.roomNumber}`;
+  const statusLabel = RESERVATION_STATUS_LABELS[row.reservationStatus] ?? row.reservationStatus;
+  return `${statusLabel} · ${checkIn} – ${checkOut}`;
 }
 
+/** Discounts that affect folios with money collected — excludes unpaid future bookings. */
 async function getDiscountRowsForPeriod(from: Date, toExclusive: Date): Promise<DiscountRow[]> {
   const folios = await prisma.folio.findMany({
     where: {
       discount: { gt: 0 },
+      paid: { gt: 0 },
       reservation: { bookingType: BookingType.GUEST },
       updatedAt: { gte: from, lt: toExclusive },
     },
@@ -220,16 +275,12 @@ async function getDiscountRowsForPeriod(from: Date, toExclusive: Date): Promise<
     roomNumber: folio.reservation.room.number,
     folioNumber: folio.folioNumber,
     subtotal: Number(folio.subtotal),
+    folioTotal: Number(folio.total),
+    folioPaid: Number(folio.paid),
     reservationStatus: folio.reservation.status,
     checkIn: folio.reservation.checkIn,
     checkOut: folio.reservation.checkOut,
   }));
-}
-
-/** Guest discounts applied on folios updated during the hotel business period. */
-async function getDiscountTotalForPeriod(from: Date, toExclusive: Date): Promise<number> {
-  const rows = await getDiscountRowsForPeriod(from, toExclusive);
-  return rows.reduce((sum, row) => sum + row.amount, 0);
 }
 
 export async function getRevenueForPeriod(
@@ -268,7 +319,7 @@ export async function getRevenueForPeriod(
     roomNumber: payment.roomNumber,
     folioNumber: payment.folioNumber,
     methodLabel: methodLabel(payment.method),
-    detail: "Payment received",
+    detail: formatPaymentDetail(payment),
   }));
 
   const discountEntries: RevenueLedgerEntry[] = discountRows.map((row) => ({

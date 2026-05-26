@@ -23,7 +23,7 @@ export function RevenueTransactionsModal({
 }: RevenueTransactionsModalProps) {
   if (!open || !summary) return null;
 
-  const { transactions, from, to, total, totalDiscount } = summary;
+  const { transactions, from, to, total } = summary;
   const paymentCount = transactions.filter((entry) => entry.kind === "payment").length;
   const discountCount = transactions.filter((entry) => entry.kind === "discount").length;
 
@@ -38,14 +38,13 @@ export function RevenueTransactionsModal({
       >
         <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
           <div>
-            <h2 className="text-sm font-semibold text-slate-800">Payments &amp; discounts</h2>
+            <h2 className="text-sm font-semibold text-slate-800">Money collected</h2>
             <p className="text-xs text-slate-400">
-              {periodLabel(from, to)} · {paymentCount} payment{paymentCount === 1 ? "" : "s"}
+              {periodLabel(from, to)} · {paymentCount} payment{paymentCount === 1 ? "" : "s"} ·{" "}
+              {formatPHP(total)} collected
               {discountCount > 0
-                ? ` · ${discountCount} discount${discountCount === 1 ? "" : "s"}`
-                : ""}{" "}
-              · {formatPHP(total)}
-              {totalDiscount > 0 ? ` · −${formatPHP(totalDiscount)} discounts` : ""}
+                ? ` · ${discountCount} discount${discountCount === 1 ? "" : "s"} on paid stays`
+                : ""}
             </p>
           </div>
           <button
@@ -61,7 +60,7 @@ export function RevenueTransactionsModal({
         <div className="max-h-[65vh] overflow-y-auto">
           {transactions.length === 0 ? (
             <p className="px-4 py-10 text-center text-sm text-slate-400">
-              No payments or discounts recorded for this period.
+              No money collected for this period.
             </p>
           ) : (
             <table className="w-full text-sm">

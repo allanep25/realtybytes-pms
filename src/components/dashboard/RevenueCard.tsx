@@ -118,7 +118,7 @@ export function RevenueCard({ initialSummary }: RevenueCardProps) {
           ))}
           {totalDiscount > 0 && (
             <li className="flex items-center justify-between gap-3 border-t border-dashed border-slate-200 pt-2">
-              <span className="font-semibold text-amber-900">Guest discounts</span>
+              <span className="font-semibold text-amber-900">Discounts on paid stays</span>
               <span className="text-base font-bold tabular-nums text-amber-900">
                 − {formatPHP(totalDiscount)}
               </span>
@@ -135,19 +135,20 @@ export function RevenueCard({ initialSummary }: RevenueCardProps) {
           )}
         >
           <span className="text-sm font-bold text-slate-800">
-            {from === to ? "Total for day" : "Total for period"}
+            {from === to ? "Total collected today" : "Total collected"}
           </span>
           <span className="text-2xl font-bold tabular-nums text-slate-900">{formatPHP(total)}</span>
         </button>
 
         {totalDiscount > 0 && !loading && (
           <p className="mt-2 text-xs text-amber-800">
-            {formatPHP(totalDiscount)} in guest discounts recorded for this period.
+            {formatPHP(totalDiscount)} in discounts on stays with payment collected. Unpaid future
+            booking discounts are not included here.
           </p>
         )}
 
         {total === 0 && !loading ? (
-          <p className="mt-2 text-sm font-medium text-slate-500">No payments in this period</p>
+          <p className="mt-2 text-sm font-medium text-slate-500">No money collected in this period</p>
         ) : showComparison ? (
           <p
             className={cn(
@@ -169,8 +170,8 @@ export function RevenueCard({ initialSummary }: RevenueCardProps) {
           className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg border border-slate-200 px-3 py-2.5 text-sm font-semibold text-slate-800 hover:bg-slate-50 disabled:opacity-50"
         >
           <List className="h-4 w-4" />
-          View transactions ({paymentCount}
-          {discountCount > 0 ? ` + ${discountCount} discounts` : ""})
+          View money collected ({paymentCount}
+          {discountCount > 0 ? ` + ${discountCount} paid-stay discounts` : ""})
         </button>
       </div>
 
