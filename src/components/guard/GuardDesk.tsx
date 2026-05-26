@@ -1,10 +1,11 @@
 "use client";
 
+import { GuardWalkInForm } from "@/components/guard/GuardWalkInForm";
 import { formatDate, formatPHP } from "@/lib/format";
 import { startOfHotelDay } from "@/lib/dates";
 import type { ActiveStay } from "@/lib/check-in-out";
 import { cn, compareRoomNumbers } from "@/lib/utils";
-import { Search } from "lucide-react";
+import { LogIn, LogOut, Search } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
@@ -18,6 +19,8 @@ const PAYMENT_METHODS = [
 type GuardDeskProps = {
   activeStays: ActiveStay[];
 };
+
+type GuardTab = "walk-in" | "check-out";
 
 function isLeavingToday(checkOut: string): boolean {
   return startOfHotelDay(new Date(checkOut)).getTime() <= startOfHotelDay().getTime();
@@ -124,6 +127,7 @@ function StayCard({
 
 export function GuardDesk({ activeStays }: GuardDeskProps) {
   const router = useRouter();
+  const [tab, setTab] = useState<GuardTab>("walk-in");
   const [search, setSearch] = useState("");
   const [checkingOutId, setCheckingOutId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -192,79 +196,114 @@ export function GuardDesk({ activeStays }: GuardDeskProps) {
       <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
         <p className="text-sm font-medium text-slate-800">Front desk closed 9:00 PM – 6:00 AM</p>
         <p className="mt-1 text-sm text-slate-500">
-          Check out guests who are fully paid, or collect their balance due before releasing the
-          room.
+          Accept walk-in arrivals or check out in-house guests. Collect any balance due before
+          releasing a room.
         </p>
       </div>
 
-      {error && (
-        <p className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-room-dirty">
-          {error}
-        </p>
-      )}
-      {success && (
-        <p className="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-room-vacant">
-          {success}
-        </p>
-      )}
+      <div className="flex gap-2 rounded-xl border border-slate-200 bg-white p-1 shadow-sm">
+        <button
+          type="button"
+          onClick={() => setTab("walk-in")}
+          className={cn(
+            "flex flex-1 items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-sm font-semibold transition",
+            tab === "walk-in"
+              ? "bg-room-vacant text-white"
+              : "text-slate-600 hover:bg-slate-50",
+          )}
+        >
+          <LogIn className="h-4 w-4" />
+          Walk-in arrival
+        </button>
+        <button
+          type="button"
+          onClick={() => setTab("check-out")}
+          className={cn(
+            "flex flex-1 items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-sm font-semibold transition",
+            tab === "check-out"
+              ? "bg-room-occupied text-white"
+              : "text-slate-600 hover:bg-slate-50",
+          )}
+        >
+          <LogOut className="h-4 w-4" />
+          Check out ({activeStays.length})
+        </button>
+      </div>
 
-      <label className="relative block">
-        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-        <input
-          type="search"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search room number or guest name…"
-          className="w-full rounded-xl border border-slate-200 bg-white py-3 pl-10 pr-4 text-sm shadow-sm focus:border-room-occupied focus:outline-none focus:ring-1 focus:ring-room-occupied"
-        />
-      </label>
-
-      {activeStays.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-slate-300 bg-white p-10 text-center">
-          <p className="text-slate-600">No guests currently checked in.</p>
-        </div>
-      ) : filtered.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-slate-300 bg-white p-10 text-center">
-          <p className="text-slate-600">No guests match your search.</p>
-        </div>
+      {tab === "walk-in" ? (
+        <GuardWalkInForm />
       ) : (
         <>
-          {leavingToday.length > 0 && (
-            <section className="space-y-3">
-              <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
-                Leaving today ({leavingToday.length})
-              </h2>
-              <div className={STAY_GRID_CLASS}>
-                {leavingToday.map((stay) => (
-                  <StayCard
-                    key={stay.reservationId}
-                    stay={stay}
-                    onCheckOut={handleCheckOut}
-                    checkingOut={checkingOutId === stay.reservationId}
-                  />
-                ))}
-              </div>
-            </section>
+          {error && (
+            <p className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-room-dirty">
+              {error}
+            </p>
+          )}
+          {success && (
+            <p className="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-room-vacant">
+              {success}
+            </p>
           )}
 
-          {otherStays.length > 0 && (
-            <section className="space-y-3">
-              <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
-                {leavingToday.length > 0
-                  ? `Other in-house guests (${otherStays.length})`
-                  : `All in-house guests (${otherStays.length})`}
-              </h2>
-              <div className={STAY_GRID_CLASS}>
-                {otherStays.map((stay) => (
-                  <StayCard
-                    key={stay.reservationId}
-                    stay={stay}
-                    onCheckOut={handleCheckOut}
-                    checkingOut={checkingOutId === stay.reservationId}
-                  />
-                ))}
-              </div>
-            </section>
+          <label className="relative block">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <input
+              type="search"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search room number or guest name…"
+              className="w-full rounded-xl border border-slate-200 bg-white py-3 pl-10 pr-4 text-sm shadow-sm focus:border-room-occupied focus:outline-none focus:ring-1 focus:ring-room-occupied"
+            />
+          </label>
+
+          {activeStays.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-slate-300 bg-white p-10 text-center">
+              <p className="text-slate-600">No guests currently checked in.</p>
+            </div>
+          ) : filtered.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-slate-300 bg-white p-10 text-center">
+              <p className="text-slate-600">No guests match your search.</p>
+            </div>
+          ) : (
+            <>
+              {leavingToday.length > 0 && (
+                <section className="space-y-3">
+                  <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
+                    Leaving today ({leavingToday.length})
+                  </h2>
+                  <div className={STAY_GRID_CLASS}>
+                    {leavingToday.map((stay) => (
+                      <StayCard
+                        key={stay.reservationId}
+                        stay={stay}
+                        onCheckOut={handleCheckOut}
+                        checkingOut={checkingOutId === stay.reservationId}
+                      />
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              {otherStays.length > 0 && (
+                <section className="space-y-3">
+                  <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
+                    {leavingToday.length > 0
+                      ? `Other in-house guests (${otherStays.length})`
+                      : `All in-house guests (${otherStays.length})`}
+                  </h2>
+                  <div className={STAY_GRID_CLASS}>
+                    {otherStays.map((stay) => (
+                      <StayCard
+                        key={stay.reservationId}
+                        stay={stay}
+                        onCheckOut={handleCheckOut}
+                        checkingOut={checkingOutId === stay.reservationId}
+                      />
+                    ))}
+                  </div>
+                </section>
+              )}
+            </>
           )}
         </>
       )}

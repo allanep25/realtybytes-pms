@@ -63,6 +63,10 @@ export function isSecurityRole(role: EmployeeRole): boolean {
   return role === "SECURITY";
 }
 
+export function canWalkInCheckIn(role: EmployeeRole): boolean {
+  return role === "ADMINISTRATOR" || role === "FRONT_DESK" || role === "SECURITY";
+}
+
 export function isHousekeepingRole(role: EmployeeRole): boolean {
   return role === "HOUSEKEEPING";
 }
