@@ -1,7 +1,8 @@
 "use client";
 
-import type { PaymentTransaction, RevenueSummary } from "@/lib/revenue";
+import type { RevenueLedgerEntry, RevenueSummary } from "@/lib/revenue";
 import { formatDate, formatPHP, formatTime } from "@/lib/format";
+import { cn } from "@/lib/utils";
 import { X } from "lucide-react";
 
 type RevenueTransactionsModalProps = {
@@ -23,6 +24,8 @@ export function RevenueTransactionsModal({
   if (!open || !summary) return null;
 
   const { transactions, from, to, total, totalDiscount } = summary;
+  const paymentCount = transactions.filter((entry) => entry.kind === "payment").length;
+  const discountCount = transactions.filter((entry) => entry.kind === "discount").length;
 
   return (
     <div
@@ -30,15 +33,18 @@ export function RevenueTransactionsModal({
       onClick={onClose}
     >
       <div
-        className="max-h-[85vh] w-full max-w-3xl overflow-hidden rounded-xl bg-card shadow-xl"
+        className="max-h-[85vh] w-full max-w-5xl overflow-hidden rounded-xl bg-card shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
           <div>
-            <h2 className="text-sm font-semibold text-slate-800">Payment transactions</h2>
+            <h2 className="text-sm font-semibold text-slate-800">Payments &amp; discounts</h2>
             <p className="text-xs text-slate-400">
-              {periodLabel(from, to)} · {transactions.length} payment
-              {transactions.length === 1 ? "" : "s"} · {formatPHP(total)}
+              {periodLabel(from, to)} · {paymentCount} payment{paymentCount === 1 ? "" : "s"}
+              {discountCount > 0
+                ? ` · ${discountCount} discount${discountCount === 1 ? "" : "s"}`
+                : ""}{" "}
+              · {formatPHP(total)}
               {totalDiscount > 0 ? ` · −${formatPHP(totalDiscount)} discounts` : ""}
             </p>
           </div>
@@ -55,7 +61,7 @@ export function RevenueTransactionsModal({
         <div className="max-h-[65vh] overflow-y-auto">
           {transactions.length === 0 ? (
             <p className="px-4 py-10 text-center text-sm text-slate-400">
-              No payments recorded for this period.
+              No payments or discounts recorded for this period.
             </p>
           ) : (
             <table className="w-full text-sm">
@@ -65,13 +71,14 @@ export function RevenueTransactionsModal({
                   <th className="px-4 py-3">Guest</th>
                   <th className="px-4 py-3">Room</th>
                   <th className="px-4 py-3">Folio</th>
-                  <th className="px-4 py-3">Method</th>
+                  <th className="px-4 py-3">Type</th>
+                  <th className="px-4 py-3">Details</th>
                   <th className="px-4 py-3 text-right">Amount</th>
                 </tr>
               </thead>
               <tbody>
-                {transactions.map((transaction) => (
-                  <TransactionRow key={transaction.id} transaction={transaction} />
+                {transactions.map((entry) => (
+                  <TransactionRow key={entry.id} entry={entry} />
                 ))}
               </tbody>
             </table>
@@ -82,19 +89,43 @@ export function RevenueTransactionsModal({
   );
 }
 
-function TransactionRow({ transaction }: { transaction: PaymentTransaction }) {
+function TransactionRow({ entry }: { entry: RevenueLedgerEntry }) {
+  const isDiscount = entry.kind === "discount";
+
   return (
-    <tr className="border-t border-slate-100">
+    <tr
+      className={cn(
+        "border-t border-slate-100",
+        isDiscount && "bg-amber-50/60",
+      )}
+    >
       <td className="px-4 py-2.5 whitespace-nowrap text-slate-600">
-        <span className="block">{formatDate(transaction.paidAt)}</span>
-        <span className="text-xs text-slate-400">{formatTime(transaction.paidAt)}</span>
+        <span className="block">{formatDate(entry.recordedAt)}</span>
+        <span className="text-xs text-slate-400">{formatTime(entry.recordedAt)}</span>
       </td>
-      <td className="px-4 py-2.5 font-medium text-slate-800">{transaction.guestName}</td>
-      <td className="px-4 py-2.5 text-slate-600">{transaction.roomNumber}</td>
-      <td className="px-4 py-2.5 font-mono text-xs text-slate-500">{transaction.folioNumber}</td>
-      <td className="px-4 py-2.5 text-slate-600">{transaction.methodLabel}</td>
-      <td className="px-4 py-2.5 text-right font-medium tabular-nums text-slate-800">
-        {formatPHP(transaction.amount)}
+      <td className="px-4 py-2.5 font-medium text-slate-800">{entry.guestName}</td>
+      <td className="px-4 py-2.5 text-slate-600">{entry.roomNumber}</td>
+      <td className="px-4 py-2.5 font-mono text-xs text-slate-500">{entry.folioNumber}</td>
+      <td className="px-4 py-2.5">
+        <span
+          className={cn(
+            "rounded-full px-2 py-0.5 text-xs font-medium",
+            isDiscount
+              ? "bg-amber-100 text-amber-900"
+              : "bg-slate-100 text-slate-700",
+          )}
+        >
+          {entry.methodLabel}
+        </span>
+      </td>
+      <td className="px-4 py-2.5 text-xs text-slate-500">{entry.detail}</td>
+      <td
+        className={cn(
+          "px-4 py-2.5 text-right font-medium tabular-nums",
+          isDiscount ? "text-amber-900" : "text-slate-800",
+        )}
+      >
+        {isDiscount ? `− ${formatPHP(entry.amount)}` : formatPHP(entry.amount)}
       </td>
     </tr>
   );

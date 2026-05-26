@@ -1,10 +1,11 @@
-import { PAYMENT_METHOD_OPTIONS } from "@/lib/constants";
+import { PAYMENT_METHOD_OPTIONS, RESERVATION_STATUS_LABELS } from "@/lib/constants";
 import { prisma } from "@/lib/db";
 import {
   addHotelDays,
   hotelCalendarDate,
   parseHotelCalendarDate,
 } from "@/lib/dates";
+import { formatPHP } from "@/lib/format";
 import { BookingType, type PaymentMethod } from "@prisma/client";
 
 export type RevenueBreakdownItem = {
@@ -13,15 +14,19 @@ export type RevenueBreakdownItem = {
   amount: number;
 };
 
-export type PaymentTransaction = {
+/** @deprecated Use RevenueLedgerEntry */
+export type PaymentTransaction = RevenueLedgerEntry;
+
+export type RevenueLedgerEntry = {
   id: string;
-  paidAt: string;
+  kind: "payment" | "discount";
+  recordedAt: string;
   amount: number;
-  method: string;
-  methodLabel: string;
   guestName: string;
   roomNumber: string;
   folioNumber: string;
+  methodLabel: string;
+  detail: string;
 };
 
 export type RevenueSummary = {
@@ -32,7 +37,7 @@ export type RevenueSummary = {
   previousPeriodTotal: number | null;
   changePercent: number | null;
   breakdown: RevenueBreakdownItem[];
-  transactions: PaymentTransaction[];
+  transactions: RevenueLedgerEntry[];
 };
 
 type PaymentRow = {
@@ -155,18 +160,76 @@ async function getPaymentRowsForPeriod(from: Date, toExclusive: Date): Promise<P
   );
 }
 
-/** Guest discounts applied on folios updated during the hotel business period. */
-async function getDiscountTotalForPeriod(from: Date, toExclusive: Date): Promise<number> {
+type DiscountRow = {
+  id: string;
+  recordedAt: Date;
+  amount: number;
+  guestName: string;
+  roomNumber: string;
+  folioNumber: string;
+  subtotal: number;
+  reservationStatus: string;
+  checkIn: Date;
+  checkOut: Date;
+};
+
+function formatDiscountDetail(row: DiscountRow): string {
+  const checkIn = hotelCalendarDate(row.checkIn);
+  const checkOut = hotelCalendarDate(row.checkOut);
+  const statusLabel = RESERVATION_STATUS_LABELS[row.reservationStatus] ?? row.reservationStatus;
+
+  if (row.reservationStatus === "RESERVED") {
+    return `Future booking · Check-in ${checkIn} · ${statusLabel}`;
+  }
+  if (row.reservationStatus === "CHECKED_IN") {
+    return `In-house stay · ${checkIn} – ${checkOut}`;
+  }
+  if (row.reservationStatus === "CHECKED_OUT") {
+    return `Completed stay · ${checkIn} – ${checkOut}`;
+  }
+
+  return `${statusLabel} · ${checkIn} – ${checkOut} · Room ${row.roomNumber}`;
+}
+
+async function getDiscountRowsForPeriod(from: Date, toExclusive: Date): Promise<DiscountRow[]> {
   const folios = await prisma.folio.findMany({
     where: {
       discount: { gt: 0 },
       reservation: { bookingType: BookingType.GUEST },
       updatedAt: { gte: from, lt: toExclusive },
     },
-    select: { discount: true },
+    include: {
+      reservation: {
+        select: {
+          status: true,
+          checkIn: true,
+          checkOut: true,
+          guest: { select: { fullName: true } },
+          room: { select: { number: true } },
+        },
+      },
+    },
+    orderBy: { updatedAt: "desc" },
   });
 
-  return folios.reduce((sum, folio) => sum + Number(folio.discount), 0);
+  return folios.map((folio) => ({
+    id: folio.id,
+    recordedAt: folio.updatedAt,
+    amount: Number(folio.discount),
+    guestName: folio.reservation.guest.fullName,
+    roomNumber: folio.reservation.room.number,
+    folioNumber: folio.folioNumber,
+    subtotal: Number(folio.subtotal),
+    reservationStatus: folio.reservation.status,
+    checkIn: folio.reservation.checkIn,
+    checkOut: folio.reservation.checkOut,
+  }));
+}
+
+/** Guest discounts applied on folios updated during the hotel business period. */
+async function getDiscountTotalForPeriod(from: Date, toExclusive: Date): Promise<number> {
+  const rows = await getDiscountRowsForPeriod(from, toExclusive);
+  return rows.reduce((sum, row) => sum + row.amount, 0);
 }
 
 export async function getRevenueForPeriod(
@@ -174,10 +237,11 @@ export async function getRevenueForPeriod(
   toStr: string,
 ): Promise<RevenueSummary> {
   const { from, toExclusive } = parsePeriod(fromStr, toStr);
-  const [payments, totalDiscount] = await Promise.all([
+  const [payments, discountRows] = await Promise.all([
     getPaymentRowsForPeriod(from, toExclusive),
-    getDiscountTotalForPeriod(from, toExclusive),
+    getDiscountRowsForPeriod(from, toExclusive),
   ]);
+  const totalDiscount = discountRows.reduce((sum, row) => sum + row.amount, 0);
 
   let previousPeriodTotal: number | null = null;
   let changePercent: number | null = null;
@@ -195,16 +259,33 @@ export async function getRevenueForPeriod(
           : null;
   }
 
-  const transactions: PaymentTransaction[] = payments.map((payment) => ({
+  const paymentEntries: RevenueLedgerEntry[] = payments.map((payment) => ({
     id: payment.id,
-    paidAt: payment.paidAt.toISOString(),
+    kind: "payment",
+    recordedAt: payment.paidAt.toISOString(),
     amount: payment.amount,
-    method: payment.method,
-    methodLabel: methodLabel(payment.method),
     guestName: payment.guestName,
     roomNumber: payment.roomNumber,
     folioNumber: payment.folioNumber,
+    methodLabel: methodLabel(payment.method),
+    detail: "Payment received",
   }));
+
+  const discountEntries: RevenueLedgerEntry[] = discountRows.map((row) => ({
+    id: `discount-${row.id}`,
+    kind: "discount",
+    recordedAt: row.recordedAt.toISOString(),
+    amount: row.amount,
+    guestName: row.guestName,
+    roomNumber: row.roomNumber,
+    folioNumber: row.folioNumber,
+    methodLabel: "Guest discount",
+    detail: `${formatDiscountDetail(row)} · Room charges ${formatPHP(row.subtotal)}`,
+  }));
+
+  const transactions = [...paymentEntries, ...discountEntries].sort(
+    (a, b) => new Date(b.recordedAt).getTime() - new Date(a.recordedAt).getTime(),
+  );
 
   return {
     from: fromStr,

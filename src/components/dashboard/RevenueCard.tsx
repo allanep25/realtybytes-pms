@@ -54,6 +54,8 @@ export function RevenueCard({ initialSummary }: RevenueCardProps) {
   }, [from, to, initialSummary, loadSummary]);
 
   const { total, totalDiscount, changePercent, breakdown, transactions } = summary;
+  const paymentCount = transactions.filter((entry) => entry.kind === "payment").length;
+  const discountCount = transactions.filter((entry) => entry.kind === "discount").length;
   const positive = changePercent != null && changePercent >= 0;
   const isToday = from === to && from === today;
   const showComparison = isToday && total > 0 && changePercent != null;
@@ -167,7 +169,8 @@ export function RevenueCard({ initialSummary }: RevenueCardProps) {
           className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg border border-slate-200 px-3 py-2.5 text-sm font-semibold text-slate-800 hover:bg-slate-50 disabled:opacity-50"
         >
           <List className="h-4 w-4" />
-          View transactions ({transactions.length})
+          View transactions ({paymentCount}
+          {discountCount > 0 ? ` + ${discountCount} discounts` : ""})
         </button>
       </div>
 
