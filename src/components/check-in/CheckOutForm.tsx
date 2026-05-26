@@ -22,16 +22,47 @@ export function CheckOutForm({ activeStays }: CheckOutFormProps) {
   const router = useRouter();
   const [selectedId, setSelectedId] = useState(activeStays[0]?.reservationId ?? "");
   const [paymentMethod, setPaymentMethod] = useState("CASH");
-  const [collectPayment, setCollectPayment] = useState(true);
+  const [recordingPayment, setRecordingPayment] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
   const stay = activeStays.find((s) => s.reservationId === selectedId);
+  const readyForCheckout = stay != null && stay.balanceDue <= 0.001;
+
+  async function handleRecordPayment(e: React.FormEvent) {
+    e.preventDefault();
+    if (!stay?.folioId || stay.balanceDue <= 0) return;
+
+    setRecordingPayment(true);
+    setError(null);
+    setSuccess(null);
+
+    try {
+      const res = await fetch(`/api/folios/${stay.folioId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          paymentAmount: stay.balanceDue,
+          paymentMethod,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Payment failed");
+
+      setSuccess(`Full payment recorded for ${stay.guestName}. Guest is ready to check out.`);
+      router.refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Payment failed");
+    } finally {
+      setRecordingPayment(false);
+    }
+  }
 
   async function handleCheckOut(e: React.FormEvent) {
     e.preventDefault();
-    if (!selectedId) return;
+    if (!selectedId || !stay || stay.balanceDue > 0.001) return;
 
     setSubmitting(true);
     setError(null);
@@ -41,12 +72,7 @@ export function CheckOutForm({ activeStays }: CheckOutFormProps) {
       const res = await fetch("/api/check-out", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          reservationId: selectedId,
-          ...(collectPayment && stay && stay.balanceDue > 0
-            ? { paymentAmount: stay.balanceDue, paymentMethod }
-            : {}),
-        }),
+        body: JSON.stringify({ reservationId: selectedId }),
       });
 
       const data = await res.json();
@@ -74,7 +100,7 @@ export function CheckOutForm({ activeStays }: CheckOutFormProps) {
   }
 
   return (
-    <form onSubmit={handleCheckOut} className="space-y-6">
+    <div className="space-y-6">
       {error && (
         <p className="rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm text-room-dirty">
           {error}
@@ -190,49 +216,62 @@ export function CheckOutForm({ activeStays }: CheckOutFormProps) {
             </div>
 
             {stay.balanceDue > 0 && (
-              <div className="mt-4 space-y-3">
-                <label className="flex items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={collectPayment}
-                    onChange={(e) => setCollectPayment(e.target.checked)}
-                  />
-                  Collect payment on check-out
+              <form onSubmit={handleRecordPayment} className="mt-4 space-y-3">
+                <p className="text-xs text-slate-500">
+                  Record the full balance before check-out is enabled.
+                </p>
+                <label className="block text-sm">
+                  <span className="text-slate-500">Payment method</span>
+                  <select
+                    value={paymentMethod}
+                    onChange={(e) => setPaymentMethod(e.target.value)}
+                    className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2"
+                  >
+                    {PAYMENT_METHODS.map((m) => (
+                      <option key={m.value} value={m.value}>
+                        {m.label}
+                      </option>
+                    ))}
+                  </select>
                 </label>
-                {collectPayment && (
-                  <label className="block text-sm">
-                    <span className="text-slate-500">Payment method</span>
-                    <select
-                      value={paymentMethod}
-                      onChange={(e) => setPaymentMethod(e.target.value)}
-                      className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2"
-                    >
-                      {PAYMENT_METHODS.map((m) => (
-                        <option key={m.value} value={m.value}>
-                          {m.label}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                )}
-              </div>
+                <button
+                  type="submit"
+                  disabled={recordingPayment || !stay.folioId}
+                  className={cn(
+                    "w-full rounded-lg px-4 py-2.5 text-sm font-medium text-white",
+                    "bg-room-vacant hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50",
+                  )}
+                >
+                  {recordingPayment
+                    ? "Recording…"
+                    : `Confirm full payment (${formatPHP(stay.balanceDue)})`}
+                </button>
+              </form>
+            )}
+
+            {readyForCheckout && (
+              <p className="mt-4 rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-sm text-room-vacant">
+                Fully paid — guest is ready to check out.
+              </p>
             )}
           </section>
         )}
       </div>
 
-      <div className="flex justify-end">
-        <button
-          type="submit"
-          disabled={submitting || !selectedId}
-          className={cn(
-            "rounded-lg px-5 py-2.5 text-sm font-medium text-white",
-            "bg-room-occupied hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50",
-          )}
-        >
-          {submitting ? "Processing…" : "Check-Out"}
-        </button>
-      </div>
-    </form>
+      {stay && (
+        <form onSubmit={handleCheckOut} className="flex justify-end">
+          <button
+            type="submit"
+            disabled={submitting || !selectedId || !readyForCheckout}
+            className={cn(
+              "rounded-lg px-5 py-2.5 text-sm font-medium text-white",
+              "bg-room-occupied hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50",
+            )}
+          >
+            {submitting ? "Processing…" : "Check-Out"}
+          </button>
+        </form>
+      )}
+    </div>
   );
 }

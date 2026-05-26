@@ -29,6 +29,8 @@ export async function PATCH(request: Request, context: RouteContext) {
 
     revalidatePath("/billing");
     revalidatePath("/");
+    revalidatePath("/calendar");
+    revalidatePath("/check-in");
 
     return NextResponse.json(folio);
   } catch (e) {

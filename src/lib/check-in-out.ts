@@ -792,6 +792,13 @@ export async function performCheckOut(
     }
   }
 
+  const balanceDue = await getReservationBalanceDue(input.reservationId);
+  if (balanceDue > 0.001) {
+    throw new Error(
+      `Collect the full balance of PHP ${balanceDue.toFixed(2)} before checking out this guest.`,
+    );
+  }
+
   await prisma.reservation.update({
     where: { id: reservation.id },
     data: {

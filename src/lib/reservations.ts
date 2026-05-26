@@ -97,6 +97,7 @@ export type ReservationDetail = {
   scheduledArrival: string | null;
   scheduledDeparture: string | null;
   folioNumber: string | null;
+  folioId: string | null;
   totalDue: number;
   discount: number;
   paid: number;
@@ -461,6 +462,7 @@ export async function getReservationById(id: string): Promise<ReservationDetail 
       room: { select: { number: true, type: true, description: true, baseRate: true } },
       folio: {
         select: {
+          id: true,
           folioNumber: true,
           subtotal: true,
           discount: true,
@@ -515,6 +517,7 @@ export async function getReservationById(id: string): Promise<ReservationDetail 
     scheduledArrival: res.scheduledArrival?.toISOString() ?? null,
     scheduledDeparture: res.scheduledDeparture?.toISOString() ?? null,
     folioNumber: res.folio?.folioNumber ?? null,
+    folioId: res.folio?.id ?? null,
     totalDue: folioTotal,
     discount: folioDiscount,
     paid,

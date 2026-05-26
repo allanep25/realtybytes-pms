@@ -55,6 +55,7 @@ export function ReservationDrawer({
   const [checkoutPaymentAmount, setCheckoutPaymentAmount] = useState("");
   const [checkoutPaymentMethod, setCheckoutPaymentMethod] = useState("CASH");
   const [checkingOut, setCheckingOut] = useState(false);
+  const [recordingPayment, setRecordingPayment] = useState(false);
 
   useEffect(() => {
     if (!reservationId) {
@@ -111,6 +112,7 @@ export function ReservationDrawer({
     detail?.status === "CHECKED_IN" && isFutureArrival
       ? "Reserved"
       : (RESERVATION_STATUS_LABELS[detail?.status ?? ""] ?? detail?.status);
+  const readyForCheckout = detail != null && detail.balanceDue <= 0.001;
   const discountLocked = detail != null && detail.discount > 0;
   const checkInPreview = useMemo(() => {
     if (!detail) return null;
@@ -213,8 +215,8 @@ export function ReservationDrawer({
     setCheckoutPaymentAmount(balance > 0 ? String(balance) : "");
   }
 
-  async function handleCheckOut() {
-    if (!reservationId || !detail || !checkoutPreview) return;
+  async function handleConfirmPayment() {
+    if (!detail || !checkoutPreview || !detail.folioId) return;
 
     const collect = checkoutPreview.collect;
     const maxCollect = Math.max(0, checkoutPreview.total - detail.paid);
@@ -224,12 +226,29 @@ export function ReservationDrawer({
       return;
     }
 
-    setCheckingOut(true);
+    if (checkoutPreview.balanceAfter > 0.001) {
+      setError(
+        `Collect the full remaining balance (${formatPHP(checkoutPreview.balanceAfter)} still due after this payment).`,
+      );
+      return;
+    }
+
+    if (detail.balanceDue > 0 && collect <= 0 && !discountLocked) {
+      const needsPayment =
+        checkoutPreview.total - detail.paid > 0.001 &&
+        checkoutPreview.discount === detail.discount;
+      if (needsPayment) {
+        setError("Enter the payment amount to confirm full payment.");
+        return;
+      }
+    }
+
+    setRecordingPayment(true);
     setError(null);
     setSuccess(null);
 
     try {
-      const body: Record<string, unknown> = { reservationId };
+      const body: Record<string, unknown> = {};
       if (!discountLocked) {
         body.discount = checkoutPreview.discount;
       }
@@ -238,10 +257,41 @@ export function ReservationDrawer({
         body.paymentMethod = checkoutPaymentMethod;
       }
 
+      const res = await fetch(`/api/folios/${detail.folioId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Payment failed");
+
+      setSuccess("Full payment confirmed. Guest is ready to check out.");
+      router.refresh();
+      await reloadDetail();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Payment failed");
+    } finally {
+      setRecordingPayment(false);
+    }
+  }
+
+  async function handleCheckOut() {
+    if (!reservationId || !detail) return;
+
+    if (detail.balanceDue > 0.001) {
+      setError("Confirm full payment before checking out.");
+      return;
+    }
+
+    setCheckingOut(true);
+    setError(null);
+    setSuccess(null);
+
+    try {
       const res = await fetch("/api/check-out", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
+        body: JSON.stringify({ reservationId }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Check-out failed");
@@ -426,12 +476,25 @@ export function ReservationDrawer({
   if (!reservationId) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end bg-black/30">
-      <button type="button" className="flex-1" aria-label="Close" onClick={onClose} />
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4 sm:items-center">
+      <button
+        type="button"
+        className="absolute inset-0"
+        aria-label="Close"
+        onClick={onClose}
+      />
 
-      <aside className="flex h-full w-full max-w-md flex-col bg-white shadow-xl">
-        <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
-          <h3 className="text-lg font-semibold text-slate-800">Reservation</h3>
+      <div
+        className="relative flex max-h-[90vh] w-full max-w-md flex-col overflow-hidden rounded-xl bg-white shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="reservation-dialog-title"
+      >
+        <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-5 py-4">
+          <h3 id="reservation-dialog-title" className="text-lg font-semibold text-slate-800">
+            Reservation
+          </h3>
           <button
             type="button"
             onClick={onClose}
@@ -981,12 +1044,28 @@ export function ReservationDrawer({
 
         {showActiveCheckout && detail && (
           <div className="border-t border-slate-100 p-5 space-y-3">
+            {readyForCheckout ? (
+              <>
+                <p className="rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-sm text-room-vacant">
+                  Fully paid — guest is ready to check out.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => void handleCheckOut()}
+                  disabled={checkingOut || recordingPayment}
+                  className="w-full rounded-lg bg-room-occupied py-2.5 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
+                >
+                  {checkingOut ? "Checking out…" : "Check Out Guest"}
+                </button>
+              </>
+            ) : (
+              <>
             <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 space-y-3">
-              <h4 className="text-sm font-semibold text-slate-800">Check-out payment</h4>
+              <h4 className="text-sm font-semibold text-slate-800">Collect balance</h4>
               <p className="text-xs text-slate-500">
                 {discountLocked
-                  ? "Discount was already applied. Collect the remaining balance before check-out."
-                  : "Apply final discounts and collect balance before checking the guest out."}
+                  ? "Discount was already applied. Collect the remaining balance, then confirm payment to enable check-out."
+                  : "Apply discounts and collect the full balance. Confirm payment before checking the guest out."}
               </p>
 
               <div>
@@ -1119,7 +1198,7 @@ export function ReservationDrawer({
                     </div>
                   )}
                   <div className="flex justify-between border-t border-slate-200 pt-1 font-semibold">
-                    <dt>Balance after check-out</dt>
+                    <dt>Balance after payment</dt>
                     <dd
                       className={cn(
                         checkoutPreview.balanceAfter > 0
@@ -1136,16 +1215,27 @@ export function ReservationDrawer({
 
             <button
               type="button"
-              onClick={() => void handleCheckOut()}
-              disabled={checkingOut}
-              className="w-full rounded-lg bg-room-occupied py-2.5 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
+              onClick={() => void handleConfirmPayment()}
+              disabled={
+                recordingPayment ||
+                checkingOut ||
+                !checkoutPreview ||
+                checkoutPreview.balanceAfter > 0.001 ||
+                (checkoutPreview.collect <= 0 &&
+                  detail.balanceDue > 0 &&
+                  checkoutPreview.discount === detail.discount)
+              }
+              className="w-full rounded-lg bg-room-vacant py-2.5 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
             >
-              {checkingOut ? "Checking out…" : "Check Out Guest"}
+              {recordingPayment ? "Confirming…" : "Confirm full payment"}
             </button>
-            {checkoutPreview && checkoutPreview.balanceAfter > 0 && (
+            {checkoutPreview && checkoutPreview.balanceAfter > 0.001 && (
               <p className="text-center text-xs text-amber-800">
-                Guest will check out with {formatPHP(checkoutPreview.balanceAfter)} still owing.
+                Collect {formatPHP(checkoutPreview.balanceAfter)} more to confirm payment and
+                enable check-out.
               </p>
+            )}
+              </>
             )}
           </div>
         )}
@@ -1172,7 +1262,7 @@ export function ReservationDrawer({
               <button
                 type="button"
                 onClick={() => void handleRevertCheckIn()}
-                disabled={actionLoading || checkingOut}
+                disabled={actionLoading || checkingOut || recordingPayment}
                 className="w-full rounded-lg border border-amber-200 bg-amber-50 py-2.5 text-sm font-medium text-amber-900 hover:bg-amber-100 disabled:opacity-50"
               >
                 Revert to reserved (undo check-in)
@@ -1205,7 +1295,7 @@ export function ReservationDrawer({
             </p>
           </div>
         )}
-      </aside>
+      </div>
     </div>
   );
 }

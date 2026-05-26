@@ -4,7 +4,6 @@ import {
   type CheckOutInput,
 } from "@/lib/check-in-out";
 import { getSession } from "@/lib/auth";
-import { isSecurityRole } from "@/lib/permissions";
 import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
 
@@ -17,24 +16,14 @@ export async function POST(request: Request) {
   try {
     const body = (await request.json()) as CheckOutInput;
 
-    if (isSecurityRole(session.role)) {
-      const balanceDue = await getReservationBalanceDue(body.reservationId);
-      if (balanceDue > 0) {
-        if (!body.paymentAmount || body.paymentAmount < balanceDue) {
-          return NextResponse.json(
-            {
-              error: `Collect the full balance of PHP ${balanceDue.toFixed(2)} before checking out this guest.`,
-            },
-            { status: 400 },
-          );
-        }
-        if (!body.paymentMethod) {
-          return NextResponse.json(
-            { error: "Select a payment method before checking out." },
-            { status: 400 },
-          );
-        }
-      }
+    const balanceDue = await getReservationBalanceDue(body.reservationId);
+    if (balanceDue > 0.001) {
+      return NextResponse.json(
+        {
+          error: `Collect the full balance of PHP ${balanceDue.toFixed(2)} before checking out this guest.`,
+        },
+        { status: 400 },
+      );
     }
 
     const result = await performCheckOut(body, { employeeId: session.id });
