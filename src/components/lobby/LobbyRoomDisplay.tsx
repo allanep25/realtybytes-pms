@@ -109,14 +109,16 @@ export function LobbyRoomDisplay({
     return () => window.clearInterval(refreshTimer);
   }, [displayKey]);
 
+  const edgePadding = isSplit ? "px-4" : "px-6 lg:px-10 xl:px-12";
+
   return (
     <div
       className={cn(
-        "lobby-display flex flex-col bg-slate-950 text-white select-none",
+        "lobby-display flex w-full flex-col bg-slate-950 text-white select-none",
         isSplit ? "h-full overflow-y-auto" : "min-h-screen",
       )}
     >
-      <header className={cn("border-b border-white/10", isSplit ? "px-4 py-4" : "px-8 py-6")}>
+      <header className={cn("w-full border-b border-white/10 py-6", edgePadding, isSplit && "py-4")}>
         {!data.fromDatabase && (
           <p className="mb-4 rounded-lg border border-amber-400/40 bg-amber-500/15 px-4 py-2 text-sm text-amber-100">
             Database not connected or schema out of date. Run{" "}
@@ -164,8 +166,8 @@ export function LobbyRoomDisplay({
 
         <dl
           className={cn(
-            "grid gap-2",
-            isSplit ? "mt-3 grid-cols-3" : "mt-6 grid-cols-2 gap-3 sm:grid-cols-4 xl:grid-cols-5",
+            "mt-6 grid w-full gap-3",
+            isSplit ? "mt-3 grid-cols-2 sm:grid-cols-4" : "grid-cols-5",
           )}
         >
           {[
@@ -201,32 +203,38 @@ export function LobbyRoomDisplay({
         </dl>
       </header>
 
-      <main className={cn("flex-1", isSplit ? "px-3 py-3" : "px-8 py-6")}>
+      <main className={cn("w-full flex-1 py-6", edgePadding, isSplit && "py-3")}>
         <div className={cn(isSplit ? "space-y-4" : "space-y-8")}>
           {roomsByFloor.map(([floor, rooms]) => (
-            <section key={floor}>
+            <section key={floor} className="w-full">
               <h2
                 className={cn(
-                  "mb-2 font-semibold uppercase tracking-widest text-slate-400",
-                  isSplit ? "text-xs" : "mb-4 text-lg",
+                  "font-semibold uppercase tracking-widest text-slate-400",
+                  isSplit ? "mb-2 text-xs" : "mb-4 text-lg",
                 )}
               >
                 Floor {floor}
               </h2>
               <div
                 className={cn(
-                  "grid gap-2",
-                  isSplit
-                    ? "grid-cols-3 sm:grid-cols-4"
-                    : "grid-cols-4 gap-4 sm:grid-cols-6 lg:grid-cols-8 xl:grid-cols-9 2xl:grid-cols-10",
+                  "grid w-full gap-3",
+                  !isSplit && "gap-4",
+                  isSplit && "grid-cols-3 sm:grid-cols-4",
                 )}
+                style={
+                  isSplit
+                    ? undefined
+                    : { gridTemplateColumns: `repeat(${rooms.length}, minmax(0, 1fr))` }
+                }
               >
                 {rooms.map((room) => (
                   <div
                     key={room.number}
                     className={cn(
-                      "flex flex-col items-center justify-center rounded-xl shadow-lg",
-                      isSplit ? "aspect-square px-1 py-2" : "aspect-square rounded-2xl",
+                      "flex w-full flex-col items-center justify-center rounded-xl shadow-lg",
+                      isSplit
+                        ? "aspect-square px-1 py-2"
+                        : "min-h-[92px] rounded-2xl py-4 xl:min-h-[108px]",
                       getRoomGridColor(room.status, room.housekeepingStatus),
                     )}
                     aria-label={`Room ${room.number}, ${lobbyStatusLabel(room.status, room.housekeepingStatus)}`}
@@ -252,11 +260,11 @@ export function LobbyRoomDisplay({
         </div>
       </main>
 
-      <footer className={cn("border-t border-white/10", isSplit ? "px-3 py-3" : "px-8 py-5")}>
+      <footer className={cn("w-full border-t border-white/10 py-5", edgePadding, isSplit && "py-3")}>
         <div
           className={cn(
-            "flex flex-wrap items-center justify-center",
-            isSplit ? "gap-x-3 gap-y-2" : "gap-x-8 gap-y-3",
+            "flex w-full flex-wrap items-center",
+            isSplit ? "justify-center gap-x-3 gap-y-2" : "justify-between gap-x-4 gap-y-3",
           )}
         >
           {LEGEND.map((item) => (
@@ -276,7 +284,7 @@ export function LobbyRoomDisplay({
           ))}
         </div>
         {!isSplit && (
-          <p className="mt-4 text-center text-xs text-slate-500">
+          <p className="mt-4 text-left text-xs text-slate-500">
             Display only · For lobby use · Not for booking or editing
           </p>
         )}
