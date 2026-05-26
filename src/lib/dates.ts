@@ -117,6 +117,18 @@ export function eachDayOfInterval(start: Date, end: Date): Date[] {
   return days;
 }
 
+/** Inclusive hotel-calendar days from start through end (Asia/Manila by default). */
+export function eachHotelDayOfInterval(start: Date, end: Date): Date[] {
+  const days: Date[] = [];
+  let current = parseHotelCalendarDate(hotelCalendarDate(start));
+  const last = parseHotelCalendarDate(hotelCalendarDate(end));
+  while (current.getTime() <= last.getTime()) {
+    days.push(new Date(current));
+    current = addHotelDays(current, 1);
+  }
+  return days;
+}
+
 export function daysBetween(start: Date, end: Date): number {
   const a = parseHotelCalendarDate(hotelCalendarDate(start)).getTime();
   const b = parseHotelCalendarDate(hotelCalendarDate(end)).getTime();

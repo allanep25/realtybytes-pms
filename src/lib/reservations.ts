@@ -1,17 +1,15 @@
 import { prisma } from "@/lib/db";
 import { formatBookingChannel } from "@/lib/booking-source";
 import {
-  addDays,
   addHotelDays,
   daysBetween,
-  eachDayOfInterval,
+  eachHotelDayOfInterval,
   formatMonthYear,
   getHotelMonthEnd,
   getHotelMonthStart,
   hotelCalendarDate,
   hotelDayOfWeek,
   parseHotelCalendarDate,
-  startOfDay,
   startOfHotelDay,
 } from "@/lib/dates";
 import { mapStaffAttribution, type StaffAttribution } from "@/lib/staff-attribution";
@@ -162,12 +160,48 @@ export function getTimelineRange(monthOffset = 0): { start: Date; end: Date } {
   return { start, end };
 }
 
-/** Sunday–Saturday week for compact room timeline views. */
+/** Sunday–Saturday week for compact room timeline views (hotel calendar). */
 export function getWeekTimelineRange(weekOffset = 0): { start: Date; end: Date } {
-  const today = startOfDay(new Date());
-  const start = addDays(today, -today.getDay() + weekOffset * 7);
-  const end = addDays(start, 6);
+  const today = startOfHotelDay();
+  const dayOfWeek = hotelDayOfWeek(hotelCalendarDate(today));
+  const start = addHotelDays(today, -dayOfWeek + weekOffset * 7);
+  const end = addHotelDays(start, 6);
   return { start, end };
+}
+
+function timelineBarPlacement(
+  checkIn: Date,
+  checkOut: Date,
+  rangeStart: Date,
+  rangeEnd: Date,
+): { startCol: number; span: number } | null {
+  const rangeStartKey = hotelCalendarDate(rangeStart);
+  const rangeEndKey = hotelCalendarDate(rangeEnd);
+  const checkInKey = hotelCalendarDate(checkIn);
+  const checkOutKey = hotelCalendarDate(checkOut);
+  const rangeEndExclusiveKey = hotelCalendarDate(addHotelDays(parseHotelCalendarDate(rangeEndKey), 1));
+
+  if (checkOutKey <= rangeStartKey || checkInKey > rangeEndKey) {
+    return null;
+  }
+
+  const visibleStartKey = checkInKey < rangeStartKey ? rangeStartKey : checkInKey;
+  const visibleEndExclusiveKey =
+    checkOutKey > rangeEndExclusiveKey ? rangeEndExclusiveKey : checkOutKey;
+
+  const startCol = daysBetween(
+    parseHotelCalendarDate(rangeStartKey),
+    parseHotelCalendarDate(visibleStartKey),
+  );
+  const span = Math.max(
+    1,
+    daysBetween(
+      parseHotelCalendarDate(visibleStartKey),
+      parseHotelCalendarDate(visibleEndExclusiveKey),
+    ),
+  );
+
+  return { startCol, span };
 }
 
 export function buildMonthWeekRows(monthStart: Date, monthEnd: Date): Date[][] {
@@ -217,9 +251,9 @@ export async function getReservationTimeline(
   rangeStart: Date,
   rangeEnd: Date,
 ): Promise<ReservationTimelineData> {
-  const start = startOfDay(rangeStart);
-  const end = startOfDay(rangeEnd);
-  const days = eachDayOfInterval(start, end);
+  const start = startOfHotelDay(rangeStart);
+  const end = startOfHotelDay(rangeEnd);
+  const days = eachHotelDayOfInterval(start, end);
   const dayCount = days.length;
 
   const rooms = await prisma.room.findMany({
@@ -228,7 +262,7 @@ export async function getReservationTimeline(
   });
   const roomNumbers = rooms.map((r) => r.number);
 
-  const rangeEndExclusive = addDays(end, 1);
+  const rangeEndExclusive = addHotelDays(end, 1);
 
   const reservations = await prisma.reservation.findMany({
     where: {
@@ -246,17 +280,10 @@ export async function getReservationTimeline(
   const bars: TimelineBar[] = [];
 
   for (const res of reservations) {
-    const checkIn = startOfDay(res.checkIn);
-    const checkOut = startOfDay(res.checkOut);
-    const visibleStart = checkIn < start ? start : checkIn;
-    const visibleEnd = checkOut > end ? addDays(end, 1) : checkOut;
+    const placement = timelineBarPlacement(res.checkIn, res.checkOut, start, end);
+    if (!placement) continue;
 
-    const startCol = Math.round((visibleStart.getTime() - start.getTime()) / 86_400_000);
-    const span = Math.max(
-      1,
-      Math.round((visibleEnd.getTime() - visibleStart.getTime()) / 86_400_000),
-    );
-
+    const { startCol, span } = placement;
     if (startCol >= dayCount || startCol + span <= 0) continue;
 
     const clampedStart = Math.max(0, startCol);
@@ -300,7 +327,7 @@ export async function getMonthCalendarGrid(monthOffset = 0): Promise<MonthCalend
   const weeks = buildMonthWeekRows(monthStart, monthEnd);
   const gridStart = weeks[0][0];
   const gridEnd = weeks[weeks.length - 1][6];
-  const rangeEndExclusive = addDays(startOfDay(gridEnd), 1);
+  const rangeEndExclusive = addHotelDays(parseHotelCalendarDate(hotelCalendarDate(gridEnd)), 1);
   const todayKey = hotelCalendarDate();
   const monthStartKey = hotelCalendarDate(monthStart);
   const monthEndKey = hotelCalendarDate(monthEnd);
@@ -308,7 +335,7 @@ export async function getMonthCalendarGrid(monthOffset = 0): Promise<MonthCalend
   const reservations = await prisma.reservation.findMany({
     where: {
       checkIn: { lt: rangeEndExclusive },
-      checkOut: { gt: startOfDay(gridStart) },
+      checkOut: { gt: parseHotelCalendarDate(hotelCalendarDate(gridStart)) },
       status: { notIn: ["CANCELLED", "NO_SHOW"] },
     },
     include: {
@@ -318,11 +345,7 @@ export async function getMonthCalendarGrid(monthOffset = 0): Promise<MonthCalend
     orderBy: [{ room: { number: "asc" } }, { checkIn: "asc" }],
   });
 
-  const weekdayHeaders = Array.from({ length: 7 }, (_, index) =>
-    addDays(startOfDay(new Date(2024, 0, 7)), index).toLocaleDateString("en-PH", {
-      weekday: "short",
-    }),
-  );
+  const weekdayHeaders = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
   const gridWeeks: CalendarGridDay[][] = weeks.map((week) =>
     week.map((day) => {

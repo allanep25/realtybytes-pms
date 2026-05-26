@@ -3,7 +3,7 @@
 import { ReservationDrawer } from "@/components/calendar/ReservationDrawer";
 import type { RoomGridItem } from "@/components/dashboard/RoomStatusGrid";
 import { ReservationFormModal } from "@/components/reservations/ReservationFormModal";
-import { formatDayOfMonth, formatMonthYear, formatShortDate, formatWeekdayShort, hotelCalendarDate } from "@/lib/dates";
+import { formatDayOfMonth, formatMonthYear, formatShortDate, formatWeekdayShort, hotelCalendarDate, hotelDayOfWeek } from "@/lib/dates";
 import type { ReservationTimelineSerialized } from "@/lib/reservations";
 import { MaintenanceBlockModal } from "@/components/maintenance/MaintenanceBlockModal";
 import { cn } from "@/lib/utils";
@@ -194,7 +194,8 @@ export function CalendarTimeline({
                   const day = new Date(dayIso);
                   const dayKey = hotelCalendarDate(day);
                   const isToday = dayKey === todayKey;
-                  const isWeekend = day.getDay() === 0 || day.getDay() === 6;
+                  const weekday = hotelDayOfWeek(dayKey);
+                  const isWeekend = weekday === 0 || weekday === 6;
                   return (
                     <th
                       key={dayIso}
