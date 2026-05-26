@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/db";
 import { normalizeBookingFields, validateGuestIdAtCheckIn } from "@/lib/booking-source";
-import { addDays, addHotelDays, daysBetween, parseHotelCalendarDate, setTime, startOfHotelDay } from "@/lib/dates";
+import { addDays, addHotelDays, daysBetween, parseHotelCalendarDate, setHotelTime, startOfHotelDay } from "@/lib/dates";
 import { recordFolioPayment } from "@/lib/folio-payments";
 import { buildStayFolioLines, folioLinesTotal } from "@/lib/stay-pricing";
 import { compareRoomNumbers } from "@/lib/utils";
@@ -117,7 +117,7 @@ function parseDateInput(value: string): Date {
 
 function parseArrivalTime(checkIn: Date, time: string): Date {
   const [h, m] = time.split(":").map(Number);
-  return setTime(checkIn, h || 14, m || 0);
+  return setHotelTime(checkIn, h || 14, m || 0);
 }
 
 async function createStayFolio(
@@ -406,7 +406,7 @@ export async function performCheckIn(
 
   const scheduledArrival = input.arrivalTime
     ? parseArrivalTime(checkIn, input.arrivalTime)
-    : setTime(checkIn, 14, 0);
+    : setHotelTime(checkIn, 14, 0);
 
   validateGuestIdAtCheckIn(input.idType);
   const booking = normalizeBookingFields(input);
@@ -518,7 +518,7 @@ export async function createReservation(
 
   const scheduledArrival = input.arrivalTime
     ? parseArrivalTime(checkIn, input.arrivalTime)
-    : setTime(checkIn, 14, 0);
+    : setHotelTime(checkIn, 14, 0);
 
   const booking = normalizeBookingFields({
     bookingSource: input.bookingSource,

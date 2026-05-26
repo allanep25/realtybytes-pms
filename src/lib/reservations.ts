@@ -6,7 +6,11 @@ import {
   daysBetween,
   eachDayOfInterval,
   formatMonthYear,
+  getHotelMonthEnd,
+  getHotelMonthStart,
   hotelCalendarDate,
+  hotelDayOfWeek,
+  parseHotelCalendarDate,
   startOfDay,
   startOfHotelDay,
 } from "@/lib/dates";
@@ -152,12 +156,8 @@ function barLabel(status: ReservationStatus, bookingType: BookingType): string {
 }
 
 export function getTimelineRange(monthOffset = 0): { start: Date; end: Date } {
-  const anchor = new Date();
-  anchor.setDate(1);
-  anchor.setMonth(anchor.getMonth() + monthOffset);
-
-  const start = startOfDay(new Date(anchor.getFullYear(), anchor.getMonth(), 1));
-  const end = startOfDay(new Date(anchor.getFullYear(), anchor.getMonth() + 1, 0));
+  const start = getHotelMonthStart(monthOffset);
+  const end = getHotelMonthEnd(start);
   return { start, end };
 }
 
@@ -170,14 +170,25 @@ export function getWeekTimelineRange(weekOffset = 0): { start: Date; end: Date }
 }
 
 export function buildMonthWeekRows(monthStart: Date, monthEnd: Date): Date[][] {
-  const gridStart = addDays(startOfDay(monthStart), -startOfDay(monthStart).getDay());
+  const monthStartKey = hotelCalendarDate(monthStart);
+  const monthEndKey = hotelCalendarDate(monthEnd);
+  let cursorKey = hotelCalendarDate(
+    addHotelDays(parseHotelCalendarDate(monthStartKey), -hotelDayOfWeek(monthStartKey)),
+  );
+  const gridEndKey = hotelCalendarDate(
+    addHotelDays(parseHotelCalendarDate(monthEndKey), 6 - hotelDayOfWeek(monthEndKey)),
+  );
+
   const weeks: Date[][] = [];
-  let weekStart = gridStart;
 
   while (weeks.length < 6) {
-    weeks.push(Array.from({ length: 7 }, (_, index) => addDays(weekStart, index)));
-    weekStart = addDays(weekStart, 7);
-    if (weekStart > addDays(monthEnd, 6)) break;
+    const week: Date[] = [];
+    for (let index = 0; index < 7; index++) {
+      week.push(parseHotelCalendarDate(cursorKey));
+      cursorKey = hotelCalendarDate(addHotelDays(parseHotelCalendarDate(cursorKey), 1));
+    }
+    weeks.push(week);
+    if (cursorKey > gridEndKey) break;
   }
 
   return weeks;
@@ -277,8 +288,10 @@ export async function getReservationTimeline(
 }
 
 function reservationOccupiesDay(checkIn: Date, checkOut: Date, day: Date): boolean {
-  const dayStart = startOfDay(day).getTime();
-  return dayStart >= startOfDay(checkIn).getTime() && dayStart < startOfDay(checkOut).getTime();
+  const dayKey = hotelCalendarDate(day);
+  const checkInKey = hotelCalendarDate(checkIn);
+  const checkOutKey = hotelCalendarDate(checkOut);
+  return dayKey >= checkInKey && dayKey < checkOutKey;
 }
 
 export async function getMonthCalendarGrid(monthOffset = 0): Promise<MonthCalendarGrid> {
@@ -337,7 +350,7 @@ export async function getMonthCalendarGrid(monthOffset = 0): Promise<MonthCalend
 
       return {
         dateKey,
-        dayOfMonth: day.getDate(),
+        dayOfMonth: Number(dateKey.split("-")[2]),
         inMonth: dateKey >= monthStartKey && dateKey <= monthEndKey,
         isToday: dateKey === todayKey,
         bookings,

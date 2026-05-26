@@ -1,7 +1,15 @@
 import { normalizeBookingFields } from "@/lib/booking-source";
 import { hasRoomConflict } from "@/lib/check-in-out";
 import { prisma } from "@/lib/db";
-import { addHotelDays, daysBetween, parseHotelCalendarDate, setTime, startOfHotelDay } from "@/lib/dates";
+import {
+  addHotelDays,
+  daysBetween,
+  hotelCalendarDate,
+  hotelTimeInput,
+  parseHotelCalendarDate,
+  setHotelTime,
+  startOfHotelDay,
+} from "@/lib/dates";
 import { buildStayFolioLines, folioLinesTotal } from "@/lib/stay-pricing";
 import type { BookingPlatform, BookingSource, Prisma } from "@prisma/client";
 
@@ -81,14 +89,7 @@ export type AdminUpdateRecordInput = {
 };
 
 function toDateInput(value: Date): string {
-  return value.toISOString().slice(0, 10);
-}
-
-function toTimeInput(value: Date | null | undefined): string | null {
-  if (!value) return null;
-  const hours = value.getHours().toString().padStart(2, "0");
-  const minutes = value.getMinutes().toString().padStart(2, "0");
-  return `${hours}:${minutes}`;
+  return hotelCalendarDate(value);
 }
 
 async function refreshRoomStatus(roomId: string) {
@@ -176,8 +177,8 @@ function mapReservationToListItem(res: ReservationListRow): EditableReservationL
     id: res.id,
     guestName: res.guest.fullName,
     roomNumber: res.room.number,
-    checkIn: res.checkIn.toISOString(),
-    checkOut: res.checkOut.toISOString(),
+    checkIn: hotelCalendarDate(res.checkIn),
+    checkOut: hotelCalendarDate(res.checkOut),
     status: res.status,
     folioNumber: res.folio?.folioNumber ?? null,
     bookingReference: res.bookingReference,
@@ -305,7 +306,7 @@ export async function getEditableReservation(
       children: reservation.children,
       extensionDays: reservation.extensionDays,
       extensionHours: reservation.extensionHours,
-      arrivalTime: toTimeInput(reservation.scheduledArrival),
+      arrivalTime: hotelTimeInput(reservation.scheduledArrival),
       folioNumber: reservation.folio?.folioNumber ?? null,
       encodedByName: reservation.encodedBy?.name ?? null,
     },
@@ -381,18 +382,18 @@ export async function adminUpdateReservationRecord(
   if (reservationInput.arrivalTime !== undefined) {
     if (reservationInput.arrivalTime) {
       const [h, m] = reservationInput.arrivalTime.split(":").map(Number);
-      scheduledArrival = setTime(checkIn, h || 14, m || 0);
+      scheduledArrival = setHotelTime(checkIn, h || 14, m || 0);
     } else {
       scheduledArrival = null;
     }
   } else if (reservationInput.checkIn) {
-    scheduledArrival = existing.scheduledArrival
-      ? setTime(
+    const previousTime = hotelTimeInput(existing.scheduledArrival);
+    scheduledArrival = previousTime
+      ? setHotelTime(
           checkIn,
-          existing.scheduledArrival.getHours(),
-          existing.scheduledArrival.getMinutes(),
+          ...previousTime.split(":").map(Number) as [number, number],
         )
-      : setTime(checkIn, 14, 0);
+      : setHotelTime(checkIn, 14, 0);
   }
 
   const oldRoomId = existing.roomId;

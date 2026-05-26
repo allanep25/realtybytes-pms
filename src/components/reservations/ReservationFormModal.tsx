@@ -10,7 +10,7 @@ import { PAYMENT_METHOD_OPTIONS } from "@/lib/constants";
 import { formatPHP } from "@/lib/format";
 import type { AvailableRoom } from "@/lib/check-in-out";
 import { calcHourlyExtensionRate, calcStayQuote } from "@/lib/stay-pricing";
-import { nextHotelCalendarDate } from "@/lib/dates";
+import { addHotelDays, hotelCalendarDate, nextHotelCalendarDate, startOfHotelDay } from "@/lib/dates";
 import { cn } from "@/lib/utils";
 import type { BookingPlatform, BookingSource, PaymentMethod } from "@prisma/client";
 import { X } from "lucide-react";
@@ -32,15 +32,11 @@ function defaultCheckOutFromCheckIn(checkIn: string): string {
 }
 
 function tomorrowInputValue() {
-  const d = new Date();
-  d.setDate(d.getDate() + 1);
-  return d.toISOString().slice(0, 10);
+  return hotelCalendarDate(addHotelDays(startOfHotelDay(), 1));
 }
 
 function dayAfterTomorrowInputValue() {
-  const d = new Date();
-  d.setDate(d.getDate() + 2);
-  return d.toISOString().slice(0, 10);
+  return hotelCalendarDate(addHotelDays(startOfHotelDay(), 2));
 }
 
 const emptyForm = {
@@ -428,7 +424,7 @@ export function ReservationFormModal({
                     type="date"
                     required
                     disabled={!bookable}
-                    min={new Date().toISOString().slice(0, 10)}
+                    min={hotelCalendarDate()}
                     value={form.checkIn}
                     onChange={(e) => setForm((f) => ({ ...f, checkIn: e.target.value }))}
                     className={fieldClass}
