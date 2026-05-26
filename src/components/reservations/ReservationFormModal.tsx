@@ -533,7 +533,7 @@ export function ReservationFormModal({
                 <input
                   type="number"
                   min={0}
-                  step={100}
+                  step={0.01}
                   disabled={!bookable}
                   value={form.depositAmount}
                   onChange={(e) => setForm((f) => ({ ...f, depositAmount: e.target.value }))}
