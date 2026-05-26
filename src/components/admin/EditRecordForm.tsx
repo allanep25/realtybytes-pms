@@ -5,8 +5,11 @@ import {
   BOOKING_SOURCE_OPTIONS,
 } from "@/lib/booking-source";
 import { RESERVATION_STATUS_LABELS } from "@/lib/constants";
+import { DISCOUNT_PRESETS, calcPresetDiscount } from "@/lib/billing";
+import { formatPHP } from "@/lib/format";
 import type { EditableReservationRecord } from "@/lib/admin-edit";
 import type { BookingPlatform, BookingSource } from "@prisma/client";
+import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
@@ -52,6 +55,7 @@ export function EditRecordForm({ reservationId, onClose, onSaved }: EditRecordFo
     extensionHours: "0",
     arrivalTime: "14:00",
   });
+  const [discount, setDiscount] = useState("0");
 
   function applyRecord(data: EditableReservationRecord) {
     setRecord(data);
@@ -77,6 +81,7 @@ export function EditRecordForm({ reservationId, onClose, onSaved }: EditRecordFo
       extensionHours: String(data.reservation.extensionHours),
       arrivalTime: data.reservation.arrivalTime ?? "14:00",
     });
+    setDiscount(String(data.billing?.discount ?? 0));
   }
 
   useEffect(() => {
@@ -109,6 +114,8 @@ export function EditRecordForm({ reservationId, onClose, onSaved }: EditRecordFo
   }, [reservationId]);
 
   async function saveChanges() {
+    if (!record) return;
+
     if (!guestForm.fullName.trim()) {
       setError("Guest name is required");
       return;
@@ -158,6 +165,7 @@ export function EditRecordForm({ reservationId, onClose, onSaved }: EditRecordFo
             extensionHours: Number(reservationForm.extensionHours) || 0,
             arrivalTime: reservationForm.arrivalTime || null,
           },
+          discount: record.billing ? Number(discount) || 0 : undefined,
         }),
       });
       const data = await res.json();
@@ -441,6 +449,86 @@ export function EditRecordForm({ reservationId, onClose, onSaved }: EditRecordFo
           </div>
         </div>
       </div>
+
+      {record.billing && (
+        <section className="mt-6 rounded-lg border border-slate-200 bg-slate-50 p-4">
+          <h4 className="font-medium text-slate-800">Billing &amp; discount</h4>
+          <p className="mt-1 text-xs text-slate-500">
+            Folio {record.billing.folioNumber} · apply guest or Senior/PWD discount before check-in
+          </p>
+
+          <dl className="mt-4 grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
+            <div>
+              <dt className="text-slate-500">Room charges</dt>
+              <dd className="font-medium text-slate-800">{formatPHP(record.billing.subtotal)}</dd>
+            </div>
+            <div>
+              <dt className="text-slate-500">Total after discount</dt>
+              <dd className="font-medium text-slate-800">
+                {formatPHP(Math.max(0, record.billing.subtotal - (Number(discount) || 0)))}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-slate-500">Paid</dt>
+              <dd className="font-medium text-slate-800">{formatPHP(record.billing.paid)}</dd>
+            </div>
+            <div>
+              <dt className="text-slate-500">Balance</dt>
+              <dd className="font-medium text-slate-800">
+                {formatPHP(
+                  Math.max(0, record.billing.subtotal - (Number(discount) || 0) - record.billing.paid),
+                )}
+              </dd>
+            </div>
+          </dl>
+
+          <div className="mt-4">
+            <span className="text-sm text-slate-500">Guest discount</span>
+            <div className="mt-2 flex flex-wrap gap-1">
+              {DISCOUNT_PRESETS.map((preset) => (
+                <button
+                  key={preset.label}
+                  type="button"
+                  onClick={() =>
+                    setDiscount(String(calcPresetDiscount(record.billing!.subtotal, preset)))
+                  }
+                  className={cn(
+                    "rounded border px-2 py-0.5 text-xs font-medium",
+                    preset.label.startsWith("Senior/PWD")
+                      ? "border-room-vacant/40 bg-room-vacant/15 text-room-vacant hover:bg-room-vacant/25"
+                      : "border-amber-200 bg-amber-50 text-amber-900 hover:bg-amber-100",
+                  )}
+                >
+                  {preset.label}
+                </button>
+              ))}
+              <button
+                type="button"
+                onClick={() => setDiscount("0")}
+                className="rounded border border-slate-200 px-2 py-0.5 text-xs text-slate-600 hover:bg-white"
+              >
+                Clear
+              </button>
+            </div>
+            <p className="mt-2 text-[10px] text-slate-400">
+              Senior/PWD 20% — verify valid OSCA or PWD ID before applying.
+            </p>
+            <div className="mt-2 flex items-center gap-2">
+              <input
+                type="number"
+                min={0}
+                max={record.billing.subtotal}
+                step={1}
+                value={discount}
+                onChange={(e) => setDiscount(e.target.value)}
+                className="w-32 rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                aria-label="Discount amount in pesos"
+              />
+              <span className="text-sm text-slate-500">pesos off</span>
+            </div>
+          </div>
+        </section>
+      )}
 
       {message && (
         <p className="mt-4 rounded-lg border border-green-200 bg-green-50 px-4 py-2 text-sm text-room-vacant">

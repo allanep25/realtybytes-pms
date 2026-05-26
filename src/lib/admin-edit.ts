@@ -60,6 +60,15 @@ export type EditableReservationRecord = {
     folioNumber: string | null;
     encodedByName: string | null;
   };
+  billing: {
+    folioId: string;
+    folioNumber: string;
+    subtotal: number;
+    discount: number;
+    total: number;
+    paid: number;
+    balanceDue: number;
+  } | null;
   rooms: RoomOption[];
 };
 
@@ -86,6 +95,7 @@ export type AdminUpdateRecordInput = {
     extensionHours?: number;
     arrivalTime?: string | null;
   };
+  discount?: number;
 };
 
 function toDateInput(value: Date): string {
@@ -262,7 +272,16 @@ export async function getEditableReservation(
     include: {
       guest: true,
       room: true,
-      folio: { select: { folioNumber: true } },
+      folio: {
+        select: {
+          id: true,
+          folioNumber: true,
+          subtotal: true,
+          discount: true,
+          total: true,
+          paid: true,
+        },
+      },
       encodedBy: { select: { name: true } },
     },
   });
@@ -282,6 +301,12 @@ export async function getEditableReservation(
       description: reservation.room.description,
     });
   }
+
+  const folio = reservation.folio;
+  const subtotal = folio ? Number(folio.subtotal) : 0;
+  const discount = folio ? Number(folio.discount) : 0;
+  const total = folio ? Number(folio.total) : 0;
+  const paid = folio ? Number(folio.paid) : 0;
 
   return {
     reservationId: reservation.id,
@@ -309,9 +334,20 @@ export async function getEditableReservation(
       extensionDays: reservation.extensionDays,
       extensionHours: reservation.extensionHours,
       arrivalTime: hotelTimeInput(reservation.scheduledArrival),
-      folioNumber: reservation.folio?.folioNumber ?? null,
+      folioNumber: folio?.folioNumber ?? null,
       encodedByName: reservation.encodedBy?.name ?? null,
     },
+    billing: folio
+      ? {
+          folioId: folio.id,
+          folioNumber: folio.folioNumber,
+          subtotal,
+          discount,
+          total,
+          paid,
+          balanceDue: Math.max(0, total - paid),
+        }
+      : null,
     rooms,
   };
 }
@@ -446,6 +482,18 @@ export async function adminUpdateReservationRecord(
 
   if (stayChanged && existing.folio) {
     await rebuildReservationFolio(reservationId);
+  }
+
+  if (input.discount != null && existing.folio) {
+    const lines = await prisma.folioLine.findMany({ where: { folioId: existing.folio.id } });
+    const subtotal = lines.reduce((sum, line) => sum + Number(line.amount), 0);
+    const discount = Math.max(0, Math.min(input.discount, subtotal));
+    const total = Math.max(0, subtotal - discount);
+    const paid = Math.min(Number(existing.folio.paid), total);
+    await prisma.folio.update({
+      where: { id: existing.folio.id },
+      data: { discount, subtotal, total, paid },
+    });
   }
 
   if (roomId !== oldRoomId) {
