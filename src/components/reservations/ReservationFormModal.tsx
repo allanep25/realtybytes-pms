@@ -1,6 +1,7 @@
 "use client";
 
 import type { RoomGridItem } from "@/components/dashboard/RoomStatusGrid";
+import { GuestIdCapture } from "@/components/guests/GuestIdCapture";
 import { StayBillingSummary } from "@/components/reservations/StayBillingSummary";
 import {
   BOOKING_PLATFORM_OPTIONS,
@@ -40,8 +41,9 @@ function dayAfterTomorrowInputValue() {
 const emptyForm = {
   fullName: "",
   contactNumber: "",
-  idType: "Passport",
+  idType: "",
   idNumber: "",
+  idPhotoFileName: "",
   address: "",
   roomId: "",
   checkIn: "",
@@ -126,6 +128,15 @@ export function ReservationFormModal({
     const roomId = initialRoom?.id ?? form.roomId;
     if (!roomId) return;
 
+    if (form.bookingSource === "ONLINE" && !form.bookingReference.trim()) {
+      setError("Booking reference number is required for online bookings");
+      return;
+    }
+    if (form.bookingSource === "WALK_IN" && !form.idType.trim()) {
+      setError("ID type is required for walk-in guests");
+      return;
+    }
+
     setSubmitting(true);
     setError(null);
 
@@ -138,6 +149,7 @@ export function ReservationFormModal({
           contactNumber: form.contactNumber || undefined,
           idType: form.idType || undefined,
           idNumber: form.idNumber || undefined,
+          idPhotoFileName: form.idPhotoFileName || undefined,
           address: form.address || undefined,
           roomId,
           checkIn: form.checkIn,
@@ -333,8 +345,9 @@ export function ReservationFormModal({
                       </select>
                     </label>
                     <label className="block text-sm sm:col-span-2">
-                      <span className="text-slate-500">Booking reference #</span>
+                      <span className="text-slate-500">Booking reference # *</span>
                       <input
+                        required
                         disabled={!bookable}
                         value={form.bookingReference}
                         onChange={(e) =>
@@ -372,13 +385,17 @@ export function ReservationFormModal({
                 />
               </label>
               <label className="block text-sm">
-                <span className="text-slate-500">ID Type</span>
+                <span className="text-slate-500">
+                  ID Type{form.bookingSource === "WALK_IN" ? " *" : ""}
+                </span>
                 <select
+                  required={form.bookingSource === "WALK_IN"}
                   disabled={!bookable}
                   value={form.idType}
                   onChange={(e) => setForm((f) => ({ ...f, idType: e.target.value }))}
                   className={fieldClass}
                 >
+                  {form.bookingSource === "WALK_IN" && <option value="">Select ID type…</option>}
                   {ID_TYPES.map((t) => (
                     <option key={t} value={t}>
                       {t}
@@ -386,6 +403,22 @@ export function ReservationFormModal({
                   ))}
                 </select>
               </label>
+              <label className="block text-sm">
+                <span className="text-slate-500">ID Number</span>
+                <input
+                  disabled={!bookable}
+                  value={form.idNumber}
+                  onChange={(e) => setForm((f) => ({ ...f, idNumber: e.target.value }))}
+                  className={fieldClass}
+                />
+              </label>
+              <GuestIdCapture
+                guestName={form.fullName}
+                savedFileName={form.idPhotoFileName || null}
+                onSaved={(fileName) => setForm((f) => ({ ...f, idPhotoFileName: fileName }))}
+                onClear={() => setForm((f) => ({ ...f, idPhotoFileName: "" }))}
+                disabled={!bookable || submitting}
+              />
             </div>
 
             <div className="space-y-3">

@@ -7,6 +7,7 @@ import {
 import { PAYMENT_METHOD_OPTIONS } from "@/lib/constants";
 import { formatPHP } from "@/lib/format";
 import type { AvailableRoom } from "@/lib/check-in-out";
+import { GuestIdCapture } from "@/components/guests/GuestIdCapture";
 import { cn } from "@/lib/utils";
 import type { BookingPlatform, BookingSource } from "@prisma/client";
 import { useRouter } from "next/navigation";
@@ -17,8 +18,9 @@ const ID_TYPES = ["Passport", "Driver License", "National ID", "Other"];
 const emptyForm = {
   fullName: "",
   contactNumber: "",
-  idType: "Passport",
+  idType: "",
   idNumber: "",
+  idPhotoFileName: "",
   address: "",
   roomId: "",
   checkIn: "",
@@ -100,6 +102,16 @@ export function CheckInForm() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+
+    if (form.bookingSource === "ONLINE" && !form.bookingReference.trim()) {
+      setError("Booking reference number is required for online bookings");
+      return;
+    }
+    if (form.bookingSource === "WALK_IN" && !form.idType.trim()) {
+      setError("ID type is required for walk-in guests");
+      return;
+    }
+
     setSubmitting(true);
     setError(null);
     setSuccess(null);
@@ -113,6 +125,7 @@ export function CheckInForm() {
           contactNumber: form.contactNumber || undefined,
           idType: form.idType || undefined,
           idNumber: form.idNumber || undefined,
+          idPhotoFileName: form.idPhotoFileName || undefined,
           address: form.address || undefined,
           roomId: form.roomId,
           checkIn: form.checkIn,
@@ -190,12 +203,16 @@ export function CheckInForm() {
               />
             </label>
             <label className="block text-sm">
-              <span className="text-slate-500">ID Type</span>
+              <span className="text-slate-500">
+                ID Type{form.bookingSource === "WALK_IN" ? " *" : ""}
+              </span>
               <select
+                required={form.bookingSource === "WALK_IN"}
                 value={form.idType}
                 onChange={(e) => setForm((f) => ({ ...f, idType: e.target.value }))}
                 className={fieldClass}
               >
+                {form.bookingSource === "WALK_IN" && <option value="">Select ID type…</option>}
                 {ID_TYPES.map((t) => (
                   <option key={t} value={t}>
                     {t}
@@ -211,6 +228,13 @@ export function CheckInForm() {
                 className={fieldClass}
               />
             </label>
+            <GuestIdCapture
+              guestName={form.fullName}
+              savedFileName={form.idPhotoFileName || null}
+              onSaved={(fileName) => setForm((f) => ({ ...f, idPhotoFileName: fileName }))}
+              onClear={() => setForm((f) => ({ ...f, idPhotoFileName: "" }))}
+              disabled={submitting}
+            />
             <label className="block text-sm">
               <span className="text-slate-500">Address</span>
               <textarea
@@ -311,8 +335,9 @@ export function CheckInForm() {
                     </select>
                   </label>
                   <label className="block text-sm">
-                    <span className="text-slate-500">Booking reference #</span>
+                    <span className="text-slate-500">Booking reference # *</span>
                     <input
+                      required
                       value={form.bookingReference}
                       onChange={(e) =>
                         setForm((f) => ({ ...f, bookingReference: e.target.value }))

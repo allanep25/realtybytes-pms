@@ -103,6 +103,7 @@ model Guest {
   contactNumber String?
   idType        String?
   idNumber      String?
+  idPhotoFileName String?
   address       String?
   isVip         Boolean  @default(false)
   notes         String?

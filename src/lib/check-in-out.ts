@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/db";
-import { normalizeBookingFields } from "@/lib/booking-source";
+import { normalizeBookingFields, validateWalkInIdType } from "@/lib/booking-source";
 import { addDays, addHotelDays, daysBetween, parseHotelCalendarDate, setTime, startOfHotelDay } from "@/lib/dates";
 import { recordFolioPayment } from "@/lib/folio-payments";
 import { buildStayFolioLines, folioLinesTotal } from "@/lib/stay-pricing";
@@ -44,6 +44,7 @@ export type CheckInInput = {
   contactNumber?: string;
   idType?: string;
   idNumber?: string;
+  idPhotoFileName?: string;
   address?: string;
   roomId: string;
   checkIn: string;
@@ -63,6 +64,7 @@ export type CheckInFromReservationInput = {
   contactNumber?: string;
   idType?: string;
   idNumber?: string;
+  idPhotoFileName?: string;
   address?: string;
   paymentAmount?: number;
   paymentMethod?: PaymentMethod;
@@ -80,6 +82,7 @@ export type CreateReservationInput = {
   contactNumber?: string;
   idType?: string;
   idNumber?: string;
+  idPhotoFileName?: string;
   address?: string;
   roomId: string;
   checkIn: string;
@@ -405,6 +408,7 @@ export async function performCheckIn(
     ? parseArrivalTime(checkIn, input.arrivalTime)
     : setTime(checkIn, 14, 0);
 
+  validateWalkInIdType(input.bookingSource ?? "WALK_IN", input.idType);
   const booking = normalizeBookingFields(input);
 
   const guest = await prisma.guest.create({
@@ -413,6 +417,7 @@ export async function performCheckIn(
       contactNumber: input.contactNumber?.trim() || null,
       idType: input.idType?.trim() || null,
       idNumber: input.idNumber?.trim() || null,
+      idPhotoFileName: input.idPhotoFileName?.trim() || null,
       address: input.address?.trim() || null,
     },
   });
@@ -515,20 +520,22 @@ export async function createReservation(
     ? parseArrivalTime(checkIn, input.arrivalTime)
     : setTime(checkIn, 14, 0);
 
+  validateWalkInIdType(input.bookingSource, input.idType);
+  const booking = normalizeBookingFields({
+    bookingSource: input.bookingSource,
+    bookingPlatform: input.bookingPlatform,
+    bookingReference: input.bookingReference,
+  });
+
   const guest = await prisma.guest.create({
     data: {
       fullName: input.fullName.trim(),
       contactNumber: input.contactNumber?.trim() || null,
       idType: input.idType?.trim() || null,
       idNumber: input.idNumber?.trim() || null,
+      idPhotoFileName: input.idPhotoFileName?.trim() || null,
       address: input.address?.trim() || null,
     },
-  });
-
-  const booking = normalizeBookingFields({
-    bookingSource: input.bookingSource,
-    bookingPlatform: input.bookingPlatform,
-    bookingReference: input.bookingReference,
   });
 
   const reservation = await prisma.reservation.create({
@@ -644,6 +651,7 @@ export async function performCheckInFromReservation(
     input.contactNumber !== undefined ||
     input.idType !== undefined ||
     input.idNumber !== undefined ||
+    input.idPhotoFileName !== undefined ||
     input.address !== undefined
   ) {
     await prisma.guest.update({
@@ -652,6 +660,7 @@ export async function performCheckInFromReservation(
         contactNumber: input.contactNumber?.trim() || null,
         idType: input.idType?.trim() || null,
         idNumber: input.idNumber?.trim() || null,
+        idPhotoFileName: input.idPhotoFileName?.trim() || null,
         address: input.address?.trim() || null,
       },
     });

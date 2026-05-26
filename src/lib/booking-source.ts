@@ -58,11 +58,25 @@ export function normalizeBookingFields(input: BookingFieldsInput): {
   if (bookingSource !== "ONLINE") {
     bookingPlatform = null;
     bookingReference = null;
-  } else if (!bookingPlatform) {
-    throw new Error("Select the online booking platform");
+  } else {
+    if (!bookingPlatform) {
+      throw new Error("Select the online booking platform");
+    }
+    if (!bookingReference) {
+      throw new Error("Booking reference number is required for online bookings");
+    }
   }
 
   return { bookingSource, bookingPlatform, bookingReference };
+}
+
+export function validateWalkInIdType(
+  bookingSource: BookingSource | undefined,
+  idType?: string | null,
+): void {
+  if (bookingSource === "WALK_IN" && !idType?.trim()) {
+    throw new Error("ID type is required for walk-in guests");
+  }
 }
 
 export function formatBookingChannel(
