@@ -30,7 +30,7 @@ export function CheckoutAlertsBanner({ alerts }: CheckoutAlertsBannerProps) {
         </div>
         <div className="flex flex-wrap items-center gap-3 text-xs font-medium">
           {departures.length > 0 && (
-            <Link href="/check-in-out" className="text-slate-600 hover:text-room-occupied hover:underline">
+            <Link href="/check-in?tab=check-out" className="text-slate-600 hover:text-room-occupied hover:underline">
               Open check-out →
             </Link>
           )}
