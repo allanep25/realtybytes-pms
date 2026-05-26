@@ -28,6 +28,7 @@ export const NAV_ITEMS: NavItem[] = [
   { label: "Check-In / Check-Out", href: "/check-in", icon: LogIn },
   { label: "Guest Profiles", href: "/guests", icon: UserCircle },
   { label: "Billing", href: "/billing", icon: CreditCard },
+  { label: "End of Day", href: "/end-of-day", icon: ClipboardList },
   { label: "Reports", href: "/reports", icon: BarChart3 },
   { label: "Employee Accounts", href: "/employees", icon: Users },
   { label: "Housekeeping", href: "/housekeeping", icon: Sparkles },

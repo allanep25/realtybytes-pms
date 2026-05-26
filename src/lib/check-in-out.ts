@@ -54,6 +54,18 @@ export type CheckInInput = {
   bookingSource?: BookingSource;
   bookingPlatform?: BookingPlatform | null;
   bookingReference?: string | null;
+  depositAmount?: number;
+  paymentMethod?: PaymentMethod;
+};
+
+export type CheckInFromReservationInput = {
+  reservationId: string;
+  contactNumber?: string;
+  idType?: string;
+  idNumber?: string;
+  address?: string;
+  paymentAmount?: number;
+  paymentMethod?: PaymentMethod;
 };
 
 export type CheckInResult = {
@@ -185,7 +197,6 @@ export async function hasRoomConflict(
       roomId,
       ...(excludeReservationId ? { id: { not: excludeReservationId } } : {}),
       status: { notIn: ["CANCELLED", "NO_SHOW", "CHECKED_OUT"] },
-      bookingType: "GUEST",
       checkIn: { lt: checkOut },
       checkOut: { gt: checkIn },
     },
@@ -235,6 +246,11 @@ export async function getAvailableRooms(
 export type ReservedArrival = {
   reservationId: string;
   guestName: string;
+  contactNumber: string | null;
+  idType: string | null;
+  idNumber: string | null;
+  address: string | null;
+  isVip: boolean;
   roomNumber: string;
   roomDescription: string;
   checkOut: string;
@@ -254,7 +270,16 @@ export async function getTodayReservedArrivals(): Promise<ReservedArrival[]> {
       bookingType: "GUEST",
     },
     include: {
-      guest: { select: { fullName: true } },
+      guest: {
+        select: {
+          fullName: true,
+          contactNumber: true,
+          idType: true,
+          idNumber: true,
+          address: true,
+          isVip: true,
+        },
+      },
       room: { select: { number: true, description: true } },
       folio: { select: { total: true, paid: true } },
     },
@@ -267,6 +292,11 @@ export async function getTodayReservedArrivals(): Promise<ReservedArrival[]> {
     return {
       reservationId: r.id,
       guestName: r.guest.fullName,
+      contactNumber: r.guest.contactNumber,
+      idType: r.guest.idType,
+      idNumber: r.guest.idNumber,
+      address: r.guest.address,
+      isVip: r.guest.isVip,
       roomNumber: r.room.number,
       roomDescription: r.room.description,
       checkOut: r.checkOut.toISOString(),
@@ -363,6 +393,11 @@ export async function performCheckIn(
     throw new Error("Room is already booked for these dates");
   }
 
+  const depositAmount = Math.max(0, input.depositAmount ?? 0);
+  if (depositAmount > 0 && !input.paymentMethod) {
+    throw new Error("Select a payment method for the deposit");
+  }
+
   const nights = Math.max(1, daysBetween(checkIn, checkOut));
   const rate = Number(room.baseRate);
 
@@ -418,6 +453,10 @@ export async function performCheckIn(
     nights,
     0,
     0,
+    {
+      depositAmount: input.depositAmount,
+      paymentMethod: input.paymentMethod,
+    },
   );
 
   return {
@@ -547,9 +586,10 @@ export async function createReservation(
 }
 
 export async function performCheckInFromReservation(
-  reservationId: string,
+  input: CheckInFromReservationInput,
   staff: StaffActionContext,
 ): Promise<CheckInResult> {
+  const reservationId = input.reservationId;
   const reservation = await prisma.reservation.findUnique({
     where: { id: reservationId },
     include: { guest: true, room: true, folio: true },
@@ -558,6 +598,9 @@ export async function performCheckInFromReservation(
   if (!reservation) throw new Error("Reservation not found");
   if (reservation.status !== "RESERVED") {
     throw new Error("This reservation is not pending check-in");
+  }
+  if (reservation.bookingType !== "GUEST") {
+    throw new Error("Only guest reservations can be checked in");
   }
 
   const room = reservation.room;
@@ -595,6 +638,34 @@ export async function performCheckInFromReservation(
       reservation.extensionDays,
       reservation.extensionHours,
     );
+  }
+
+  if (
+    input.contactNumber !== undefined ||
+    input.idType !== undefined ||
+    input.idNumber !== undefined ||
+    input.address !== undefined
+  ) {
+    await prisma.guest.update({
+      where: { id: reservation.guestId },
+      data: {
+        contactNumber: input.contactNumber?.trim() || null,
+        idType: input.idType?.trim() || null,
+        idNumber: input.idNumber?.trim() || null,
+        address: input.address?.trim() || null,
+      },
+    });
+  }
+
+  if (input.paymentAmount != null && input.paymentAmount > 0 && reservation.folio) {
+    const method = input.paymentMethod ?? reservation.folio.paymentMethod ?? "CASH";
+    const total = Number(reservation.folio.total);
+    const paid = Math.min(Number(reservation.folio.paid) + input.paymentAmount, total);
+    await recordFolioPayment(reservation.folio.id, input.paymentAmount, method);
+    await prisma.folio.update({
+      where: { id: reservation.folio.id },
+      data: { paid, paidAt: new Date(), paymentMethod: method },
+    });
   }
 
   await prisma.reservation.update({
@@ -694,6 +765,170 @@ export async function performCheckOut(
               : reservation.folio.paidAt,
         paymentMethod: input.paymentMethod ?? reservation.folio.paymentMethod ?? "CASH",
       },
+    });
+  }
+
+  return { roomNumber: reservation.room.number };
+}
+
+export type MaintenanceBlockInput = {
+  roomId: string;
+  checkIn: string;
+  checkOut: string;
+  reason?: string;
+};
+
+async function getMaintenanceGuestId() {
+  const existing = await prisma.guest.findFirst({
+    where: { fullName: "Maintenance Block" },
+    select: { id: true },
+  });
+  if (existing) return existing.id;
+
+  const guest = await prisma.guest.create({
+    data: { fullName: "Maintenance Block", notes: "System guest for room maintenance blocks" },
+  });
+  return guest.id;
+}
+
+export async function createMaintenanceBlock(
+  input: MaintenanceBlockInput,
+  staff: StaffActionContext,
+) {
+  const checkIn = parseDateInput(input.checkIn);
+  const checkOut = parseDateInput(input.checkOut);
+  if (checkOut <= checkIn) {
+    throw new Error("End date must be after start date");
+  }
+
+  const room = await prisma.room.findUnique({ where: { id: input.roomId } });
+  if (!room) throw new Error("Room not found");
+
+  if (await hasRoomConflict(room.id, checkIn, checkOut)) {
+    throw new Error("Room is already booked for these dates");
+  }
+
+  const guestId = await getMaintenanceGuestId();
+  const note = input.reason?.trim() || "Maintenance block";
+
+  const reservation = await prisma.reservation.create({
+    data: {
+      guestId,
+      roomId: room.id,
+      checkIn,
+      checkOut,
+      status: "RESERVED",
+      bookingType: "MAINTENANCE",
+      bookingSource: "OTHER",
+      encodedById: staff.employeeId,
+    },
+  });
+
+  const today = startOfHotelDay();
+  if (checkIn <= today && checkOut > today) {
+    await prisma.room.update({
+      where: { id: room.id },
+      data: { status: "OUT_OF_ORDER" },
+    });
+    await prisma.housekeepingTask.upsert({
+      where: { roomId: room.id },
+      create: { roomId: room.id, status: "OUT_OF_ORDER", notes: note },
+      update: { status: "OUT_OF_ORDER", notes: note, assignedTo: null },
+    });
+  }
+
+  return { reservationId: reservation.id, roomNumber: room.number };
+}
+
+async function releaseReservedRoom(roomId: string) {
+  const room = await prisma.room.findUnique({ where: { id: roomId } });
+  if (!room || room.status !== "RESERVED") return;
+
+  await prisma.room.update({
+    where: { id: roomId },
+    data: { status: "VACANT" },
+  });
+}
+
+export async function cancelReservation(reservationId: string, staff: StaffActionContext) {
+  const reservation = await prisma.reservation.findUnique({
+    where: { id: reservationId },
+    include: { room: true },
+  });
+  if (!reservation) throw new Error("Reservation not found");
+  if (reservation.status !== "RESERVED") {
+    throw new Error("Only reserved bookings can be cancelled");
+  }
+  if (reservation.bookingType !== "GUEST") {
+    throw new Error("Maintenance blocks must be removed from the calendar");
+  }
+
+  await prisma.reservation.update({
+    where: { id: reservationId },
+    data: { status: "CANCELLED", encodedById: staff.employeeId },
+  });
+
+  await releaseReservedRoom(reservation.roomId);
+  return { roomNumber: reservation.room.number };
+}
+
+export async function markReservationNoShow(reservationId: string, staff: StaffActionContext) {
+  const reservation = await prisma.reservation.findUnique({
+    where: { id: reservationId },
+    include: { room: true },
+  });
+  if (!reservation) throw new Error("Reservation not found");
+  if (reservation.status !== "RESERVED") {
+    throw new Error("Only reserved bookings can be marked no-show");
+  }
+  if (reservation.bookingType !== "GUEST") {
+    throw new Error("Invalid reservation type");
+  }
+
+  await prisma.reservation.update({
+    where: { id: reservationId },
+    data: { status: "NO_SHOW", encodedById: staff.employeeId },
+  });
+
+  await releaseReservedRoom(reservation.roomId);
+  return { roomNumber: reservation.room.number };
+}
+
+export async function cancelMaintenanceBlock(reservationId: string) {
+  const reservation = await prisma.reservation.findUnique({
+    where: { id: reservationId },
+    include: { room: true },
+  });
+  if (!reservation) throw new Error("Block not found");
+  if (reservation.bookingType !== "MAINTENANCE") {
+    throw new Error("Not a maintenance block");
+  }
+  if (reservation.status === "CHECKED_OUT" || reservation.status === "CANCELLED") {
+    throw new Error("This block is already closed");
+  }
+
+  await prisma.reservation.update({
+    where: { id: reservationId },
+    data: { status: "CANCELLED" },
+  });
+
+  const activeBlock = await prisma.reservation.findFirst({
+    where: {
+      roomId: reservation.roomId,
+      bookingType: "MAINTENANCE",
+      status: "RESERVED",
+      id: { not: reservationId },
+    },
+  });
+
+  if (!activeBlock && reservation.room.status === "OUT_OF_ORDER") {
+    await prisma.room.update({
+      where: { id: reservation.roomId },
+      data: { status: "VACANT" },
+    });
+    await prisma.housekeepingTask.updateMany({
+      where: { roomId: reservation.roomId },
+      data: { status: "DIRTY", notes: "Maintenance block removed — inspect room" },
     });
   }
 

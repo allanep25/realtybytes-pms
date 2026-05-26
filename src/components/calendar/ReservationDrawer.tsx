@@ -37,7 +37,7 @@ export function ReservationDrawer({ reservationId, onClose }: ReservationDrawerP
   const [loading, setLoading] = useState(false);
 
   const [checkingIn, setCheckingIn] = useState(false);
-
+  const [actionLoading, setActionLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const [success, setSuccess] = useState<string | null>(null);
@@ -120,6 +120,69 @@ export function ReservationDrawer({ reservationId, onClose }: ReservationDrawerP
 
     }
 
+  }
+
+
+
+  async function handleCancelReservation() {
+    if (!reservationId || !detail) return;
+    if (!confirm(`Cancel reservation for ${detail.guestName}?`)) return;
+    setActionLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/reservations/${reservationId}/cancel`, { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Cancel failed");
+      setSuccess(`Reservation cancelled. Room ${data.roomNumber} released.`);
+      router.refresh();
+      onClose();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Cancel failed");
+    } finally {
+      setActionLoading(false);
+    }
+  }
+
+
+
+  async function handleNoShow() {
+    if (!reservationId || !detail) return;
+    if (!confirm(`Mark ${detail.guestName} as no-show?`)) return;
+    setActionLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/reservations/${reservationId}/no-show`, { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "No-show update failed");
+      setSuccess(`Marked no-show. Room ${data.roomNumber} released.`);
+      router.refresh();
+      onClose();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "No-show update failed");
+    } finally {
+      setActionLoading(false);
+    }
+  }
+
+
+
+  async function handleRemoveMaintenanceBlock() {
+    if (!reservationId || !detail) return;
+    if (!confirm("Remove this maintenance block?")) return;
+    setActionLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/maintenance-blocks/${reservationId}`, { method: "DELETE" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Failed to remove block");
+      setSuccess(`Maintenance block removed for Room ${data.roomNumber}.`);
+      router.refresh();
+      onClose();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to remove block");
+    } finally {
+      setActionLoading(false);
+    }
   }
 
 
@@ -503,7 +566,7 @@ export function ReservationDrawer({ reservationId, onClose }: ReservationDrawerP
 
         {detail?.status === "RESERVED" && detail.bookingType === "GUEST" && (
 
-          <div className="border-t border-slate-100 p-5">
+          <div className="border-t border-slate-100 p-5 space-y-2">
 
             <button
 
@@ -511,7 +574,7 @@ export function ReservationDrawer({ reservationId, onClose }: ReservationDrawerP
 
               onClick={handleCheckIn}
 
-              disabled={checkingIn}
+              disabled={checkingIn || actionLoading}
 
               className="w-full rounded-lg bg-room-vacant py-2.5 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
 
@@ -521,7 +584,26 @@ export function ReservationDrawer({ reservationId, onClose }: ReservationDrawerP
 
             </button>
 
-            <p className="mt-2 text-center text-xs text-slate-400">
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={handleNoShow}
+                disabled={checkingIn || actionLoading}
+                className="rounded-lg border border-amber-200 bg-amber-50 py-2 text-sm font-medium text-amber-900 hover:bg-amber-100 disabled:opacity-50"
+              >
+                No-show
+              </button>
+              <button
+                type="button"
+                onClick={handleCancelReservation}
+                disabled={checkingIn || actionLoading}
+                className="rounded-lg border border-red-200 bg-red-50 py-2 text-sm font-medium text-room-dirty hover:bg-red-100 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+            </div>
+
+            <p className="text-center text-xs text-slate-400">
 
               Use when the guest arrives on check-in day
 
@@ -529,6 +611,19 @@ export function ReservationDrawer({ reservationId, onClose }: ReservationDrawerP
 
           </div>
 
+        )}
+
+        {detail?.status === "RESERVED" && detail.bookingType === "MAINTENANCE" && (
+          <div className="border-t border-slate-100 p-5">
+            <button
+              type="button"
+              onClick={handleRemoveMaintenanceBlock}
+              disabled={actionLoading}
+              className="w-full rounded-lg border border-red-200 bg-red-50 py-2.5 text-sm font-medium text-room-dirty hover:bg-red-100 disabled:opacity-50"
+            >
+              {actionLoading ? "Removing…" : "Remove maintenance block"}
+            </button>
+          </div>
         )}
 
       </aside>

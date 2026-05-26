@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { compareRoomNumbers } from "@/lib/utils";
+import { addHotelDays, startOfHotelDay } from "@/lib/dates";
 import type { HousekeepingStatus, RoomStatus } from "@prisma/client";
 
 export type HousekeepingTaskItem = {
@@ -11,6 +12,8 @@ export type HousekeepingTaskItem = {
   assignedTo: string | null;
   assignedName: string | null;
   notes: string | null;
+  priorityLabel: string | null;
+  priorityScore: number;
 };
 
 export function isCleaningQueueStatus(status: HousekeepingStatus): boolean {
@@ -21,7 +24,33 @@ export function filterCleaningQueueTasks(tasks: HousekeepingTaskItem[]): Houseke
   return tasks.filter((task) => isCleaningQueueStatus(task.status));
 }
 
+function computePriorityScore(input: {
+  status: HousekeepingStatus;
+  notes: string | null;
+  isVip: boolean;
+  hasArrivalToday: boolean;
+}): { score: number; label: string | null } {
+  let score = 0;
+  let label: string | null = null;
+
+  if (input.isVip) {
+    score += 100;
+    label = "VIP arrival";
+  } else if (input.hasArrivalToday) {
+    score += 60;
+    label = "Arrival today";
+  }
+
+  if (input.status === "DIRTY") score += 20;
+  if (input.notes?.includes("Checked out")) score += 10;
+
+  return { score, label };
+}
+
 export async function getHousekeepingTasks(): Promise<HousekeepingTaskItem[]> {
+  const today = startOfHotelDay();
+  const tomorrow = addHotelDays(today, 1);
+
   const tasks = await prisma.housekeepingTask.findMany({
     include: {
       room: { select: { number: true, status: true } },
@@ -30,18 +59,51 @@ export async function getHousekeepingTasks(): Promise<HousekeepingTaskItem[]> {
     orderBy: { room: { number: "asc" } },
   });
 
+  const roomIds = tasks.map((task) => task.roomId);
+  const reservations = roomIds.length
+    ? await prisma.reservation.findMany({
+        where: {
+          roomId: { in: roomIds },
+          bookingType: "GUEST",
+          status: { in: ["RESERVED", "CHECKED_IN"] },
+          checkIn: { lt: tomorrow },
+          checkOut: { gt: today },
+        },
+        include: { guest: { select: { isVip: true } } },
+      })
+    : [];
+
+  const reservationByRoom = new Map(reservations.map((res) => [res.roomId, res]));
+
   return tasks
-    .map((t) => ({
-      id: t.id,
-      roomId: t.roomId,
-      roomNumber: t.room.number,
-      roomStatus: t.room.status,
-      status: t.status,
-      assignedTo: t.assignedTo,
-      assignedName: t.employee?.name ?? null,
-      notes: t.notes,
-    }))
+    .map((t) => {
+      const reservation = reservationByRoom.get(t.roomId);
+      const hasArrivalToday =
+        reservation?.status === "RESERVED" &&
+        reservation.checkIn >= today &&
+        reservation.checkIn < tomorrow;
+      const priority = computePriorityScore({
+        status: t.status,
+        notes: t.notes,
+        isVip: reservation?.guest.isVip ?? false,
+        hasArrivalToday: Boolean(hasArrivalToday),
+      });
+
+      return {
+        id: t.id,
+        roomId: t.roomId,
+        roomNumber: t.room.number,
+        roomStatus: t.room.status,
+        status: t.status,
+        assignedTo: t.assignedTo,
+        assignedName: t.employee?.name ?? null,
+        notes: t.notes,
+        priorityLabel: priority.label,
+        priorityScore: priority.score,
+      };
+    })
     .sort((a, b) => {
+      if (a.priorityScore !== b.priorityScore) return b.priorityScore - a.priorityScore;
       const aNeedsCleaning = a.status === "DIRTY" || a.status === "CLEANING";
       const bNeedsCleaning = b.status === "DIRTY" || b.status === "CLEANING";
       if (aNeedsCleaning !== bNeedsCleaning) return aNeedsCleaning ? -1 : 1;

@@ -5,8 +5,9 @@ import type { RoomGridItem } from "@/components/dashboard/RoomStatusGrid";
 import { ReservationFormModal } from "@/components/reservations/ReservationFormModal";
 import { formatShortDate, formatWeekdayShort } from "@/lib/dates";
 import type { ReservationTimelineSerialized } from "@/lib/reservations";
+import { MaintenanceBlockModal } from "@/components/maintenance/MaintenanceBlockModal";
 import { cn } from "@/lib/utils";
-import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, Wrench } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
@@ -36,6 +37,8 @@ export function CalendarTimeline({
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [bookingRoom, setBookingRoom] = useState<RoomGridItem | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
+  const [blockRoom, setBlockRoom] = useState<RoomGridItem | null>(null);
+  const [blockOpen, setBlockOpen] = useState(false);
 
   const { days, roomNumbers, bars, weekOffset } = data;
   const colCount = days.length;
@@ -76,6 +79,19 @@ export function CalendarTimeline({
     setModalOpen(true);
   }
 
+  function openBlock(roomNumber: string) {
+    const room = roomByNumber.get(roomNumber);
+    if (room) {
+      setBlockRoom(room);
+      setBlockOpen(true);
+    }
+  }
+
+  function closeBlockModal() {
+    setBlockOpen(false);
+    setBlockRoom(null);
+  }
+
   function closeModal() {
     setModalOpen(false);
     setBookingRoom(null);
@@ -93,7 +109,7 @@ export function CalendarTimeline({
           </div>
 
           <div className="flex items-center gap-2">
-            {!compact && (
+            {!compact && bookable && (
               <button
                 type="button"
                 onClick={openGeneralBooking}
@@ -101,6 +117,19 @@ export function CalendarTimeline({
               >
                 <Plus className="h-3.5 w-3.5" />
                 New Reservation
+              </button>
+            )}
+            {!compact && bookable && (
+              <button
+                type="button"
+                onClick={() => {
+                  setBlockRoom(null);
+                  setBlockOpen(true);
+                }}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50"
+              >
+                <Wrench className="h-3.5 w-3.5" />
+                Block Room
               </button>
             )}
             {showNav && (
@@ -250,6 +279,13 @@ export function CalendarTimeline({
         onClose={closeModal}
         initialRoom={bookingRoom}
         bookable={bookable}
+      />
+
+      <MaintenanceBlockModal
+        open={blockOpen}
+        onClose={closeBlockModal}
+        room={blockRoom}
+        rooms={rooms}
       />
     </>
   );

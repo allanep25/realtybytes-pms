@@ -4,7 +4,7 @@ import { addDays, daysBetween, startOfDay } from "@/lib/dates";
 import { formatStaffTrail, mapStaffAttribution } from "@/lib/staff-attribution";
 import type { ReservationStatus } from "@prisma/client";
 
-export type ReportType = "DAILY_SALES" | "OCCUPANCY" | "REVENUE_SUMMARY";
+export type ReportType = "DAILY_SALES" | "OCCUPANCY" | "REVENUE_SUMMARY" | "WEEKLY_SUMMARY";
 
 export type ReportSummary = {
   type: ReportType;
@@ -29,6 +29,7 @@ const REPORT_LABELS: Record<ReportType, string> = {
   DAILY_SALES: "Daily Sales Report",
   OCCUPANCY: "Occupancy Report",
   REVENUE_SUMMARY: "Revenue Summary",
+  WEEKLY_SUMMARY: "Weekly Owner Summary",
 };
 
 function parseRange(fromStr: string, toStr: string) {
@@ -219,35 +220,48 @@ export async function generateReport(
       occupancyRate,
       adr,
       rows: [
-        {
-          label: "Rooms in property",
-          value: String(roomCount),
-        },
-        {
-          label: "Report period (days)",
-          value: String(Math.max(1, daysBetween(from, to))),
-        },
-        {
-          label: "Guest stays in period",
-          value: String(totalTransactions),
-        },
-        {
-          label: "Occupancy rate",
-          value: `${occupancyRate.toFixed(2)}%`,
-        },
-        {
-          label: "Average daily rate (ADR)",
-          value: formatMoney(adr),
-        },
-        {
-          label: "Room revenue (folio totals)",
-          value: formatMoney(totalRevenue),
-        },
-        {
-          label: "Collected in period",
-          value: formatMoney(totalCollected),
-        },
+        { label: "Rooms in property", value: String(roomCount) },
+        { label: "Report period (days)", value: String(Math.max(1, daysBetween(from, to))) },
+        { label: "Guest stays in period", value: String(totalTransactions) },
+        { label: "Occupancy rate", value: `${occupancyRate.toFixed(2)}%` },
+        { label: "Average daily rate (ADR)", value: formatMoney(adr) },
+        { label: "Room revenue (folio totals)", value: formatMoney(totalRevenue) },
+        { label: "Collected in period", value: formatMoney(totalCollected) },
       ],
+    };
+  }
+
+  if (type === "WEEKLY_SUMMARY") {
+    const byMethod = collectedPayments.reduce<Record<string, number>>((acc, f) => {
+      const key = f.paymentMethod ?? "UNSPECIFIED";
+      acc[key] = (acc[key] ?? 0) + Number(f.paid);
+      return acc;
+    }, {});
+
+    const rows: ReportRow[] = [
+      { label: "Occupancy rate", value: `${occupancyRate.toFixed(2)}%` },
+      { label: "Average daily rate (ADR)", value: formatMoney(adr) },
+      { label: "Guest stays", value: String(totalTransactions) },
+      { label: "Room revenue", value: formatMoney(totalRevenue), amount: totalRevenue },
+      { label: "Collected", value: formatMoney(totalCollected), amount: totalCollected },
+      ...Object.entries(byMethod).map(([method, amount]) => ({
+        label: method.replace(/_/g, " "),
+        value: "Collected by payment method",
+        amount,
+      })),
+    ];
+
+    return {
+      type,
+      label: REPORT_LABELS[type],
+      from: from.toISOString(),
+      to: to.toISOString(),
+      totalRevenue,
+      totalCollected,
+      totalTransactions,
+      occupancyRate,
+      adr,
+      rows,
     };
   }
 

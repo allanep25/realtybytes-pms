@@ -13,6 +13,7 @@ type ReportsGeneratorProps = {
 
 const REPORT_TYPES: { value: ReportType; label: string }[] = [
   { value: "DAILY_SALES", label: "Daily Sales Report" },
+  { value: "WEEKLY_SUMMARY", label: "Weekly Owner Summary" },
   { value: "OCCUPANCY", label: "Occupancy Report" },
   { value: "REVENUE_SUMMARY", label: "Revenue Summary" },
 ];

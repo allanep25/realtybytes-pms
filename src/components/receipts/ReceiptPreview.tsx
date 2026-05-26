@@ -2,7 +2,7 @@
 
 import { formatPHP } from "@/lib/format";
 import type { ReceiptData } from "@/lib/receipts";
-import { Printer } from "lucide-react";
+import { Printer, Mail } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 type ReceiptFolioOption = {
@@ -50,6 +50,27 @@ export function ReceiptPreview({
     window.print();
   }
 
+  function handleEmail() {
+    if (!receipt) return;
+    const subject = encodeURIComponent(`Receipt ${receipt.orNumber} — ${receipt.guestName}`);
+    const body = encodeURIComponent(
+      [
+        receipt.hotel.name,
+        `Receipt: ${receipt.orNumber}`,
+        `Guest: ${receipt.guestName}`,
+        `Room: ${receipt.roomNumber}`,
+        `Total: ${formatPHP(receipt.total)}`,
+        `Paid: ${formatPHP(receipt.paid)}`,
+        receipt.paid < receipt.total ? `Balance: ${formatPHP(receipt.total - receipt.paid)}` : "",
+        "",
+        "Thank you for staying with us.",
+      ]
+        .filter(Boolean)
+        .join("\n"),
+    );
+    window.location.href = `mailto:?subject=${subject}&body=${body}`;
+  }
+
   if (folios.length === 0) {
     return (
       <div className="rounded-xl border border-dashed border-slate-300 p-8 text-center text-slate-500">
@@ -87,6 +108,15 @@ export function ReceiptPreview({
             ))}
           </select>
         </label>
+        <button
+          type="button"
+          onClick={handleEmail}
+          disabled={!receipt || loading}
+          className="flex items-center gap-2 rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+        >
+          <Mail className="h-4 w-4" />
+          Email receipt
+        </button>
         <button
           type="button"
           onClick={handlePrint}

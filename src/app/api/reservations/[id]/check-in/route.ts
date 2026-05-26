@@ -5,7 +5,7 @@ import { NextResponse } from "next/server";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
-export async function POST(_request: Request, context: RouteContext) {
+export async function POST(request: Request, context: RouteContext) {
   const session = await getSession();
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -13,7 +13,11 @@ export async function POST(_request: Request, context: RouteContext) {
 
   try {
     const { id } = await context.params;
-    const result = await performCheckInFromReservation(id, { employeeId: session.id });
+    const body = await request.json().catch(() => ({}));
+    const result = await performCheckInFromReservation(
+      { reservationId: id, ...body },
+      { employeeId: session.id },
+    );
 
     revalidatePath("/");
     revalidatePath("/rooms");

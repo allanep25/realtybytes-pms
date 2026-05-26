@@ -4,6 +4,7 @@ import {
   BOOKING_PLATFORM_OPTIONS,
   BOOKING_SOURCE_OPTIONS,
 } from "@/lib/booking-source";
+import { PAYMENT_METHOD_OPTIONS } from "@/lib/constants";
 import { formatPHP } from "@/lib/format";
 import type { AvailableRoom } from "@/lib/check-in-out";
 import { cn } from "@/lib/utils";
@@ -28,6 +29,8 @@ const emptyForm = {
   bookingSource: "WALK_IN" as BookingSource,
   bookingPlatform: "" as BookingPlatform | "",
   bookingReference: "",
+  depositAmount: "",
+  paymentMethod: "CASH",
 };
 
 function todayInputValue() {
@@ -122,6 +125,8 @@ export function CheckInForm() {
             form.bookingSource === "ONLINE" ? form.bookingPlatform || null : null,
           bookingReference:
             form.bookingSource === "ONLINE" ? form.bookingReference || null : null,
+          depositAmount: Number(form.depositAmount) || 0,
+          paymentMethod: Number(form.depositAmount) > 0 ? form.paymentMethod : undefined,
         }),
       });
 
@@ -390,6 +395,37 @@ export function CheckInForm() {
                   onChange={(e) => setForm((f) => ({ ...f, children: e.target.value }))}
                   className={fieldClass}
                 />
+              </label>
+            </div>
+          </div>
+
+          <div className="rounded-lg border border-slate-100 bg-slate-50 p-4">
+            <p className="text-sm font-semibold text-slate-800">Deposit (optional)</p>
+            <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <label className="block text-sm">
+                <span className="text-slate-500">Amount</span>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={form.depositAmount}
+                  onChange={(e) => setForm((f) => ({ ...f, depositAmount: e.target.value }))}
+                  className={fieldClass}
+                />
+              </label>
+              <label className="block text-sm">
+                <span className="text-slate-500">Payment method</span>
+                <select
+                  value={form.paymentMethod}
+                  onChange={(e) => setForm((f) => ({ ...f, paymentMethod: e.target.value }))}
+                  className={fieldClass}
+                >
+                  {PAYMENT_METHOD_OPTIONS.map((m) => (
+                    <option key={m.value} value={m.value}>
+                      {m.label}
+                    </option>
+                  ))}
+                </select>
               </label>
             </div>
           </div>

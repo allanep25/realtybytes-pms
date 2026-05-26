@@ -198,6 +198,8 @@ model Employee {
   encodedReservations    Reservation[] @relation("ReservationEncodedBy")
   checkedInReservations  Reservation[] @relation("ReservationCheckedInBy")
   checkedOutReservations Reservation[] @relation("ReservationCheckedOutBy")
+  shiftNotes             ShiftNote[]     @relation("ShiftNotes")
+  dayCloseRecords        DayCloseRecord[] @relation("DayCloseRecords")
 }
 
 model HousekeepingTask {
@@ -222,4 +224,31 @@ model HotelSettings {
   taxRate        Decimal @default(0.12)
   currencyCode   String  @default("PHP")
   receiptFooter  String?
+}
+
+model ShiftNote {
+  id        String   @id @default(cuid())
+  content   String
+  authorId  String
+  createdAt DateTime @default(now())
+
+  author Employee @relation("ShiftNotes", fields: [authorId], references: [id])
+}
+
+model DayCloseRecord {
+  id                   String   @id @default(cuid())
+  businessDate         String   @unique
+  expectedCash         Decimal  @default(0)
+  expectedGcash        Decimal  @default(0)
+  expectedCard         Decimal  @default(0)
+  expectedBankTransfer Decimal  @default(0)
+  actualCash           Decimal?
+  actualGcash          Decimal?
+  actualCard           Decimal?
+  actualBankTransfer   Decimal?
+  notes                String?
+  closedById           String
+  closedAt             DateTime @default(now())
+
+  closedBy Employee @relation("DayCloseRecords", fields: [closedById], references: [id])
 }

@@ -13,6 +13,7 @@ const ROLE_ROUTES: Record<EmployeeRole, string[]> = {
     "/billing",
     "/reports",
     "/receipts",
+    "/end-of-day",
     "/employees",
   ],
   HOUSEKEEPING: ["/housekeeping", "/employees"],

@@ -52,6 +52,11 @@ function TaskCard({
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-lg font-bold text-slate-900">Room {task.roomNumber}</p>
+          {task.priorityLabel && (
+            <p className="mt-1 inline-flex rounded-full bg-room-occupied px-2 py-0.5 text-xs font-semibold text-white">
+              {task.priorityLabel}
+            </p>
+          )}
           <p className="mt-1 text-sm text-slate-500">
             {ROOM_STATUS_LABELS[task.roomStatus] ?? task.roomStatus}
           </p>
