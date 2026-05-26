@@ -12,6 +12,7 @@ export type LobbyRoom = {
 export type LobbyDisplayData = {
   hotelName: string;
   updatedAt: string;
+  fromDatabase: boolean;
   occupied: number;
   vacant: number;
   reserved: number;
@@ -58,6 +59,7 @@ export async function getLobbyDisplayData(): Promise<LobbyDisplayData> {
   return {
     hotelName: settings.name,
     updatedAt: new Date().toISOString(),
+    fromDatabase: summary.fromDatabase,
     occupied: summary.occupied,
     vacant: summary.vacant,
     reserved: summary.reserved,

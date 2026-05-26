@@ -117,6 +117,13 @@ export function LobbyRoomDisplay({
       )}
     >
       <header className={cn("border-b border-white/10", isSplit ? "px-4 py-4" : "px-8 py-6")}>
+        {!data.fromDatabase && (
+          <p className="mb-4 rounded-lg border border-amber-400/40 bg-amber-500/15 px-4 py-2 text-sm text-amber-100">
+            Database not connected or schema out of date. Run{" "}
+            <code className="rounded bg-black/30 px-1">npm run db:deploy</code> locally, or check{" "}
+            <code className="rounded bg-black/30 px-1">DATABASE_URL</code> on the server.
+          </p>
+        )}
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
             <p
