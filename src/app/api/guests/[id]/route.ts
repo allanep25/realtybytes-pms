@@ -1,4 +1,4 @@
-import { getGuestProfile, updateGuest } from "@/lib/guests";
+import { deleteGuest, getGuestProfile, updateGuest } from "@/lib/guests";
 import { getSession } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
@@ -35,6 +35,28 @@ export async function PATCH(request: Request, context: RouteContext) {
     return NextResponse.json(guest);
   } catch (e) {
     const message = e instanceof Error ? e.message : "Update failed";
+    return NextResponse.json({ error: message }, { status: 400 });
+  }
+}
+
+export async function DELETE(_request: Request, context: RouteContext) {
+  const session = await getSession();
+  if (!session || session.role !== "ADMINISTRATOR") {
+    return NextResponse.json({ error: "Administrator access required" }, { status: 403 });
+  }
+
+  const { id } = await context.params;
+
+  try {
+    const result = await deleteGuest(id);
+    revalidatePath("/guests");
+    revalidatePath("/calendar");
+    revalidatePath("/check-in");
+    revalidatePath("/billing");
+
+    return NextResponse.json(result);
+  } catch (e) {
+    const message = e instanceof Error ? e.message : "Delete failed";
     return NextResponse.json({ error: message }, { status: 400 });
   }
 }

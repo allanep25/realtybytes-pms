@@ -14,11 +14,16 @@ const ID_TYPES = ["Passport", "Driver License", "National ID", "Other"];
 type GuestProfileCardProps = {
   guest: GuestProfile;
   canEdit?: boolean;
+  startEditing?: boolean;
 };
 
-export function GuestProfileCard({ guest: initial, canEdit = false }: GuestProfileCardProps) {
+export function GuestProfileCard({
+  guest: initial,
+  canEdit = false,
+  startEditing = false,
+}: GuestProfileCardProps) {
   const router = useRouter();
-  const [editing, setEditing] = useState(false);
+  const [editing, setEditing] = useState(startEditing);
   const [guest, setGuest] = useState(initial);
   const [form, setForm] = useState({
     fullName: initial.fullName,
@@ -30,6 +35,7 @@ export function GuestProfileCard({ guest: initial, canEdit = false }: GuestProfi
     notes: initial.notes ?? "",
   });
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function saveProfile() {
@@ -61,6 +67,29 @@ export function GuestProfileCard({ guest: initial, canEdit = false }: GuestProfi
     }
   }
 
+  async function deleteProfile() {
+    const hasHistory = guest.stayHistory.length > 0;
+    const message = hasHistory
+      ? `Delete ${guest.fullName} and all ${guest.stayHistory.length} past stay record(s)? This cannot be undone.`
+      : `Delete guest profile for ${guest.fullName}? This cannot be undone.`;
+
+    if (!confirm(message)) return;
+
+    setDeleting(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/guests/${guest.id}`, { method: "DELETE" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Delete failed");
+      router.push("/guests");
+      router.refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Delete failed");
+    } finally {
+      setDeleting(false);
+    }
+  }
+
   const fieldClass =
     "mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-room-occupied focus:outline-none focus:ring-1 focus:ring-room-occupied";
 
@@ -88,20 +117,41 @@ export function GuestProfileCard({ guest: initial, canEdit = false }: GuestProfi
               </span>
             )}
             {!editing && canEdit && (
-              <button
-                type="button"
-                onClick={() => setEditing(true)}
-                className="mt-4 text-sm text-room-occupied hover:underline"
-              >
-                Edit Profile
-              </button>
+              <div className="mt-4 flex w-full flex-col gap-2">
+                <button
+                  type="button"
+                  onClick={() => setEditing(true)}
+                  className="w-full rounded-lg border border-slate-200 bg-white py-2 text-sm font-medium text-slate-800 hover:bg-slate-50"
+                >
+                  Edit profile
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void deleteProfile()}
+                  disabled={deleting}
+                  className="w-full rounded-lg border border-red-200 bg-red-50 py-2 text-sm font-medium text-room-dirty hover:bg-red-100 disabled:opacity-50"
+                >
+                  {deleting ? "Deleting…" : "Delete guest"}
+                </button>
+              </div>
+            )}
+            {!editing && canEdit && (
+              <p className="mt-2 text-xs text-slate-400">
+                Delete is blocked while the guest has an active or upcoming reservation.
+              </p>
             )}
             {!editing && !canEdit && (
               <p className="mt-4 text-xs text-slate-400">
-                Profile edits are limited to administrators. Use Edit Records in Settings.
+                Profile edits and deletion are limited to administrators.
               </p>
             )}
           </div>
+
+          {error && !editing && (
+            <p className="mt-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-room-dirty">
+              {error}
+            </p>
+          )}
 
           {editing ? (
             <div className="mt-6 space-y-3 text-left">

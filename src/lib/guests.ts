@@ -252,3 +252,48 @@ export async function updateGuest(id: string, input: UpdateGuestInput) {
 
   return guest;
 }
+
+export type DeleteGuestResult = {
+  deleted: boolean;
+  hadStayHistory: boolean;
+};
+
+export async function deleteGuest(id: string): Promise<DeleteGuestResult> {
+  const guest = await prisma.guest.findUnique({
+    where: { id },
+    include: {
+      reservations: {
+        where: { bookingType: "GUEST" },
+        include: { folio: true },
+      },
+    },
+  });
+
+  if (!guest) throw new Error("Guest not found");
+  if (guest.fullName === "Maintenance Block") {
+    throw new Error("Cannot delete system guest");
+  }
+
+  const active = guest.reservations.filter(
+    (reservation) => reservation.status === "CHECKED_IN" || reservation.status === "RESERVED",
+  );
+  if (active.length > 0) {
+    throw new Error(
+      "Cannot delete guest with active or upcoming reservations. Cancel or complete those stays first.",
+    );
+  }
+
+  const hadStayHistory = guest.reservations.length > 0;
+
+  await prisma.$transaction(async (tx) => {
+    for (const reservation of guest.reservations) {
+      if (reservation.folio) {
+        await tx.folio.delete({ where: { id: reservation.folio.id } });
+      }
+    }
+    await tx.reservation.deleteMany({ where: { guestId: id } });
+    await tx.guest.delete({ where: { id } });
+  });
+
+  return { deleted: true, hadStayHistory };
+}
