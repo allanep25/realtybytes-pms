@@ -1,6 +1,7 @@
 "use client";
 
 import { useAuth } from "@/components/auth/AuthProvider";
+import { EditRecordModal } from "@/components/admin/EditRecordModal";
 import { CalendarBookingActions } from "@/components/calendar/CalendarBookingActions";
 import { ReservationDrawer } from "@/components/calendar/ReservationDrawer";
 import type { RoomGridItem } from "@/components/dashboard/RoomStatusGrid";
@@ -51,6 +52,7 @@ export function CalendarMonthGrid({
   const [availableRooms, setAvailableRooms] = useState<number | null>(null);
   const [checkingAvailability, setCheckingAvailability] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  const [editReservationId, setEditReservationId] = useState<string | null>(null);
 
   const { monthOffset, monthLabel, weekdayHeaders, weeks } = data;
   const weekCount = weeks.length;
@@ -340,9 +342,7 @@ export function CalendarMonthGrid({
         }}
         onEdit={() => {
           if (actionState?.reservationId) {
-            router.push(
-              `/settings/edit-records?reservationId=${encodeURIComponent(actionState.reservationId)}`,
-            );
+            setEditReservationId(actionState.reservationId);
           }
           closeActions();
         }}
@@ -352,6 +352,13 @@ export function CalendarMonthGrid({
         reservationId={selectedId}
         onClose={() => setSelectedId(null)}
         isAdmin={isAdmin}
+        onEditRequest={isAdmin ? setEditReservationId : undefined}
+      />
+
+      <EditRecordModal
+        open={editReservationId != null}
+        reservationId={editReservationId}
+        onClose={() => setEditReservationId(null)}
       />
 
       <ReservationFormModal

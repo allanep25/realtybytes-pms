@@ -26,11 +26,18 @@ type ReservationDrawerProps = {
 
   isAdmin?: boolean;
 
+  onEditRequest?: (reservationId: string) => void;
+
 };
 
 
 
-export function ReservationDrawer({ reservationId, onClose, isAdmin = false }: ReservationDrawerProps) {
+export function ReservationDrawer({
+  reservationId,
+  onClose,
+  isAdmin = false,
+  onEditRequest,
+}: ReservationDrawerProps) {
 
   const router = useRouter();
 
@@ -628,14 +635,12 @@ export function ReservationDrawer({ reservationId, onClose, isAdmin = false }: R
           </div>
         )}
 
-        {isAdmin && reservationId && detail?.bookingType === "GUEST" && (
+        {isAdmin && reservationId && detail?.bookingType === "GUEST" && onEditRequest && (
           <div className="border-t border-slate-100 p-5">
             <button
               type="button"
               onClick={() => {
-                router.push(
-                  `/settings/edit-records?reservationId=${encodeURIComponent(reservationId)}`,
-                );
+                onEditRequest(reservationId);
                 onClose();
               }}
               className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2.5 text-sm font-medium text-slate-800 hover:bg-slate-100"
