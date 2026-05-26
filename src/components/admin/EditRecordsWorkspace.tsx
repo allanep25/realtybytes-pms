@@ -14,10 +14,15 @@ import { useState } from "react";
 
 const ID_TYPES = ["Passport", "Driver License", "National ID", "Other"];
 
-export function EditRecordsWorkspace() {
+type EditRecordsWorkspaceProps = {
+  initialTodayRecords?: EditableReservationListItem[];
+};
+
+export function EditRecordsWorkspace({ initialTodayRecords = [] }: EditRecordsWorkspaceProps) {
   const router = useRouter();
   const [query, setQuery] = useState("");
-  const [results, setResults] = useState<EditableReservationListItem[]>([]);
+  const [results, setResults] = useState<EditableReservationListItem[]>(initialTodayRecords);
+  const [showingToday, setShowingToday] = useState(true);
   const [searching, setSearching] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [record, setRecord] = useState<EditableReservationRecord | null>(null);
@@ -65,11 +70,33 @@ export function EditRecordsWorkspace() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Search failed");
       setResults(data.results ?? []);
+      setShowingToday(false);
       if ((data.results ?? []).length === 0) {
-        setMessage("No matching reservations found.");
+        setMessage("No matching reservations found. Try a single word from the guest name or a room number.");
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Search failed");
+    } finally {
+      setSearching(false);
+    }
+  }
+
+  async function showTodayRecords() {
+    setQuery("");
+    setSearching(true);
+    setError(null);
+    setMessage(null);
+    setRecord(null);
+    setSelectedId(null);
+
+    try {
+      const res = await fetch("/api/admin/edit-records?scope=today");
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Failed to load today's records");
+      setResults(data.results ?? []);
+      setShowingToday(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load today's records");
     } finally {
       setSearching(false);
     }
@@ -197,9 +224,17 @@ export function EditRecordsWorkspace() {
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="e.g. Reyes, Room 21, F-ABC123, Agoda ref…"
+            placeholder="e.g. Uybaan, Jessie, Room 21, F-ABC123…"
             className="min-w-[240px] flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm"
           />
+          <button
+            type="button"
+            disabled={searching}
+            onClick={() => void showTodayRecords()}
+            className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+          >
+            Today&apos;s bookings
+          </button>
           <button
             type="submit"
             disabled={searching || !query.trim()}
@@ -208,6 +243,13 @@ export function EditRecordsWorkspace() {
             {searching ? "Searching…" : "Search"}
           </button>
         </form>
+
+        {showingToday && results.length > 0 && (
+          <p className="mt-3 text-sm text-slate-500">
+            Showing {results.length} active booking(s) for today — arrivals, in-house guests, and
+            departures.
+          </p>
+        )}
 
         {message && !record && (
           <p className="mt-3 text-sm text-slate-500">{message}</p>

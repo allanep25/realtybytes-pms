@@ -1,9 +1,9 @@
 import { normalizeBookingFields } from "@/lib/booking-source";
 import { hasRoomConflict } from "@/lib/check-in-out";
 import { prisma } from "@/lib/db";
-import { daysBetween, parseHotelCalendarDate, setTime } from "@/lib/dates";
+import { addHotelDays, daysBetween, parseHotelCalendarDate, setTime, startOfHotelDay } from "@/lib/dates";
 import { buildStayFolioLines, folioLinesTotal } from "@/lib/stay-pricing";
-import type { BookingPlatform, BookingSource } from "@prisma/client";
+import type { BookingPlatform, BookingSource, Prisma } from "@prisma/client";
 
 export type EditableReservationListItem = {
   id: string;
@@ -162,35 +162,17 @@ async function rebuildReservationFolio(reservationId: string) {
   });
 }
 
-export async function searchEditableReservations(
-  query: string,
-): Promise<EditableReservationListItem[]> {
-  const q = query.trim();
-  if (!q) return [];
+const reservationListInclude = {
+  guest: { select: { fullName: true } },
+  room: { select: { number: true } },
+  folio: { select: { folioNumber: true } },
+  encodedBy: { select: { name: true } },
+} as const;
 
-  const reservations = await prisma.reservation.findMany({
-    where: {
-      bookingType: "GUEST",
-      OR: [
-        { guest: { fullName: { contains: q } } },
-        { guest: { contactNumber: { contains: q } } },
-        { guest: { idNumber: { contains: q } } },
-        { bookingReference: { contains: q } },
-        { room: { number: { contains: q } } },
-        { folio: { folioNumber: { contains: q } } },
-      ],
-    },
-    include: {
-      guest: { select: { fullName: true } },
-      room: { select: { number: true } },
-      folio: { select: { folioNumber: true } },
-      encodedBy: { select: { name: true } },
-    },
-    orderBy: { checkIn: "desc" },
-    take: 30,
-  });
+type ReservationListRow = Prisma.ReservationGetPayload<{ include: typeof reservationListInclude }>;
 
-  return reservations.map((res) => ({
+function mapReservationToListItem(res: ReservationListRow): EditableReservationListItem {
+  return {
     id: res.id,
     guestName: res.guest.fullName,
     roomNumber: res.room.number,
@@ -200,7 +182,73 @@ export async function searchEditableReservations(
     folioNumber: res.folio?.folioNumber ?? null,
     bookingReference: res.bookingReference,
     encodedByName: res.encodedBy?.name ?? null,
-  }));
+  };
+}
+
+function buildSearchWhere(query: string): Prisma.ReservationWhereInput {
+  const q = query.trim();
+  const tokens = q.split(/\s+/).filter(Boolean);
+
+  const orConditions: Prisma.ReservationWhereInput[] = [
+    { guest: { fullName: { contains: q, mode: "insensitive" } } },
+    { guest: { contactNumber: { contains: q, mode: "insensitive" } } },
+    { guest: { idNumber: { contains: q, mode: "insensitive" } } },
+    { bookingReference: { contains: q, mode: "insensitive" } },
+    { room: { number: { contains: q, mode: "insensitive" } } },
+    { folio: { folioNumber: { contains: q, mode: "insensitive" } } },
+  ];
+
+  if (tokens.length > 1) {
+    orConditions.push({
+      AND: tokens.map((token) => ({
+        guest: { fullName: { contains: token, mode: "insensitive" } },
+      })),
+    });
+  }
+
+  return {
+    bookingType: "GUEST",
+    OR: orConditions,
+  };
+}
+
+export async function listTodayEditableReservations(): Promise<EditableReservationListItem[]> {
+  const today = startOfHotelDay();
+  const tomorrow = addHotelDays(today, 1);
+
+  const reservations = await prisma.reservation.findMany({
+    where: {
+      bookingType: "GUEST",
+      status: { notIn: ["CANCELLED", "NO_SHOW", "CHECKED_OUT"] },
+      OR: [
+        { checkIn: { gte: today, lt: tomorrow } },
+        { checkOut: { gte: today, lt: tomorrow } },
+        { status: "CHECKED_IN", checkOut: { gt: today } },
+        { status: "RESERVED", checkIn: { lt: tomorrow }, checkOut: { gt: today } },
+      ],
+    },
+    include: reservationListInclude,
+    orderBy: [{ checkIn: "asc" }, { guest: { fullName: "asc" } }],
+    take: 50,
+  });
+
+  return reservations.map(mapReservationToListItem);
+}
+
+export async function searchEditableReservations(
+  query: string,
+): Promise<EditableReservationListItem[]> {
+  const q = query.trim();
+  if (!q) return listTodayEditableReservations();
+
+  const reservations = await prisma.reservation.findMany({
+    where: buildSearchWhere(q),
+    include: reservationListInclude,
+    orderBy: { checkIn: "desc" },
+    take: 30,
+  });
+
+  return reservations.map(mapReservationToListItem);
 }
 
 export async function getEditableReservation(
