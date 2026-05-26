@@ -10,6 +10,7 @@ import { PAYMENT_METHOD_OPTIONS } from "@/lib/constants";
 import { formatPHP } from "@/lib/format";
 import type { AvailableRoom } from "@/lib/check-in-out";
 import { calcHourlyExtensionRate, calcStayQuote } from "@/lib/stay-pricing";
+import { addHotelDays, hotelCalendarDate, parseHotelCalendarDate } from "@/lib/dates";
 import { cn } from "@/lib/utils";
 import type { BookingPlatform, BookingSource, PaymentMethod } from "@prisma/client";
 import { X } from "lucide-react";
@@ -22,8 +23,13 @@ type ReservationFormModalProps = {
   open: boolean;
   onClose: () => void;
   initialRoom?: RoomGridItem | null;
+  initialCheckIn?: string | null;
   bookable?: boolean;
 };
+
+function defaultCheckOutFromCheckIn(checkIn: string): string {
+  return hotelCalendarDate(addHotelDays(parseHotelCalendarDate(checkIn), 1));
+}
 
 function tomorrowInputValue() {
   const d = new Date();
@@ -62,6 +68,7 @@ export function ReservationFormModal({
   open,
   onClose,
   initialRoom,
+  initialCheckIn = null,
   bookable = true,
 }: ReservationFormModalProps) {
   const router = useRouter();
@@ -107,13 +114,17 @@ export function ReservationFormModal({
   useEffect(() => {
     if (!open) return;
     setError(null);
+    const checkIn = initialCheckIn ?? tomorrowInputValue();
+    const checkOut = initialCheckIn
+      ? defaultCheckOutFromCheckIn(initialCheckIn)
+      : dayAfterTomorrowInputValue();
     setForm({
       ...emptyForm,
-      checkIn: tomorrowInputValue(),
-      checkOut: dayAfterTomorrowInputValue(),
+      checkIn,
+      checkOut,
       roomId: initialRoom?.id ?? "",
     });
-  }, [open, initialRoom]);
+  }, [open, initialRoom, initialCheckIn]);
 
   useEffect(() => {
     loadRooms();
