@@ -244,13 +244,37 @@ function formatDiscountDetail(row: DiscountRow): string {
   return `${statusLabel} · ${checkIn} – ${checkOut}`;
 }
 
-/** Discounts that affect folios with money collected — excludes unpaid future bookings. */
+function discountCountsForRevenue(folio: {
+  paid: { toNumber?: () => number } | number | unknown;
+  total: { toNumber?: () => number } | number | unknown;
+  reservation: { status: string };
+}): boolean {
+  const paid = Number(folio.paid);
+  const total = Number(folio.total);
+  const status = folio.reservation.status;
+
+  if (status === "CHECKED_IN" || status === "CHECKED_OUT") {
+    return paid > 0;
+  }
+
+  // Future bookings: only when prepaid in full — deposits alone do not count.
+  if (status === "RESERVED") {
+    return total > 0 && paid >= total;
+  }
+
+  return false;
+}
+
+/** Discounts on in-house/completed stays, or fully prepaid future bookings only. */
 async function getDiscountRowsForPeriod(from: Date, toExclusive: Date): Promise<DiscountRow[]> {
   const folios = await prisma.folio.findMany({
     where: {
       discount: { gt: 0 },
       paid: { gt: 0 },
-      reservation: { bookingType: BookingType.GUEST },
+      reservation: {
+        bookingType: BookingType.GUEST,
+        status: { in: ["CHECKED_IN", "CHECKED_OUT", "RESERVED"] },
+      },
       updatedAt: { gte: from, lt: toExclusive },
     },
     include: {
@@ -267,7 +291,7 @@ async function getDiscountRowsForPeriod(from: Date, toExclusive: Date): Promise<
     orderBy: { updatedAt: "desc" },
   });
 
-  return folios.map((folio) => ({
+  return folios.filter(discountCountsForRevenue).map((folio) => ({
     id: folio.id,
     recordedAt: folio.updatedAt,
     amount: Number(folio.discount),
