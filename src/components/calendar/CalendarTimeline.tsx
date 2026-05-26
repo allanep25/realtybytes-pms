@@ -3,7 +3,7 @@
 import { ReservationDrawer } from "@/components/calendar/ReservationDrawer";
 import type { RoomGridItem } from "@/components/dashboard/RoomStatusGrid";
 import { ReservationFormModal } from "@/components/reservations/ReservationFormModal";
-import { formatDayOfMonth, formatMonthYear, formatWeekdayShort, hotelCalendarDate } from "@/lib/dates";
+import { formatDayOfMonth, formatMonthYear, formatShortDate, formatWeekdayShort, hotelCalendarDate } from "@/lib/dates";
 import type { ReservationTimelineSerialized } from "@/lib/reservations";
 import { MaintenanceBlockModal } from "@/components/maintenance/MaintenanceBlockModal";
 import { cn } from "@/lib/utils";
@@ -43,6 +43,7 @@ export function CalendarTimeline({
   const { days, roomNumbers, bars, monthOffset } = data;
   const colCount = days.length;
   const rangeStart = new Date(data.rangeStart);
+  const rangeEnd = new Date(data.rangeEnd);
   const todayKey = hotelCalendarDate();
   const isMonthView = colCount > 7;
 
@@ -104,7 +105,11 @@ export function CalendarTimeline({
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-4 py-3">
           <div>
             <h2 className="font-semibold text-slate-800">Reservation Calendar</h2>
-            <p className="text-xs text-slate-500">{formatMonthYear(rangeStart)}</p>
+            <p className="text-xs text-slate-500">
+              {isMonthView
+                ? formatMonthYear(rangeStart)
+                : `${formatShortDate(rangeStart)} – ${formatShortDate(rangeEnd)}`}
+            </p>
           </div>
 
           <div className="flex items-center gap-2">

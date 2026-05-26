@@ -7,7 +7,7 @@ import { RoomStatusGrid } from "@/components/dashboard/RoomStatusGrid";
 import { getDashboardSummary } from "@/lib/dashboard-data";
 import {
   getReservationTimeline,
-  getTimelineRange,
+  getWeekTimelineRange,
   serializeTimeline,
   getTodayArrivals,
   getTodayDepartures,
@@ -21,8 +21,8 @@ import { getTodayRevenueSummary } from "@/lib/revenue";
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
-  const monthOffset = 0;
-  const { start, end } = getTimelineRange(monthOffset);
+  const weekOffset = 0;
+  const { start, end } = getWeekTimelineRange(weekOffset);
 
   const [summary, timeline, revenueSummary, arrivals, departures, shiftNotes, checkoutAlerts] =
     await Promise.all([
@@ -66,7 +66,7 @@ export default async function DashboardPage() {
         <div className="space-y-4 xl:col-span-2">
           <RoomStatusGrid rooms={summary.rooms} bookable={summary.fromDatabase} />
           <CalendarTimeline
-            data={serializeTimeline(timeline, monthOffset)}
+            data={serializeTimeline(timeline, weekOffset)}
             compact
             showNav={false}
             rooms={summary.rooms}

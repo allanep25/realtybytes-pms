@@ -1,6 +1,15 @@
 import { prisma } from "@/lib/db";
 import { formatBookingChannel } from "@/lib/booking-source";
-import { addDays, addHotelDays, daysBetween, eachDayOfInterval, startOfDay, startOfHotelDay } from "@/lib/dates";
+import {
+  addDays,
+  addHotelDays,
+  daysBetween,
+  eachDayOfInterval,
+  formatMonthYear,
+  hotelCalendarDate,
+  startOfDay,
+  startOfHotelDay,
+} from "@/lib/dates";
 import { mapStaffAttribution, type StaffAttribution } from "@/lib/staff-attribution";
 import { buildStayFolioLines, folioLinesTotal } from "@/lib/stay-pricing";
 import {
@@ -38,6 +47,31 @@ export type ReservationTimelineSerialized = {
   roomNumbers: string[];
   bars: TimelineBar[];
   monthOffset: number;
+};
+
+export type CalendarDayBooking = {
+  id: string;
+  roomNumber: string;
+  guestName: string;
+  colorClass: string;
+  title: string;
+};
+
+export type CalendarGridDay = {
+  dateKey: string;
+  dayOfMonth: number;
+  inMonth: boolean;
+  isToday: boolean;
+  bookings: CalendarDayBooking[];
+};
+
+export type MonthCalendarGrid = {
+  monthOffset: number;
+  monthLabel: string;
+  rangeStart: string;
+  rangeEnd: string;
+  weekdayHeaders: string[];
+  weeks: CalendarGridDay[][];
 };
 
 export type ReservationDetail = {
@@ -125,6 +159,28 @@ export function getTimelineRange(monthOffset = 0): { start: Date; end: Date } {
   const start = startOfDay(new Date(anchor.getFullYear(), anchor.getMonth(), 1));
   const end = startOfDay(new Date(anchor.getFullYear(), anchor.getMonth() + 1, 0));
   return { start, end };
+}
+
+/** Sunday–Saturday week for compact room timeline views. */
+export function getWeekTimelineRange(weekOffset = 0): { start: Date; end: Date } {
+  const today = startOfDay(new Date());
+  const start = addDays(today, -today.getDay() + weekOffset * 7);
+  const end = addDays(start, 6);
+  return { start, end };
+}
+
+export function buildMonthWeekRows(monthStart: Date, monthEnd: Date): Date[][] {
+  const gridStart = addDays(startOfDay(monthStart), -startOfDay(monthStart).getDay());
+  const weeks: Date[][] = [];
+  let weekStart = gridStart;
+
+  while (weeks.length < 6) {
+    weeks.push(Array.from({ length: 7 }, (_, index) => addDays(weekStart, index)));
+    weekStart = addDays(weekStart, 7);
+    if (weekStart > addDays(monthEnd, 6)) break;
+  }
+
+  return weeks;
 }
 
 export function getDefaultTimelineRange(): { start: Date; end: Date } {
@@ -218,6 +274,85 @@ export async function getReservationTimeline(
   }
 
   return { rangeStart: start, rangeEnd: end, days, roomNumbers, bars };
+}
+
+function reservationOccupiesDay(checkIn: Date, checkOut: Date, day: Date): boolean {
+  const dayStart = startOfDay(day).getTime();
+  return dayStart >= startOfDay(checkIn).getTime() && dayStart < startOfDay(checkOut).getTime();
+}
+
+export async function getMonthCalendarGrid(monthOffset = 0): Promise<MonthCalendarGrid> {
+  const { start: monthStart, end: monthEnd } = getTimelineRange(monthOffset);
+  const weeks = buildMonthWeekRows(monthStart, monthEnd);
+  const gridStart = weeks[0][0];
+  const gridEnd = weeks[weeks.length - 1][6];
+  const rangeEndExclusive = addDays(startOfDay(gridEnd), 1);
+  const todayKey = hotelCalendarDate();
+  const monthStartKey = hotelCalendarDate(monthStart);
+  const monthEndKey = hotelCalendarDate(monthEnd);
+
+  const reservations = await prisma.reservation.findMany({
+    where: {
+      checkIn: { lt: rangeEndExclusive },
+      checkOut: { gt: startOfDay(gridStart) },
+      status: { notIn: ["CANCELLED", "NO_SHOW"] },
+    },
+    include: {
+      guest: { select: { fullName: true } },
+      room: { select: { number: true } },
+    },
+    orderBy: [{ room: { number: "asc" } }, { checkIn: "asc" }],
+  });
+
+  const weekdayHeaders = Array.from({ length: 7 }, (_, index) =>
+    addDays(startOfDay(new Date(2024, 0, 7)), index).toLocaleDateString("en-PH", {
+      weekday: "short",
+    }),
+  );
+
+  const gridWeeks: CalendarGridDay[][] = weeks.map((week) =>
+    week.map((day) => {
+      const dateKey = hotelCalendarDate(day);
+      const bookings: CalendarDayBooking[] = [];
+
+      for (const res of reservations) {
+        if (!reservationOccupiesDay(res.checkIn, res.checkOut, day)) continue;
+
+        const guestLabel =
+          res.bookingType === "MAINTENANCE" ? "Maintenance" : res.guest.fullName;
+        const channel = formatBookingChannel(
+          res.bookingSource,
+          res.bookingPlatform,
+          res.bookingReference,
+        );
+
+        bookings.push({
+          id: res.id,
+          roomNumber: res.room.number,
+          guestName: guestLabel,
+          colorClass: barColor(res.status, res.bookingType),
+          title: `${res.room.number} — ${guestLabel} (${channel})`,
+        });
+      }
+
+      return {
+        dateKey,
+        dayOfMonth: day.getDate(),
+        inMonth: dateKey >= monthStartKey && dateKey <= monthEndKey,
+        isToday: dateKey === todayKey,
+        bookings,
+      };
+    }),
+  );
+
+  return {
+    monthOffset,
+    monthLabel: formatMonthYear(monthStart),
+    rangeStart: monthStart.toISOString(),
+    rangeEnd: monthEnd.toISOString(),
+    weekdayHeaders,
+    weeks: gridWeeks,
+  };
 }
 
 export async function getTodayArrivals(): Promise<ActivityItem[]> {
