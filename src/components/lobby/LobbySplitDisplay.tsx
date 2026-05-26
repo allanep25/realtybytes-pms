@@ -27,11 +27,12 @@ function AdsPanel({ adsUrl }: { adsUrl: string | null }) {
     <div className="flex h-full flex-col items-center justify-center bg-black px-8 text-center text-white">
       <p className="text-xl font-semibold">Ads panel</p>
       <p className="mt-3 max-w-sm text-sm text-slate-400">
-        Set <code className="text-slate-200">LOBBY_ADS_URL</code> in your environment, or add{" "}
-        <code className="text-slate-200">&amp;ads=https://your-ad-page</code> to the lobby URL.
+        Replace <code className="text-slate-200">your-ad-url</code> with the real web address of your
+        ad slideshow or video page.
       </p>
-      <p className="mt-4 text-xs text-slate-500">
-        Use the same link your ad player already opens (website, slideshow, or video page).
+      <p className="mt-3 max-w-sm text-sm text-slate-400">
+        Set <code className="text-slate-200">LOBBY_ADS_URL</code> in Railway, or use{" "}
+        <code className="text-slate-200">&amp;ads=https://…</code> in the lobby URL.
       </p>
     </div>
   );

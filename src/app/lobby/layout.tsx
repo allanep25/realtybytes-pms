@@ -6,5 +6,5 @@ export const metadata: Metadata = {
 };
 
 export default function LobbyLayout({ children }: { children: React.ReactNode }) {
-  return children;
+  return <div className="h-screen w-screen overflow-hidden bg-slate-950">{children}</div>;
 }

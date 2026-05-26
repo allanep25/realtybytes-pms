@@ -44,6 +44,7 @@ export function parseLobbyRoomsSide(value: string | null | undefined): LobbyRoom
 export function resolveLobbyAdsUrl(queryValue: string | null | undefined): string | null {
   const raw = (queryValue?.trim() || process.env.LOBBY_ADS_URL?.trim()) ?? "";
   if (!raw) return null;
+  if (/your-ad/i.test(raw)) return null;
   try {
     const url = new URL(raw);
     if (url.protocol !== "http:" && url.protocol !== "https:") return null;
