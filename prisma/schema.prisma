@@ -133,6 +133,9 @@ model Reservation {
   encodedById        String?
   checkedInById      String?
   checkedOutById     String?
+  cancellationReason String?
+  rebookReason       String?
+  cancelledAt        DateTime?
   createdAt          DateTime          @default(now())
   updatedAt          DateTime          @updatedAt
 

@@ -1,3 +1,4 @@
+import { isHotelCheckInDay } from "@/lib/cancellation-policy";
 import { prisma } from "@/lib/db";
 import { normalizeBookingFields, validateGuestIdAtCheckIn } from "@/lib/booking-source";
 import { addDays, addHotelDays, daysBetween, parseHotelCalendarDate, setHotelTime, startOfHotelDay } from "@/lib/dates";
@@ -611,6 +612,9 @@ export async function performCheckInFromReservation(
   if (reservation.bookingType !== "GUEST") {
     throw new Error("Only guest reservations can be checked in");
   }
+  if (!isHotelCheckInDay(reservation.checkIn)) {
+    throw new Error("Check-in is only available on the guest's arrival date");
+  }
 
   const room = reservation.room;
   if (room.status === "OUT_OF_ORDER") {
@@ -890,6 +894,9 @@ export async function markReservationNoShow(reservationId: string, staff: StaffA
   }
   if (reservation.bookingType !== "GUEST") {
     throw new Error("Invalid reservation type");
+  }
+  if (!isHotelCheckInDay(reservation.checkIn)) {
+    throw new Error("No-show can only be recorded on the guest's arrival date");
   }
 
   await prisma.reservation.update({
