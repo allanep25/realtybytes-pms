@@ -70,12 +70,13 @@ export function normalizeBookingFields(input: BookingFieldsInput): {
   return { bookingSource, bookingPlatform, bookingReference };
 }
 
-export function validateWalkInIdType(
-  bookingSource: BookingSource | undefined,
+export function validateGuestIdAtCheckIn(
   idType?: string | null,
+  existingIdType?: string | null,
 ): void {
-  if (bookingSource === "WALK_IN" && !idType?.trim()) {
-    throw new Error("ID type is required for walk-in guests");
+  const resolved = idType?.trim() || existingIdType?.trim();
+  if (!resolved) {
+    throw new Error("ID type is required for the guest checking in");
   }
 }
 

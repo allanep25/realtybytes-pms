@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/db";
-import { normalizeBookingFields, validateWalkInIdType } from "@/lib/booking-source";
+import { normalizeBookingFields, validateGuestIdAtCheckIn } from "@/lib/booking-source";
 import { addDays, addHotelDays, daysBetween, parseHotelCalendarDate, setTime, startOfHotelDay } from "@/lib/dates";
 import { recordFolioPayment } from "@/lib/folio-payments";
 import { buildStayFolioLines, folioLinesTotal } from "@/lib/stay-pricing";
@@ -408,7 +408,7 @@ export async function performCheckIn(
     ? parseArrivalTime(checkIn, input.arrivalTime)
     : setTime(checkIn, 14, 0);
 
-  validateWalkInIdType(input.bookingSource ?? "WALK_IN", input.idType);
+  validateGuestIdAtCheckIn(input.idType);
   const booking = normalizeBookingFields(input);
 
   const guest = await prisma.guest.create({
@@ -520,7 +520,6 @@ export async function createReservation(
     ? parseArrivalTime(checkIn, input.arrivalTime)
     : setTime(checkIn, 14, 0);
 
-  validateWalkInIdType(input.bookingSource, input.idType);
   const booking = normalizeBookingFields({
     bookingSource: input.bookingSource,
     bookingPlatform: input.bookingPlatform,
@@ -629,6 +628,8 @@ export async function performCheckInFromReservation(
   if (otherStay) {
     throw new Error("Room is currently occupied by another guest");
   }
+
+  validateGuestIdAtCheckIn(input.idType, reservation.guest.idType);
 
   const nights = Math.max(1, daysBetween(reservation.checkIn, reservation.checkOut));
   const rate = Number(room.baseRate);

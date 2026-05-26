@@ -107,8 +107,8 @@ export function CheckInForm() {
       setError("Booking reference number is required for online bookings");
       return;
     }
-    if (form.bookingSource === "WALK_IN" && !form.idType.trim()) {
-      setError("ID type is required for walk-in guests");
+    if (!form.idType.trim()) {
+      setError("ID type is required for the guest checking in");
       return;
     }
 
@@ -193,26 +193,16 @@ export function CheckInForm() {
                 placeholder="Reyes, John"
               />
             </label>
+            <p className="text-xs font-medium text-slate-600">ID for guest above *</p>
             <label className="block text-sm">
-              <span className="text-slate-500">Contact Number</span>
-              <input
-                value={form.contactNumber}
-                onChange={(e) => setForm((f) => ({ ...f, contactNumber: e.target.value }))}
-                className={fieldClass}
-                placeholder="+63 917 000 0000"
-              />
-            </label>
-            <label className="block text-sm">
-              <span className="text-slate-500">
-                ID Type{form.bookingSource === "WALK_IN" ? " *" : ""}
-              </span>
+              <span className="text-slate-500">ID Type *</span>
               <select
-                required={form.bookingSource === "WALK_IN"}
+                required
                 value={form.idType}
                 onChange={(e) => setForm((f) => ({ ...f, idType: e.target.value }))}
                 className={fieldClass}
               >
-                {form.bookingSource === "WALK_IN" && <option value="">Select ID type…</option>}
+                <option value="">Select ID type…</option>
                 {ID_TYPES.map((t) => (
                   <option key={t} value={t}>
                     {t}
@@ -235,6 +225,15 @@ export function CheckInForm() {
               onClear={() => setForm((f) => ({ ...f, idPhotoFileName: "" }))}
               disabled={submitting}
             />
+            <label className="block text-sm">
+              <span className="text-slate-500">Contact Number</span>
+              <input
+                value={form.contactNumber}
+                onChange={(e) => setForm((f) => ({ ...f, contactNumber: e.target.value }))}
+                className={fieldClass}
+                placeholder="+63 917 000 0000"
+              />
+            </label>
             <label className="block text-sm">
               <span className="text-slate-500">Address</span>
               <textarea
