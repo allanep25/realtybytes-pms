@@ -268,3 +268,27 @@ export const CHARGE_PRESETS = [
   { description: "Laundry", rate: 250 },
   { description: "Minibar", rate: 500 },
 ];
+
+export type DiscountPreset = {
+  label: string;
+  type: "percent" | "fixed";
+  value: number;
+};
+
+/** Common front-desk discounts for walk-ins, returning guests, and SC/PWD. */
+export const DISCOUNT_PRESETS: DiscountPreset[] = [
+  { label: "Senior/PWD 20%", type: "percent", value: 20 },
+  { label: "5%", type: "percent", value: 5 },
+  { label: "10%", type: "percent", value: 10 },
+  { label: "15%", type: "percent", value: 15 },
+  { label: "₱200", type: "fixed", value: 200 },
+  { label: "₱500", type: "fixed", value: 500 },
+];
+
+export function calcPresetDiscount(subtotal: number, preset: DiscountPreset): number {
+  if (subtotal <= 0) return 0;
+  if (preset.type === "percent") {
+    return Math.min(subtotal, Math.round(subtotal * (preset.value / 100)));
+  }
+  return Math.min(subtotal, preset.value);
+}

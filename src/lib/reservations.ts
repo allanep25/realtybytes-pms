@@ -100,6 +100,7 @@ export type ReservationDetail = {
   scheduledDeparture: string | null;
   folioNumber: string | null;
   totalDue: number;
+  discount: number;
   paid: number;
   balanceDue: number;
   paymentMethod: string | null;
@@ -438,6 +439,8 @@ export async function getReservationById(id: string): Promise<ReservationDetail 
       folio: {
         select: {
           folioNumber: true,
+          subtotal: true,
+          discount: true,
           total: true,
           paid: true,
           paymentMethod: true,
@@ -462,6 +465,8 @@ export async function getReservationById(id: string): Promise<ReservationDetail 
   });
 
   const estimatedTotal = folioLinesTotal(lines);
+  const folioSubtotal = res.folio ? Number(res.folio.subtotal) : estimatedTotal;
+  const folioDiscount = res.folio ? Number(res.folio.discount) : 0;
   const folioTotal = res.folio ? Number(res.folio.total) : estimatedTotal;
   const paid = res.folio ? Number(res.folio.paid) : 0;
 
@@ -483,11 +488,12 @@ export async function getReservationById(id: string): Promise<ReservationDetail 
     children: res.children,
     extensionDays: res.extensionDays,
     extensionHours: res.extensionHours,
-    estimatedTotal: folioTotal,
+    estimatedTotal: folioSubtotal,
     scheduledArrival: res.scheduledArrival?.toISOString() ?? null,
     scheduledDeparture: res.scheduledDeparture?.toISOString() ?? null,
     folioNumber: res.folio?.folioNumber ?? null,
     totalDue: folioTotal,
+    discount: folioDiscount,
     paid,
     balanceDue: Math.max(0, folioTotal - paid),
     paymentMethod: res.folio?.paymentMethod ?? null,

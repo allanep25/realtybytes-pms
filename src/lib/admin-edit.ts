@@ -138,7 +138,9 @@ async function rebuildReservationFolio(reservationId: string) {
     extensionHours: reservation.extensionHours,
   });
   const total = folioLinesTotal(lines);
-  const paid = Math.min(Number(reservation.folio.paid), total);
+  const discount = Number(reservation.folio.discount);
+  const netTotal = Math.max(0, total - discount);
+  const paid = Math.min(Number(reservation.folio.paid), netTotal);
 
   await prisma.$transaction(async (tx) => {
     await tx.folioLine.deleteMany({ where: { folioId: reservation.folio!.id } });
@@ -155,7 +157,7 @@ async function rebuildReservationFolio(reservationId: string) {
       where: { id: reservation.folio!.id },
       data: {
         subtotal: total,
-        total,
+        total: netTotal,
         paid,
         paidAt: paid > 0 ? reservation.folio!.paidAt ?? new Date() : null,
       },

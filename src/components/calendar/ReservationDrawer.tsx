@@ -509,9 +509,21 @@ export function ReservationDrawer({
                     </div>
                   )}
                   <div className="flex justify-between gap-4">
+                    <dt className="text-slate-500">Room charges</dt>
+                    <dd className="font-medium text-slate-800">
+                      {formatPHP(detail.estimatedTotal)}
+                    </dd>
+                  </div>
+                  {detail.discount > 0 && (
+                    <div className="flex justify-between gap-4 text-room-vacant">
+                      <dt className="text-slate-500">Guest discount</dt>
+                      <dd className="font-medium">− {formatPHP(detail.discount)}</dd>
+                    </div>
+                  )}
+                  <div className="flex justify-between gap-4">
                     <dt className="text-slate-500">Total stay</dt>
                     <dd className="font-medium text-slate-800">
-                      {formatPHP(detail.totalDue || detail.estimatedTotal)}
+                      {formatPHP(detail.totalDue)}
                     </dd>
                   </div>
                   {detail.paid > 0 && (
@@ -542,7 +554,7 @@ export function ReservationDrawer({
                     href={`/billing?folio=${detail.folioNumber}`}
                     className="mt-3 inline-block text-xs font-medium text-room-vacant hover:underline"
                   >
-                    Open in Billing →
+                    {detail.discount > 0 ? "Adjust discount in Billing →" : "Apply discount in Billing →"}
                   </a>
                 )}
               </div>

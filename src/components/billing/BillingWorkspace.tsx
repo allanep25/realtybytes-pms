@@ -1,6 +1,12 @@
 "use client";
 
-import { CHARGE_PRESETS, type FolioDetail, type FolioListItem } from "@/lib/billing";
+import {
+  CHARGE_PRESETS,
+  DISCOUNT_PRESETS,
+  calcPresetDiscount,
+  type FolioDetail,
+  type FolioListItem,
+} from "@/lib/billing";
 import { formatPHP } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
@@ -114,19 +120,22 @@ export function BillingWorkspace({
     }
   }
 
-  async function applyDiscount() {
+  async function applyDiscount(amount?: number) {
     if (!selectedId) return;
+    const nextDiscount = amount ?? (Number(discount) || 0);
+    setDiscount(String(nextDiscount));
     setLoading(true);
     setError(null);
     try {
       const res = await fetch(`/api/folios/${selectedId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ discount: Number(discount) || 0 }),
+        body: JSON.stringify({ discount: nextDiscount }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Failed");
       setFolio(data);
+      setDiscount(String(data.discount));
       setPaymentAmount(data.balanceDue > 0 ? String(data.balanceDue) : "");
       router.refresh();
     } catch (e) {
@@ -134,6 +143,11 @@ export function BillingWorkspace({
     } finally {
       setLoading(false);
     }
+  }
+
+  function applyDiscountPreset(preset: (typeof DISCOUNT_PRESETS)[0]) {
+    if (!folio) return;
+    void applyDiscount(calcPresetDiscount(folio.subtotal, preset));
   }
 
   async function recordPayment(e: React.FormEvent) {
@@ -346,26 +360,66 @@ export function BillingWorkspace({
                     <dt className="text-slate-500">Subtotal</dt>
                     <dd>{formatPHP(folio.subtotal)}</dd>
                   </div>
-                  <div className="flex justify-between items-center gap-2">
-                    <dt className="text-slate-500">Discount</dt>
-                    <dd className="flex items-center gap-2">
-                      <input
-                        type="number"
-                        min={0}
-                        value={discount}
-                        onChange={(e) => setDiscount(e.target.value)}
-                        className="w-24 rounded border border-slate-200 px-2 py-1 text-right text-sm"
-                      />
-                      <button
-                        type="button"
-                        onClick={applyDiscount}
-                        disabled={loading}
-                        className="text-xs text-room-occupied hover:underline"
-                      >
-                        Apply
-                      </button>
+                  <div className="flex justify-between items-start gap-2">
+                    <dt className="text-slate-500">Guest discount</dt>
+                    <dd className="flex flex-col items-end gap-2">
+                      <div className="flex flex-wrap justify-end gap-1">
+                        {DISCOUNT_PRESETS.map((preset) => (
+                          <button
+                            key={preset.label}
+                            type="button"
+                            onClick={() => applyDiscountPreset(preset)}
+                            disabled={loading || folio.subtotal <= 0}
+                            className={cn(
+                              "rounded border px-2 py-0.5 text-xs font-medium disabled:opacity-50",
+                              preset.label.startsWith("Senior/PWD")
+                                ? "border-room-vacant/40 bg-room-vacant/15 text-room-vacant hover:bg-room-vacant/25"
+                                : "border-amber-200 bg-amber-50 text-amber-900 hover:bg-amber-100",
+                            )}
+                          >
+                            {preset.label}
+                          </button>
+                        ))}
+                        <button
+                          type="button"
+                          onClick={() => void applyDiscount(0)}
+                          disabled={loading || folio.discount <= 0}
+                          className="rounded border border-slate-200 px-2 py-0.5 text-xs text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+                        >
+                          Clear
+                        </button>
+                      </div>
+                      <p className="max-w-[220px] text-right text-[10px] leading-snug text-slate-400">
+                        Senior/PWD 20% — verify valid OSCA or PWD ID before applying.
+                      </p>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="number"
+                          min={0}
+                          max={folio.subtotal}
+                          step={1}
+                          value={discount}
+                          onChange={(e) => setDiscount(e.target.value)}
+                          className="w-24 rounded border border-slate-200 px-2 py-1 text-right text-sm"
+                          aria-label="Discount amount in pesos"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => void applyDiscount()}
+                          disabled={loading}
+                          className="text-xs text-room-occupied hover:underline"
+                        >
+                          Apply
+                        </button>
+                      </div>
                     </dd>
                   </div>
+                  {folio.discount > 0 && (
+                    <div className="flex justify-between text-room-vacant">
+                      <dt className="text-slate-500">After discount</dt>
+                      <dd className="font-medium">− {formatPHP(folio.discount)}</dd>
+                    </div>
+                  )}
                   <div className="flex justify-between font-semibold">
                     <dt>Total</dt>
                     <dd>{formatPHP(folio.total)}</dd>
