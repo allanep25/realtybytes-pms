@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import { normalizeBookingFields, validateGuestIdAtCheckIn } from "@/lib/booking-source";
 import { addDays, addHotelDays, daysBetween, parseHotelCalendarDate, setHotelTime, startOfHotelDay } from "@/lib/dates";
 import { recordFolioPayment } from "@/lib/folio-payments";
+import { syncRoomOperationalStatus } from "@/lib/room-status";
 import { buildStayFolioLines, folioLinesTotal } from "@/lib/stay-pricing";
 import { compareRoomNumbers } from "@/lib/utils";
 import type { BookingPlatform, BookingSource, PaymentMethod, RoomType } from "@prisma/client";
@@ -382,6 +383,7 @@ export async function performCheckIn(
   const adults = Math.max(1, input.adults || 1);
   const children = Math.max(0, input.children || 0);
 
+  await syncRoomOperationalStatus(input.roomId);
   const room = await prisma.room.findUnique({ where: { id: input.roomId } });
   if (!room) throw new Error("Room not found");
 
@@ -499,6 +501,7 @@ export async function createReservation(
   const extensionDays = Math.max(0, Math.floor(input.extensionDays ?? 0));
   const extensionHours = Math.max(0, Math.floor(input.extensionHours ?? 0));
 
+  await syncRoomOperationalStatus(input.roomId);
   const room = await prisma.room.findUnique({ where: { id: input.roomId } });
   if (!room) throw new Error("Room not found");
 
@@ -557,7 +560,7 @@ export async function createReservation(
     },
   });
 
-  if (room.status === "VACANT") {
+  if (room.status === "VACANT" && checkIn.getTime() === today.getTime()) {
     await prisma.room.update({
       where: { id: room.id },
       data: { status: "RESERVED" },
@@ -851,13 +854,7 @@ export async function createMaintenanceBlock(
 }
 
 async function releaseReservedRoom(roomId: string) {
-  const room = await prisma.room.findUnique({ where: { id: roomId } });
-  if (!room || room.status !== "RESERVED") return;
-
-  await prisma.room.update({
-    where: { id: roomId },
-    data: { status: "VACANT" },
-  });
+  await syncRoomOperationalStatus(roomId);
 }
 
 export async function cancelReservation(reservationId: string, staff: StaffActionContext) {

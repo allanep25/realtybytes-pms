@@ -33,7 +33,10 @@ type RoomStatusGridProps = {
 function roomClickHint(room: RoomGridItem): string {
   if (room.status === "OUT_OF_ORDER") return `${room.description} · Out of order`;
   if (room.status === "RESERVED" || room.status === "OCCUPIED") {
-    return `${room.description} · View reserved guest`;
+    return `${room.description} · View today's guest`;
+  }
+  if (room.status === "DIRTY") {
+    return `${room.description} · Needs cleaning · Click to book`;
   }
   return `${room.description} · up to ${room.maxPax} guests · Click to book`;
 }
@@ -68,7 +71,10 @@ export function RoomStatusGrid({ rooms, bookable = true }: RoomStatusGridProps) 
       return;
     }
 
-    if (room.status === "VACANT" && bookable) {
+    if (
+      (room.status === "VACANT" || room.status === "DIRTY") &&
+      bookable
+    ) {
       openBooking(room);
     }
   }
@@ -80,7 +86,7 @@ export function RoomStatusGrid({ rooms, bookable = true }: RoomStatusGridProps) 
           <div>
             <h2 className="text-sm font-semibold text-slate-800">Room Status</h2>
             <p className="text-xs text-slate-400">
-              Vacant = new booking · Reserved/occupied = view guest
+              Today only · Vacant = walk-in or booking · Arriving today = view guest
             </p>
           </div>
           <Link href="/rooms" className="text-xs text-room-occupied hover:underline">
@@ -91,9 +97,11 @@ export function RoomStatusGrid({ rooms, bookable = true }: RoomStatusGridProps) 
           {rooms.map((room) => {
             const isReservedOrOccupied =
               room.status === "RESERVED" || room.status === "OCCUPIED";
+            const isBookableToday =
+              (room.status === "VACANT" || room.status === "DIRTY") && bookable;
             const isClickable =
               room.status !== "OUT_OF_ORDER" &&
-              (isReservedOrOccupied ? Boolean(room.activeReservationId) : bookable);
+              (isReservedOrOccupied ? Boolean(room.activeReservationId) : isBookableToday);
 
             return (
               <button

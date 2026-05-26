@@ -11,6 +11,7 @@ import {
   startOfHotelDay,
 } from "@/lib/dates";
 import { buildStayFolioLines, folioLinesTotal } from "@/lib/stay-pricing";
+import { syncRoomOperationalStatus } from "@/lib/room-status";
 import type { BookingPlatform, BookingSource, Prisma } from "@prisma/client";
 
 export type EditableReservationListItem = {
@@ -103,33 +104,7 @@ function toDateInput(value: Date): string {
 }
 
 async function refreshRoomStatus(roomId: string) {
-  const room = await prisma.room.findUnique({
-    where: { id: roomId },
-    include: { housekeepingTask: true },
-  });
-  if (!room || room.status === "OUT_OF_ORDER") return;
-
-  const active = await prisma.reservation.findFirst({
-    where: {
-      roomId,
-      bookingType: "GUEST",
-      status: { in: ["CHECKED_IN", "RESERVED"] },
-    },
-    orderBy: { checkIn: "desc" },
-  });
-
-  if (!active) {
-    const hkStatus = room.housekeepingTask?.status;
-    const nextStatus =
-      hkStatus === "DIRTY" || hkStatus === "CLEANING" ? "DIRTY" : "VACANT";
-    await prisma.room.update({ where: { id: roomId }, data: { status: nextStatus } });
-    return;
-  }
-
-  await prisma.room.update({
-    where: { id: roomId },
-    data: { status: active.status === "CHECKED_IN" ? "OCCUPIED" : "RESERVED" },
-  });
+  await syncRoomOperationalStatus(roomId);
 }
 
 async function rebuildReservationFolio(reservationId: string) {

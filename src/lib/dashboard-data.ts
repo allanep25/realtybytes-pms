@@ -1,5 +1,10 @@
 import type { RoomGridItem } from "@/components/dashboard/RoomStatusGrid";
 import { prisma } from "@/lib/db";
+import {
+  deriveOperationalRoomStatus,
+  syncAllRoomOperationalStatuses,
+  todayGuestStayWhere,
+} from "@/lib/room-status";
 import { compareRoomNumbers } from "@/lib/utils";
 import type { RoomStatus } from "@prisma/client";
 
@@ -77,7 +82,9 @@ export async function getDashboardSummary(): Promise<DashboardSummary> {
   }
 
   try {
-    const [rooms, activeReservations] = await Promise.all([
+    await syncAllRoomOperationalStatuses();
+
+    const [rooms, todayStays] = await Promise.all([
       prisma.room.findMany({
         orderBy: [{ floor: "asc" }, { number: "asc" }],
         select: {
@@ -93,31 +100,34 @@ export async function getDashboardSummary(): Promise<DashboardSummary> {
         },
       }),
       prisma.reservation.findMany({
-        where: {
-          bookingType: "GUEST",
-          status: { in: ["RESERVED", "CHECKED_IN"] },
-        },
-        select: { id: true, roomId: true },
+        where: todayGuestStayWhere(),
+        select: { id: true, roomId: true, status: true },
       }),
     ]);
 
-    const reservationByRoom = new Map(
-      activeReservations.map((reservation) => [reservation.roomId, reservation.id]),
+    const todayStayByRoom = new Map(
+      todayStays.map((reservation) => [reservation.roomId, reservation]),
     );
 
     const grid: RoomGridItem[] = rooms
-      .map((r) => ({
-        id: r.id,
-        number: r.number,
-        floor: r.floor,
-        status: r.status,
-        housekeepingStatus: r.housekeepingTask?.status ?? null,
-        description: r.description,
-        maxPax: r.maxPax,
-        baseRate: Number(r.baseRate),
-        breakfastRate: r.breakfastRate != null ? Number(r.breakfastRate) : null,
-        activeReservationId: reservationByRoom.get(r.id) ?? null,
-      }))
+      .map((r) => {
+        const housekeepingStatus = r.housekeepingTask?.status ?? null;
+        const todayStay = todayStayByRoom.get(r.id) ?? null;
+        const status = deriveOperationalRoomStatus(r.status, housekeepingStatus, todayStay);
+
+        return {
+          id: r.id,
+          number: r.number,
+          floor: r.floor,
+          status,
+          housekeepingStatus,
+          description: r.description,
+          maxPax: r.maxPax,
+          baseRate: Number(r.baseRate),
+          breakfastRate: r.breakfastRate != null ? Number(r.breakfastRate) : null,
+          activeReservationId: todayStay?.id ?? null,
+        };
+      })
       .sort((a, b) => compareRoomNumbers(a.number, b.number));
 
     return { ...summarize(grid), rooms: grid, fromDatabase: true };
