@@ -4,7 +4,7 @@ import { SESSION_COOKIE } from "@/lib/auth-types";
 import { verifySessionToken } from "@/lib/auth-jwt";
 import { canAccessRoute, defaultRouteForRole } from "@/lib/permissions";
 
-const PUBLIC_PATHS = ["/login"];
+const PUBLIC_PATHS = ["/login", "/lobby"];
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -13,6 +13,7 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith("/_next") ||
     pathname.startsWith("/api/auth/login") ||
     pathname.startsWith("/api/auth/logout") ||
+    pathname.startsWith("/api/lobby") ||
     pathname.includes(".")
   ) {
     return NextResponse.next();
@@ -21,12 +22,16 @@ export async function middleware(request: NextRequest) {
   const token = request.cookies.get(SESSION_COOKIE)?.value;
   const session = token ? await verifySessionToken(token) : null;
 
-  if (PUBLIC_PATHS.includes(pathname)) {
+  if (pathname === "/login") {
     if (session) {
       return NextResponse.redirect(
         new URL(defaultRouteForRole(session.role), request.url),
       );
     }
+    return NextResponse.next();
+  }
+
+  if (PUBLIC_PATHS.includes(pathname)) {
     return NextResponse.next();
   }
 
