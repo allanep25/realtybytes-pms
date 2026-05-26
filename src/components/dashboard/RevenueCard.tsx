@@ -61,14 +61,14 @@ export function RevenueCard({ initialSummary }: RevenueCardProps) {
   return (
     <>
       <div className="rounded-xl border border-slate-200 bg-card p-4 shadow-sm">
-        <div className="flex items-start justify-between gap-3">
-          <p className="text-xs font-medium text-slate-500">{periodTitle(from, to)}</p>
-          <CalendarRange className="h-4 w-4 shrink-0 text-slate-400" aria-hidden />
+        <div className="flex items-start justify-between gap-3 border-b border-slate-100 pb-3">
+          <h3 className="text-base font-bold text-slate-900">{periodTitle(from, to)}</h3>
+          <CalendarRange className="h-5 w-5 shrink-0 text-slate-400" aria-hidden />
         </div>
 
         <div className="mt-3 grid grid-cols-2 gap-2">
           <label className="text-xs">
-            <span className="mb-1 block text-slate-400">From</span>
+            <span className="mb-1 block font-medium text-slate-500">From</span>
             <input
               type="date"
               value={from}
@@ -78,7 +78,7 @@ export function RevenueCard({ initialSummary }: RevenueCardProps) {
             />
           </label>
           <label className="text-xs">
-            <span className="mb-1 block text-slate-400">To</span>
+            <span className="mb-1 block font-medium text-slate-500">To</span>
             <input
               type="date"
               value={to}
@@ -97,17 +97,17 @@ export function RevenueCard({ initialSummary }: RevenueCardProps) {
 
         <ul
           className={cn(
-            "mt-3 space-y-1.5 border-b border-slate-100 pb-3 text-sm",
+            "mt-4 space-y-2 border-b border-slate-100 pb-4 text-sm",
             loading && "opacity-50",
           )}
         >
           {breakdown.map((item) => (
             <li key={item.method} className="flex items-center justify-between gap-3">
-              <span className="text-slate-600">{item.label}</span>
+              <span className="font-semibold text-slate-700">{item.label}</span>
               <span
                 className={cn(
-                  "font-medium tabular-nums",
-                  item.amount > 0 ? "text-slate-800" : "text-slate-400",
+                  "text-base font-bold tabular-nums",
+                  item.amount > 0 ? "text-slate-900" : "text-slate-400",
                 )}
               >
                 {formatPHP(item.amount)}
@@ -120,22 +120,22 @@ export function RevenueCard({ initialSummary }: RevenueCardProps) {
           type="button"
           onClick={() => setShowTransactions(true)}
           className={cn(
-            "mt-3 flex w-full items-center justify-between gap-3 rounded-lg px-1 py-1 text-left transition hover:bg-slate-50",
+            "mt-4 flex w-full items-center justify-between gap-3 rounded-lg bg-slate-50 px-3 py-3 text-left transition hover:bg-slate-100",
             loading && "pointer-events-none opacity-50",
           )}
         >
-          <span className="text-sm font-semibold text-slate-800">
+          <span className="text-sm font-bold text-slate-800">
             {from === to ? "Total for day" : "Total for period"}
           </span>
-          <span className="text-xl font-bold tabular-nums text-slate-900">{formatPHP(total)}</span>
+          <span className="text-2xl font-bold tabular-nums text-slate-900">{formatPHP(total)}</span>
         </button>
 
         {total === 0 && !loading ? (
-          <p className="mt-2 text-sm text-slate-400">No payments in this period</p>
+          <p className="mt-2 text-sm font-medium text-slate-500">No payments in this period</p>
         ) : showComparison ? (
           <p
             className={cn(
-              "mt-2 text-sm font-medium",
+              "mt-2 text-sm font-semibold",
               positive ? "text-room-vacant" : "text-room-dirty",
             )}
           >
@@ -143,14 +143,14 @@ export function RevenueCard({ initialSummary }: RevenueCardProps) {
             {changePercent.toFixed(1)}% vs yesterday
           </p>
         ) : isToday && total > 0 ? (
-          <p className="mt-2 text-sm text-slate-400">First payment of the day</p>
+          <p className="mt-2 text-sm font-medium text-slate-500">First payment of the day</p>
         ) : null}
 
         <button
           type="button"
           onClick={() => setShowTransactions(true)}
           disabled={loading}
-          className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+          className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg border border-slate-200 px-3 py-2.5 text-sm font-semibold text-slate-800 hover:bg-slate-50 disabled:opacity-50"
         >
           <List className="h-4 w-4" />
           View transactions ({transactions.length})
