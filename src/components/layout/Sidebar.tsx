@@ -86,6 +86,13 @@ export function Sidebar({
           })}
         </ul>
       </nav>
+
+      <footer className="shrink-0 border-t border-white/10 px-4 py-3">
+        <p className="text-center text-[10px] leading-snug text-slate-400 lg:text-left">
+          This site is created and maintained by{" "}
+          <span className="font-semibold text-slate-300">ALLANEP</span>
+        </p>
+      </footer>
     </aside>
   );
 }
