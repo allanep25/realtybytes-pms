@@ -6,7 +6,7 @@ import { ReservationFormModal } from "@/components/reservations/ReservationFormM
 import { formatDayOfMonth, formatMonthYear, formatShortDate, formatWeekdayShort, hotelCalendarDate, hotelDayOfWeek } from "@/lib/dates";
 import type { ReservationTimelineSerialized } from "@/lib/reservations";
 import { MaintenanceBlockModal } from "@/components/maintenance/MaintenanceBlockModal";
-import { cn } from "@/lib/utils";
+import { cn, compareRoomNumbers } from "@/lib/utils";
 import { ChevronLeft, ChevronRight, Plus, Wrench } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -47,7 +47,17 @@ export function CalendarTimeline({
   const todayKey = hotelCalendarDate();
   const isMonthView = colCount > 7;
 
-  const displayRooms = compact ? roomNumbers.slice(0, 6) : roomNumbers;
+  const displayRooms = useMemo(() => {
+    if (!compact) return roomNumbers;
+
+    const roomsWithBookings = new Set(bars.map((bar) => bar.roomNumber));
+    const active = roomNumbers.filter((number) => roomsWithBookings.has(number));
+    if (active.length === 0) {
+      return roomNumbers.slice(0, 6);
+    }
+    return [...active].sort(compareRoomNumbers);
+  }, [compact, roomNumbers, bars]);
+
   const rowHeight = compact ? 30 : 40;
 
   const roomByNumber = useMemo(
@@ -177,7 +187,9 @@ export function CalendarTimeline({
         </div>
 
         <p className="border-b border-slate-50 px-4 py-1.5 text-xs text-slate-400">
-          Click a room number to book · click a bar to view details
+          {compact
+            ? `Showing ${displayRooms.length} room${displayRooms.length === 1 ? "" : "s"} with bookings this week · click a bar for details`
+            : "Click a room number to book · click a bar to view details"}
         </p>
 
         <div className="overflow-x-auto p-3">
