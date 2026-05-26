@@ -2,10 +2,12 @@
 
 import { EditRecordModal } from "@/components/admin/EditRecordModal";
 import { useAuth } from "@/components/auth/AuthProvider";
+import { RoomAttentionModal } from "@/components/dashboard/RoomAttentionModal";
 import { ReservationDrawer } from "@/components/calendar/ReservationDrawer";
 import { ReservationFormModal } from "@/components/reservations/ReservationFormModal";
 import { getRoomGridColor } from "@/lib/constants";
 import { isAdministrator } from "@/lib/permissions";
+import { roomNeedsCleaningBeforeUse } from "@/lib/room-cleaning";
 import { cn } from "@/lib/utils";
 import type { HousekeepingStatus, RoomStatus } from "@prisma/client";
 import Link from "next/link";
@@ -35,8 +37,11 @@ function roomClickHint(room: RoomGridItem): string {
   if (room.status === "RESERVED" || room.status === "OCCUPIED") {
     return `${room.description} · View today's guest`;
   }
-  if (room.status === "DIRTY") {
-    return `${room.description} · Needs cleaning · Click to book`;
+  if (room.status === "DIRTY" || room.housekeepingStatus === "CLEANING") {
+    return `${room.description} · Cleaning — click for status`;
+  }
+  if (room.housekeepingStatus === "DIRTY") {
+    return `${room.description} · Needs cleaning — click for status`;
   }
   return `${room.description} · up to ${room.maxPax} guests · Click to book`;
 }
@@ -49,6 +54,7 @@ export function RoomStatusGrid({ rooms, bookable = true }: RoomStatusGridProps) 
   const [modalOpen, setModalOpen] = useState(false);
   const [drawerReservationId, setDrawerReservationId] = useState<string | null>(null);
   const [editReservationId, setEditReservationId] = useState<string | null>(null);
+  const [cleaningRoom, setCleaningRoom] = useState<RoomGridItem | null>(null);
 
   function openBooking(room: RoomGridItem) {
     setSelectedRoom(room);
@@ -71,10 +77,12 @@ export function RoomStatusGrid({ rooms, bookable = true }: RoomStatusGridProps) 
       return;
     }
 
-    if (
-      (room.status === "VACANT" || room.status === "DIRTY") &&
-      bookable
-    ) {
+    if (roomNeedsCleaningBeforeUse(room)) {
+      setCleaningRoom(room);
+      return;
+    }
+
+    if (room.status === "VACANT" && bookable) {
       openBooking(room);
     }
   }
@@ -97,11 +105,13 @@ export function RoomStatusGrid({ rooms, bookable = true }: RoomStatusGridProps) 
           {rooms.map((room) => {
             const isReservedOrOccupied =
               room.status === "RESERVED" || room.status === "OCCUPIED";
-            const isBookableToday =
-              (room.status === "VACANT" || room.status === "DIRTY") && bookable;
+            const isBookableToday = room.status === "VACANT" && bookable && !roomNeedsCleaningBeforeUse(room);
+            const needsCleaning = roomNeedsCleaningBeforeUse(room);
             const isClickable =
               room.status !== "OUT_OF_ORDER" &&
-              (isReservedOrOccupied ? Boolean(room.activeReservationId) : isBookableToday);
+              ((isReservedOrOccupied && Boolean(room.activeReservationId)) ||
+                isBookableToday ||
+                needsCleaning);
 
             return (
               <button
@@ -131,6 +141,8 @@ export function RoomStatusGrid({ rooms, bookable = true }: RoomStatusGridProps) 
         initialRoom={selectedRoom}
         bookable={bookable}
       />
+
+      <RoomAttentionModal room={cleaningRoom} onClose={() => setCleaningRoom(null)} />
 
       <ReservationDrawer
         reservationId={drawerReservationId}

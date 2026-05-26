@@ -113,6 +113,11 @@ export function ReservationDrawer({
       ? "Reserved"
       : (RESERVATION_STATUS_LABELS[detail?.status ?? ""] ?? detail?.status);
   const readyForCheckout = detail != null && detail.balanceDue <= 0.001;
+  const isInHouseGuest =
+    detail?.status === "CHECKED_IN" &&
+    detail.bookingType === "GUEST" &&
+    !isFutureArrival;
+  const dialogTitle = isInHouseGuest ? "In-house" : "Reservation";
   const discountLocked = detail != null && detail.discount > 0;
   const checkInPreview = useMemo(() => {
     if (!detail) return null;
@@ -492,9 +497,16 @@ export function ReservationDrawer({
         aria-labelledby="reservation-dialog-title"
       >
         <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-5 py-4">
-          <h3 id="reservation-dialog-title" className="text-lg font-semibold text-slate-800">
-            Reservation
-          </h3>
+          <div>
+            <h3 id="reservation-dialog-title" className="text-lg font-semibold text-slate-800">
+              {dialogTitle}
+            </h3>
+            {isInHouseGuest && detail && (
+              <p className="mt-0.5 text-sm text-slate-500">
+                Room {detail.roomNumber} · {detail.guestName}
+              </p>
+            )}
+          </div>
           <button
             type="button"
             onClick={onClose}
