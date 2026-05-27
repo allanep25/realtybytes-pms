@@ -87,6 +87,12 @@ export function GuardWalkInForm() {
       return;
     }
 
+    const depositAmount = Number(form.depositAmount) || 0;
+    if (depositAmount > 0 && !form.paymentMethod.trim()) {
+      setError("Select a payment method for this payment");
+      return;
+    }
+
     setSubmitting(true);
     setError(null);
     setSuccess(null);
@@ -106,8 +112,8 @@ export function GuardWalkInForm() {
           adults: Number(form.adults) || 1,
           children: 0,
           bookingSource: "WALK_IN",
-          depositAmount: Number(form.depositAmount) || 0,
-          paymentMethod: Number(form.depositAmount) > 0 ? form.paymentMethod : undefined,
+          depositAmount,
+          paymentMethod: depositAmount > 0 ? form.paymentMethod : undefined,
         }),
       });
 
@@ -263,6 +269,22 @@ export function GuardWalkInForm() {
         </p>
         <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
           <label className="block text-sm">
+            <span className="text-slate-500">Payment method</span>
+            <select
+              value={form.paymentMethod}
+              onChange={(e) =>
+                setForm((current) => ({ ...current, paymentMethod: e.target.value }))
+              }
+              className={fieldClass}
+            >
+              {PAYMENT_METHOD_OPTIONS.map((method) => (
+                <option key={method.value} value={method.value}>
+                  {method.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="block text-sm">
             <span className="text-slate-500">Amount guest pays now</span>
             <input
               type="number"
@@ -275,23 +297,6 @@ export function GuardWalkInForm() {
               className={fieldClass}
               placeholder="0 — pay at check-out"
             />
-          </label>
-          <label className="block text-sm">
-            <span className="text-slate-500">Payment method</span>
-            <select
-              value={form.paymentMethod}
-              onChange={(e) =>
-                setForm((current) => ({ ...current, paymentMethod: e.target.value }))
-              }
-              disabled={!form.depositAmount || Number(form.depositAmount) <= 0}
-              className={cn(fieldClass, "disabled:bg-slate-50")}
-            >
-              {PAYMENT_METHOD_OPTIONS.map((method) => (
-                <option key={method.value} value={method.value}>
-                  {method.label}
-                </option>
-              ))}
-            </select>
           </label>
         </div>
       </div>

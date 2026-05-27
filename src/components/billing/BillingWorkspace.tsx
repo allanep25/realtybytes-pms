@@ -7,17 +7,11 @@ import {
   type FolioDetail,
   type FolioListItem,
 } from "@/lib/billing";
+import { PAYMENT_METHOD_OPTIONS } from "@/lib/constants";
 import { formatPHP } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-
-const PAYMENT_METHODS = [
-  { value: "CASH", label: "Cash" },
-  { value: "CARD", label: "Card" },
-  { value: "GCASH", label: "GCash" },
-  { value: "BANK_TRANSFER", label: "Bank Transfer" },
-];
 
 type BillingWorkspaceProps = {
   folios: FolioListItem[];
@@ -153,6 +147,17 @@ export function BillingWorkspace({
   async function recordPayment(e: React.FormEvent) {
     e.preventDefault();
     if (!selectedId) return;
+
+    const amount = Number(paymentAmount) || 0;
+    if (amount <= 0) {
+      setError("Enter the payment amount to record");
+      return;
+    }
+    if (!paymentMethod) {
+      setError("Select a payment method");
+      return;
+    }
+
     setLoading(true);
     setError(null);
     try {
@@ -160,7 +165,7 @@ export function BillingWorkspace({
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          paymentAmount: Number(paymentAmount) || 0,
+          paymentAmount: amount,
           paymentMethod,
         }),
       });
@@ -446,6 +451,9 @@ export function BillingWorkspace({
                 className="rounded-xl border border-slate-200 bg-card p-5 shadow-sm"
               >
                 <h3 className="mb-3 font-semibold text-slate-800">Payment</h3>
+                <p className="mb-3 text-xs text-slate-500">
+                  Choose the method first — the amount appears under that row on Today&apos;s Revenue.
+                </p>
                 <label className="mb-3 block text-sm">
                   <span className="text-slate-500">Payment method</span>
                   <select
@@ -457,7 +465,7 @@ export function BillingWorkspace({
                     }
                     className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2"
                   >
-                    {PAYMENT_METHODS.map((m) => (
+                    {PAYMENT_METHOD_OPTIONS.map((m) => (
                       <option key={m.value} value={m.value}>
                         {m.label}
                       </option>

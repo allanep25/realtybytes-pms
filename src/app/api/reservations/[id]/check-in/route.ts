@@ -29,6 +29,7 @@ export async function POST(request: Request, context: RouteContext) {
     revalidatePath("/check-in");
     revalidatePath("/billing");
     revalidatePath("/guard");
+    revalidatePath("/guard");
 
     return NextResponse.json(result);
   } catch (e) {

@@ -1,6 +1,7 @@
 import { isHotelCheckInDay } from "@/lib/cancellation-policy";
 import { prisma } from "@/lib/db";
 import { normalizeBookingFields, validateGuestIdAtCheckIn } from "@/lib/booking-source";
+import { normalizePaymentMethod, requirePaymentMethodForAmount } from "@/lib/payment-method";
 import { addDays, addHotelDays, daysBetween, parseHotelCalendarDate, setHotelTime, startOfHotelDay } from "@/lib/dates";
 import { updateFolio } from "@/lib/billing";
 import { recordFolioPayment } from "@/lib/folio-payments";
@@ -160,7 +161,9 @@ async function createStayFolio(
   const deposit = Math.max(0, options?.depositAmount ?? 0);
   const paid = Math.min(deposit, total);
   const paymentMethod =
-    paid > 0 ? (options?.paymentMethod ?? "CASH") : options?.paymentMethod ?? null;
+    paid > 0
+      ? requirePaymentMethodForAmount(paid, options?.paymentMethod)
+      : normalizePaymentMethod(options?.paymentMethod ?? null);
 
   const folio = await prisma.folio.create({
     data: {
@@ -417,8 +420,8 @@ export async function performCheckIn(
   }
 
   const depositAmount = Math.max(0, input.depositAmount ?? 0);
-  if (depositAmount > 0 && !input.paymentMethod) {
-    throw new Error("Select a payment method for the deposit");
+  if (depositAmount > 0) {
+    requirePaymentMethodForAmount(depositAmount, input.paymentMethod);
   }
 
   const nights = Math.max(1, daysBetween(checkIn, checkOut));
@@ -588,8 +591,8 @@ export async function createReservation(
   const nights = Math.max(1, daysBetween(checkIn, checkOut));
   const rate = Number(room.baseRate);
   const depositAmount = Math.max(0, input.depositAmount ?? 0);
-  if (depositAmount > 0 && !input.paymentMethod) {
-    throw new Error("Select a payment method for the deposit");
+  if (depositAmount > 0) {
+    requirePaymentMethodForAmount(depositAmount, input.paymentMethod);
   }
 
   await createStayFolio(
@@ -712,10 +715,12 @@ export async function performCheckInFromReservation(
     folioUpdate.discount = discountUpdate;
   }
   if (input.paymentAmount != null && input.paymentAmount > 0) {
+    const method = requirePaymentMethodForAmount(input.paymentAmount, input.paymentMethod);
     folioUpdate.paymentAmount = input.paymentAmount;
-    folioUpdate.paymentMethod = input.paymentMethod;
+    folioUpdate.paymentMethod = method;
   } else if (input.paymentMethod) {
-    folioUpdate.paymentMethod = input.paymentMethod;
+    const method = normalizePaymentMethod(input.paymentMethod);
+    if (method) folioUpdate.paymentMethod = method;
   }
 
   if (Object.keys(folioUpdate).length > 0) {
@@ -781,10 +786,12 @@ export async function performCheckOut(
       }
     }
     if (input.paymentAmount != null && input.paymentAmount > 0) {
+      const method = requirePaymentMethodForAmount(input.paymentAmount, input.paymentMethod);
       folioUpdate.paymentAmount = input.paymentAmount;
-      folioUpdate.paymentMethod = input.paymentMethod;
+      folioUpdate.paymentMethod = method;
     } else if (input.paymentMethod) {
-      folioUpdate.paymentMethod = input.paymentMethod;
+      const method = normalizePaymentMethod(input.paymentMethod);
+      if (method) folioUpdate.paymentMethod = method;
     }
 
     if (Object.keys(folioUpdate).length > 0) {

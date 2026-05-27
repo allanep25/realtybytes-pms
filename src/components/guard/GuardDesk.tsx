@@ -2,20 +2,15 @@
 
 import { GuardWalkInForm } from "@/components/guard/GuardWalkInForm";
 import { ReservedArrivalsPanel } from "@/components/check-in/ReservedArrivalsPanel";
+import { PAYMENT_METHOD_OPTIONS } from "@/lib/constants";
 import { formatDate, formatPHP } from "@/lib/format";
+import { paymentMethodLabel } from "@/lib/payment-method";
 import { startOfHotelDay } from "@/lib/dates";
 import type { ActiveStay, ReservedArrival } from "@/lib/check-in-out";
 import { cn, compareRoomNumbers } from "@/lib/utils";
 import { LogIn, LogOut, Search } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-
-const PAYMENT_METHODS = [
-  { value: "CASH", label: "Cash" },
-  { value: "CARD", label: "Card" },
-  { value: "GCASH", label: "GCash" },
-  { value: "BANK_TRANSFER", label: "Bank Transfer" },
-];
 
 type GuardDeskProps = {
   activeStays: ActiveStay[];
@@ -108,7 +103,7 @@ function StayCard({
               disabled={recordingPayment || checkingOut}
               className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2"
             >
-              {PAYMENT_METHODS.map((method) => (
+              {PAYMENT_METHOD_OPTIONS.map((method) => (
                 <option key={method.value} value={method.value}>
                   {method.label}
                 </option>
@@ -179,7 +174,7 @@ export function GuardDesk({ activeStays, reservedArrivals }: GuardDeskProps) {
 
     if (
       !window.confirm(
-        `Record ${formatPHP(stay.balanceDue)} (${paymentMethod.replace("_", " ")}) for ${stay.guestName} in Room ${stay.roomNumber}?`,
+        `Record ${formatPHP(stay.balanceDue)} (${paymentMethodLabel(paymentMethod)}) for ${stay.guestName} in Room ${stay.roomNumber}?`,
       )
     ) {
       return;

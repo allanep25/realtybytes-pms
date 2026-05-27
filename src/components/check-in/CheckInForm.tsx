@@ -112,6 +112,12 @@ export function CheckInForm() {
       return;
     }
 
+    const depositAmount = Number(form.depositAmount) || 0;
+    if (depositAmount > 0 && !form.paymentMethod.trim()) {
+      setError("Select a payment method for this payment");
+      return;
+    }
+
     setSubmitting(true);
     setError(null);
     setSuccess(null);
@@ -138,8 +144,8 @@ export function CheckInForm() {
             form.bookingSource === "ONLINE" ? form.bookingPlatform || null : null,
           bookingReference:
             form.bookingSource === "ONLINE" ? form.bookingReference || null : null,
-          depositAmount: Number(form.depositAmount) || 0,
-          paymentMethod: Number(form.depositAmount) > 0 ? form.paymentMethod : undefined,
+          depositAmount,
+          paymentMethod: depositAmount > 0 ? form.paymentMethod : undefined,
         }),
       });
 
@@ -427,17 +433,6 @@ export function CheckInForm() {
             <p className="text-sm font-semibold text-slate-800">Deposit (optional)</p>
             <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
               <label className="block text-sm">
-                <span className="text-slate-500">Amount</span>
-                <input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={form.depositAmount}
-                  onChange={(e) => setForm((f) => ({ ...f, depositAmount: e.target.value }))}
-                  className={fieldClass}
-                />
-              </label>
-              <label className="block text-sm">
                 <span className="text-slate-500">Payment method</span>
                 <select
                   value={form.paymentMethod}
@@ -450,6 +445,18 @@ export function CheckInForm() {
                     </option>
                   ))}
                 </select>
+              </label>
+              <label className="block text-sm">
+                <span className="text-slate-500">Amount</span>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={form.depositAmount}
+                  onChange={(e) => setForm((f) => ({ ...f, depositAmount: e.target.value }))}
+                  className={fieldClass}
+                  placeholder="0"
+                />
               </label>
             </div>
           </div>

@@ -168,6 +168,11 @@ export function ReservationDrawer({
       return;
     }
 
+    if (collect > 0 && !paymentMethod.trim()) {
+      setError("Select a payment method for this payment");
+      return;
+    }
+
     setCheckingIn(true);
     setError(null);
     setSuccess(null);
@@ -228,6 +233,11 @@ export function ReservationDrawer({
 
     if (collect > maxCollect + 0.001) {
       setError(`Payment cannot exceed balance due (${formatPHP(maxCollect)}).`);
+      return;
+    }
+
+    if (collect > 0 && !checkoutPaymentMethod.trim()) {
+      setError("Select a payment method for this payment");
       return;
     }
 

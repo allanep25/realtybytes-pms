@@ -1,18 +1,12 @@
 "use client";
 
+import { PAYMENT_METHOD_OPTIONS } from "@/lib/constants";
 import { formatDate, formatPHP } from "@/lib/format";
 import type { ActiveStay } from "@/lib/check-in-out";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-
-const PAYMENT_METHODS = [
-  { value: "CASH", label: "Cash" },
-  { value: "CARD", label: "Card" },
-  { value: "GCASH", label: "GCash" },
-  { value: "BANK_TRANSFER", label: "Bank Transfer" },
-];
 
 type CheckOutFormProps = {
   activeStays: ActiveStay[];
@@ -227,7 +221,7 @@ export function CheckOutForm({ activeStays }: CheckOutFormProps) {
                     onChange={(e) => setPaymentMethod(e.target.value)}
                     className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2"
                   >
-                    {PAYMENT_METHODS.map((m) => (
+                    {PAYMENT_METHOD_OPTIONS.map((m) => (
                       <option key={m.value} value={m.value}>
                         {m.label}
                       </option>

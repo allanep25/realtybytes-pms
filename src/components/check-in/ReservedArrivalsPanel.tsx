@@ -66,9 +66,15 @@ export function ReservedArrivalsPanel({
 
   async function checkIn(arrival: ReservedArrival) {
     const form = getForm(arrival);
+    const paymentAmount = Number(form.paymentAmount) || 0;
 
     if (!form.idType.trim() && !arrival.idType?.trim()) {
       setError(`ID type is required for ${arrival.guestName} before check-in`);
+      return;
+    }
+
+    if (paymentAmount > 0 && !form.paymentMethod.trim()) {
+      setError(`Select a payment method for ${arrival.guestName}`);
       return;
     }
 
@@ -85,8 +91,8 @@ export function ReservedArrivalsPanel({
           idNumber: form.idNumber || undefined,
           idPhotoFileName: form.idPhotoFileName || undefined,
           address: form.address || undefined,
-          paymentAmount: Number(form.paymentAmount) || undefined,
-          paymentMethod: Number(form.paymentAmount) > 0 ? form.paymentMethod : undefined,
+          paymentAmount: paymentAmount || undefined,
+          paymentMethod: paymentAmount > 0 ? form.paymentMethod : undefined,
         }),
       });
       const data = await res.json();
@@ -248,6 +254,22 @@ export function ReservedArrivalsPanel({
                           </p>
                         </div>
                         <label className="text-sm">
+                          <span className="text-slate-500">Payment method</span>
+                          <select
+                            value={form.paymentMethod}
+                            onChange={(e) =>
+                              updateForm(a.reservationId, { paymentMethod: e.target.value })
+                            }
+                            className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                          >
+                            {PAYMENT_METHOD_OPTIONS.map((m) => (
+                              <option key={m.value} value={m.value}>
+                                {m.label}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <label className="text-sm">
                           <span className="text-slate-500">
                             Amount guest pays now{isGuard ? " (optional)" : ""}
                           </span>
@@ -263,23 +285,6 @@ export function ReservedArrivalsPanel({
                             placeholder={isGuard ? "0 — pay at check-out" : undefined}
                             className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
                           />
-                        </label>
-                        <label className="text-sm">
-                          <span className="text-slate-500">Payment method</span>
-                          <select
-                            value={form.paymentMethod}
-                            onChange={(e) =>
-                              updateForm(a.reservationId, { paymentMethod: e.target.value })
-                            }
-                            disabled={!form.paymentAmount || Number(form.paymentAmount) <= 0}
-                            className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm disabled:bg-slate-50"
-                          >
-                            {PAYMENT_METHOD_OPTIONS.map((m) => (
-                              <option key={m.value} value={m.value}>
-                                {m.label}
-                              </option>
-                            ))}
-                          </select>
                         </label>
                       </>
                     )}

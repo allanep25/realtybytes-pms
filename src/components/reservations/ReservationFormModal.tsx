@@ -138,6 +138,12 @@ export function ReservationFormModal({
       return;
     }
 
+    const depositAmount = Number(form.depositAmount) || 0;
+    if (depositAmount > 0 && !form.paymentMethod) {
+      setError("Select a payment method for this payment");
+      return;
+    }
+
     setSubmitting(true);
     setError(null);
 
@@ -166,7 +172,7 @@ export function ReservationFormModal({
               : null,
           bookingReference:
             form.bookingSource === "ONLINE" ? form.bookingReference || null : null,
-          depositAmount: Number(form.depositAmount) || 0,
+          depositAmount,
           paymentMethod: form.paymentMethod,
         }),
       });
@@ -525,22 +531,9 @@ export function ReservationFormModal({
             <div className="space-y-3">
               <h4 className="font-medium text-slate-800">Payment / deposit</h4>
               <p className="text-xs text-slate-500">
-                Record any amount paid now (deposit or full payment). Balance can be collected at
-                check-out or in Billing.
+                Select how the guest paid, then enter the amount. It will appear under that method on
+                Today&apos;s Revenue (Cash, GCash, Credit / Debit Card, or Bank Transfer).
               </p>
-              <label className="block text-sm">
-                <span className="text-slate-500">Amount paid now (optional)</span>
-                <input
-                  type="number"
-                  min={0}
-                  step={0.01}
-                  disabled={!bookable}
-                  value={form.depositAmount}
-                  onChange={(e) => setForm((f) => ({ ...f, depositAmount: e.target.value }))}
-                  className={fieldClass}
-                  placeholder="0"
-                />
-              </label>
               <label className="block text-sm">
                 <span className="text-slate-500">Payment method</span>
                 <select
@@ -557,6 +550,19 @@ export function ReservationFormModal({
                     </option>
                   ))}
                 </select>
+              </label>
+              <label className="block text-sm">
+                <span className="text-slate-500">Amount paid now (optional)</span>
+                <input
+                  type="number"
+                  min={0}
+                  step={0.01}
+                  disabled={!bookable}
+                  value={form.depositAmount}
+                  onChange={(e) => setForm((f) => ({ ...f, depositAmount: e.target.value }))}
+                  className={fieldClass}
+                  placeholder="0"
+                />
               </label>
             </div>
           </div>

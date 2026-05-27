@@ -1,5 +1,5 @@
 import { getFolioById, updateFolio } from "@/lib/billing";
-import type { PaymentMethod } from "@prisma/client";
+import { normalizePaymentMethod } from "@/lib/payment-method";
 import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
 
@@ -24,13 +24,14 @@ export async function PATCH(request: Request, context: RouteContext) {
     const folio = await updateFolio(id, {
       discount: body.discount,
       paymentAmount: body.paymentAmount,
-      paymentMethod: body.paymentMethod as PaymentMethod | undefined,
+      paymentMethod: normalizePaymentMethod(body.paymentMethod) ?? undefined,
     });
 
     revalidatePath("/billing");
     revalidatePath("/");
     revalidatePath("/calendar");
     revalidatePath("/check-in");
+    revalidatePath("/guard");
 
     return NextResponse.json(folio);
   } catch (e) {
