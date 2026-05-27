@@ -1,5 +1,6 @@
 import { performCheckInFromReservation } from "@/lib/check-in-out";
 import { getSession } from "@/lib/auth";
+import { canWalkInCheckIn } from "@/lib/permissions";
 import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
 
@@ -9,6 +10,9 @@ export async function POST(request: Request, context: RouteContext) {
   const session = await getSession();
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  if (!canWalkInCheckIn(session.role)) {
+    return NextResponse.json({ error: "Not allowed to check in guests" }, { status: 403 });
   }
 
   try {
@@ -24,6 +28,7 @@ export async function POST(request: Request, context: RouteContext) {
     revalidatePath("/calendar");
     revalidatePath("/check-in");
     revalidatePath("/billing");
+    revalidatePath("/guard");
 
     return NextResponse.json(result);
   } catch (e) {

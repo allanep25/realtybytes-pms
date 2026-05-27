@@ -132,7 +132,8 @@ export function GuardWalkInForm() {
         <p className="text-sm font-medium text-emerald-950">Walk-in arrival (after front desk hours)</p>
         <p className="mt-1 text-sm text-emerald-900/80">
           Register guests arriving when front desk is closed. Only vacant rooms for tonight can be
-          assigned. Collect a deposit if required — balance is settled at front desk.
+          assigned. Payment is not required — enter an amount below only if the guest opts to pay
+          now; otherwise the balance is settled at check-out.
         </p>
       </div>
 
@@ -256,10 +257,13 @@ export function GuardWalkInForm() {
       </div>
 
       <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-        <h2 className="text-sm font-semibold text-slate-800">Deposit (optional)</h2>
+        <h2 className="text-sm font-semibold text-slate-800">Payment (optional)</h2>
+        <p className="mt-1 text-sm text-slate-500">
+          Leave blank if the guest will pay at check-out. Enter an amount only if they pay now.
+        </p>
         <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
           <label className="block text-sm">
-            <span className="text-slate-500">Amount collected now</span>
+            <span className="text-slate-500">Amount guest pays now</span>
             <input
               type="number"
               min={0}
@@ -269,7 +273,7 @@ export function GuardWalkInForm() {
                 setForm((current) => ({ ...current, depositAmount: e.target.value }))
               }
               className={fieldClass}
-              placeholder="0"
+              placeholder="0 — pay at check-out"
             />
           </label>
           <label className="block text-sm">
@@ -279,7 +283,8 @@ export function GuardWalkInForm() {
               onChange={(e) =>
                 setForm((current) => ({ ...current, paymentMethod: e.target.value }))
               }
-              className={fieldClass}
+              disabled={!form.depositAmount || Number(form.depositAmount) <= 0}
+              className={cn(fieldClass, "disabled:bg-slate-50")}
             >
               {PAYMENT_METHOD_OPTIONS.map((method) => (
                 <option key={method.value} value={method.value}>

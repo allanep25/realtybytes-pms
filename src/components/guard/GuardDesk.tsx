@@ -1,9 +1,10 @@
 "use client";
 
 import { GuardWalkInForm } from "@/components/guard/GuardWalkInForm";
+import { ReservedArrivalsPanel } from "@/components/check-in/ReservedArrivalsPanel";
 import { formatDate, formatPHP } from "@/lib/format";
 import { startOfHotelDay } from "@/lib/dates";
-import type { ActiveStay } from "@/lib/check-in-out";
+import type { ActiveStay, ReservedArrival } from "@/lib/check-in-out";
 import { cn, compareRoomNumbers } from "@/lib/utils";
 import { LogIn, LogOut, Search } from "lucide-react";
 import { useMemo, useState } from "react";
@@ -18,6 +19,7 @@ const PAYMENT_METHODS = [
 
 type GuardDeskProps = {
   activeStays: ActiveStay[];
+  reservedArrivals: ReservedArrival[];
 };
 
 type GuardTab = "walk-in" | "check-out";
@@ -145,7 +147,7 @@ function StayCard({
   );
 }
 
-export function GuardDesk({ activeStays }: GuardDeskProps) {
+export function GuardDesk({ activeStays, reservedArrivals }: GuardDeskProps) {
   const router = useRouter();
   const [tab, setTab] = useState<GuardTab>("walk-in");
   const [search, setSearch] = useState("");
@@ -251,8 +253,9 @@ export function GuardDesk({ activeStays }: GuardDeskProps) {
       <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
         <p className="text-sm font-medium text-slate-800">Front desk closed 9:00 PM – 6:00 AM</p>
         <p className="mt-1 text-sm text-slate-500">
-          Accept walk-in arrivals or check out in-house guests. Confirm full payment before
-          releasing a room.
+          Check in reserved or walk-in arrivals, or check out in-house guests. Payment at check-in is
+          not required — record any amount only if the guest chooses to pay now. Full balance must
+          be settled before check-out.
         </p>
       </div>
 
@@ -279,7 +282,12 @@ export function GuardDesk({ activeStays }: GuardDeskProps) {
           )}
         >
           <LogIn className="h-4 w-4" />
-          Walk-in check-in
+          Check-in
+          {reservedArrivals.length > 0 && (
+            <span className="rounded-full bg-white/20 px-1.5 py-0.5 text-xs">
+              {reservedArrivals.length}
+            </span>
+          )}
         </button>
         <button
           type="button"
@@ -297,7 +305,10 @@ export function GuardDesk({ activeStays }: GuardDeskProps) {
       </div>
 
       {tab === "walk-in" ? (
-        <GuardWalkInForm />
+        <div className="space-y-5">
+          <ReservedArrivalsPanel arrivals={reservedArrivals} variant="guard" />
+          <GuardWalkInForm />
+        </div>
       ) : (
         <div className="space-y-5">
           <label className="relative block">
