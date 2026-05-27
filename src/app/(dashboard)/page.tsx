@@ -4,6 +4,8 @@ import { CalendarTimeline } from "@/components/calendar/CalendarTimeline";
 import { RevenueCard } from "@/components/dashboard/RevenueCard";
 import { DashboardStatCards } from "@/components/dashboard/DashboardStatCards";
 import { RoomStatusGrid } from "@/components/dashboard/RoomStatusGrid";
+import { getSession } from "@/lib/auth";
+import { canViewDashboardRevenue } from "@/lib/permissions";
 import { getDashboardSummary } from "@/lib/dashboard-data";
 import {
   getReservationTimeline,
@@ -21,19 +23,22 @@ import { getTodayRevenueSummary } from "@/lib/revenue";
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
+  const session = await getSession();
+  const showRevenue = session != null && canViewDashboardRevenue(session.role);
+
   const weekOffset = 0;
   const { start, end } = getWeekTimelineRange(weekOffset);
 
   const [summary, timeline, revenueSummary, arrivals, departures, shiftNotes, checkoutAlerts] =
     await Promise.all([
-    getDashboardSummary(),
-    getReservationTimeline(start, end),
-    getTodayRevenueSummary(),
-    getTodayArrivals(),
-    getTodayDepartures(),
-    getRecentShiftNotes(),
-    getCheckoutAlerts(),
-  ]);
+      getDashboardSummary(),
+      getReservationTimeline(start, end),
+      showRevenue ? getTodayRevenueSummary() : Promise.resolve(null),
+      getTodayArrivals(),
+      getTodayDepartures(),
+      getRecentShiftNotes(),
+      getCheckoutAlerts(),
+    ]);
 
   return (
     <DashboardShell title="Dashboard">
@@ -75,7 +80,7 @@ export default async function DashboardPage() {
         </div>
 
         <div className="space-y-3">
-          <RevenueCard initialSummary={revenueSummary} />
+          {showRevenue && revenueSummary && <RevenueCard initialSummary={revenueSummary} />}
           <ShiftNotesPanel initialNotes={shiftNotes} />
           <ActivityList
             title="Today's Arrivals"

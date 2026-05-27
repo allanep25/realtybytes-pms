@@ -27,6 +27,16 @@ export function isAdministrator(role: EmployeeRole): boolean {
   return role === "ADMINISTRATOR";
 }
 
+/** Today's Revenue card and revenue API — administrator only. */
+export function canViewDashboardRevenue(role: EmployeeRole): boolean {
+  return role === "ADMINISTRATOR";
+}
+
+/** Shared workstations sign out after inactivity; administrators stay signed in. */
+export function hasIdleTimeout(role: EmployeeRole): boolean {
+  return role !== "ADMINISTRATOR";
+}
+
 export function canAccessRoute(role: EmployeeRole, pathname: string): boolean {
   if (ADMIN_ONLY_ROUTES.some((r) => pathname === r || pathname.startsWith(`${r}/`))) {
     return role === "ADMINISTRATOR";

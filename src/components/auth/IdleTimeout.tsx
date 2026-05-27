@@ -1,18 +1,22 @@
 "use client";
 
 import { signOut } from "@/components/auth/sign-out";
+import { useAuth } from "@/components/auth/AuthProvider";
 import { SESSION_IDLE_TIMEOUT_MS } from "@/lib/auth-types";
+import { hasIdleTimeout } from "@/lib/permissions";
 import { useEffect, useRef } from "react";
 
 const ACTIVITY_EVENTS = ["mousedown", "keydown", "touchstart", "scroll", "click"] as const;
 const ACTIVITY_THROTTLE_MS = 1000;
 
 export function IdleTimeout() {
+  const user = useAuth();
   const lastActivityRef = useRef(Date.now());
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const signingOutRef = useRef(false);
 
   useEffect(() => {
+    if (!hasIdleTimeout(user.role)) return;
     function clearIdleTimeout() {
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
@@ -62,7 +66,7 @@ export function IdleTimeout() {
       }
       document.removeEventListener("visibilitychange", checkIdleOnVisible);
     };
-  }, []);
+  }, [user.role]);
 
   return null;
 }

@@ -1,4 +1,5 @@
 import { getSession } from "@/lib/auth";
+import { canViewDashboardRevenue } from "@/lib/permissions";
 import { getRevenueForPeriod } from "@/lib/revenue";
 import { NextResponse } from "next/server";
 
@@ -6,6 +7,9 @@ export async function GET(request: Request) {
   const session = await getSession();
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  if (!canViewDashboardRevenue(session.role)) {
+    return NextResponse.json({ error: "Not allowed to view revenue" }, { status: 403 });
   }
 
   const { searchParams } = new URL(request.url);
