@@ -15,9 +15,7 @@ import {
   getTodayDepartures,
 } from "@/lib/reservations";
 import { CheckoutAlertsBanner } from "@/components/dashboard/CheckoutAlertsBanner";
-import { ShiftNotesPanel } from "@/components/dashboard/ShiftNotesPanel";
 import { getCheckoutAlerts } from "@/lib/checkout-alerts";
-import { getRecentShiftNotes } from "@/lib/shift-notes";
 import { getTodayRevenueSummary } from "@/lib/revenue";
 
 export const dynamic = "force-dynamic";
@@ -29,14 +27,13 @@ export default async function DashboardPage() {
   const weekOffset = 0;
   const { start, end } = getWeekTimelineRange(weekOffset);
 
-  const [summary, timeline, revenueSummary, arrivals, departures, shiftNotes, checkoutAlerts] =
+  const [summary, timeline, revenueSummary, arrivals, departures, checkoutAlerts] =
     await Promise.all([
       getDashboardSummary(),
       getReservationTimeline(start, end),
       showRevenue ? getTodayRevenueSummary() : Promise.resolve(null),
       getTodayArrivals(),
       getTodayDepartures(),
-      getRecentShiftNotes(),
       getCheckoutAlerts(),
     ]);
 
@@ -81,7 +78,6 @@ export default async function DashboardPage() {
 
         <div className="space-y-3">
           {showRevenue && revenueSummary && <RevenueCard initialSummary={revenueSummary} />}
-          <ShiftNotesPanel initialNotes={shiftNotes} />
           <ActivityList
             title="Today's Arrivals"
             items={arrivals}
