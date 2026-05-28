@@ -1,4 +1,7 @@
-import type { RoomGridItem } from "@/components/dashboard/RoomStatusGrid";
+import type {
+  RoomGridItem,
+  RoomGridReservation,
+} from "@/components/dashboard/RoomStatusGrid";
 import { prisma } from "@/lib/db";
 import {
   deriveOperationalRoomStatus,
@@ -6,7 +9,7 @@ import {
   todayGuestStayWhere,
 } from "@/lib/room-status";
 import { compareRoomNumbers } from "@/lib/utils";
-import type { RoomStatus } from "@prisma/client";
+import type { ReservationStatus, RoomStatus } from "@prisma/client";
 
 export type DashboardSummary = {
   occupied: number;
@@ -66,6 +69,30 @@ function summarize(rooms: RoomGridItem[]): Omit<DashboardSummary, "rooms" | "fro
   };
 }
 
+type DashboardTodayStay = RoomGridReservation & {
+  roomId: string;
+};
+
+const RESERVATION_PRIORITY: Record<Extract<ReservationStatus, "CHECKED_IN" | "RESERVED">, number> = {
+  CHECKED_IN: 0,
+  RESERVED: 1,
+};
+
+function getReservationSortTime(reservation: DashboardTodayStay): string {
+  return (
+    reservation.scheduledDeparture ??
+    reservation.scheduledArrival ??
+    reservation.checkOut ??
+    reservation.checkIn
+  );
+}
+
+function compareTodayStays(a: DashboardTodayStay, b: DashboardTodayStay): number {
+  const priorityDifference = RESERVATION_PRIORITY[a.status] - RESERVATION_PRIORITY[b.status];
+  if (priorityDifference !== 0) return priorityDifference;
+  return getReservationSortTime(a).localeCompare(getReservationSortTime(b));
+}
+
 function isPlaceholderDatabaseUrl(url: string | undefined): boolean {
   if (!url) return true;
   return (
@@ -101,18 +128,41 @@ export async function getDashboardSummary(): Promise<DashboardSummary> {
       }),
       prisma.reservation.findMany({
         where: todayGuestStayWhere(),
-        select: { id: true, roomId: true, status: true },
+        select: {
+          id: true,
+          roomId: true,
+          status: true,
+          checkIn: true,
+          checkOut: true,
+          scheduledArrival: true,
+          scheduledDeparture: true,
+          guest: { select: { fullName: true } },
+        },
       }),
     ]);
 
-    const todayStayByRoom = new Map(
-      todayStays.map((reservation) => [reservation.roomId, reservation]),
-    );
+    const todayStaysByRoom = new Map<string, DashboardTodayStay[]>();
+
+    for (const reservation of todayStays) {
+      const stays = todayStaysByRoom.get(reservation.roomId) ?? [];
+      stays.push({
+        id: reservation.id,
+        roomId: reservation.roomId,
+        status: reservation.status as Extract<ReservationStatus, "CHECKED_IN" | "RESERVED">,
+        guestName: reservation.guest.fullName,
+        checkIn: reservation.checkIn.toISOString(),
+        checkOut: reservation.checkOut.toISOString(),
+        scheduledArrival: reservation.scheduledArrival?.toISOString() ?? null,
+        scheduledDeparture: reservation.scheduledDeparture?.toISOString() ?? null,
+      });
+      todayStaysByRoom.set(reservation.roomId, stays);
+    }
 
     const grid: RoomGridItem[] = rooms
       .map((r) => {
         const housekeepingStatus = r.housekeepingTask?.status ?? null;
-        const todayStay = todayStayByRoom.get(r.id) ?? null;
+        const todayReservations = (todayStaysByRoom.get(r.id) ?? []).sort(compareTodayStays);
+        const todayStay = todayReservations[0] ?? null;
         const status = deriveOperationalRoomStatus(r.status, housekeepingStatus, todayStay);
 
         return {
@@ -126,6 +176,7 @@ export async function getDashboardSummary(): Promise<DashboardSummary> {
           baseRate: Number(r.baseRate),
           breakfastRate: r.breakfastRate != null ? Number(r.breakfastRate) : null,
           activeReservationId: todayStay?.id ?? null,
+          todayReservations: todayReservations.map(({ roomId: _roomId, ...reservation }) => reservation),
         };
       })
       .sort((a, b) => compareRoomNumbers(a.number, b.number));

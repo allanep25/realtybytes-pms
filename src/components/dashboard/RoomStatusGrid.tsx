@@ -6,12 +6,23 @@ import { RoomAttentionModal } from "@/components/dashboard/RoomAttentionModal";
 import { ReservationDrawer } from "@/components/calendar/ReservationDrawer";
 import { ReservationFormModal } from "@/components/reservations/ReservationFormModal";
 import { getRoomGridColor } from "@/lib/constants";
+import { formatTime } from "@/lib/format";
 import { isAdministrator } from "@/lib/permissions";
 import { roomNeedsCleaningBeforeUse } from "@/lib/room-cleaning";
 import { cn } from "@/lib/utils";
-import type { HousekeepingStatus, RoomStatus } from "@prisma/client";
+import type { HousekeepingStatus, ReservationStatus, RoomStatus } from "@prisma/client";
 import Link from "next/link";
 import { useState } from "react";
+
+export type RoomGridReservation = {
+  id: string;
+  status: Extract<ReservationStatus, "CHECKED_IN" | "RESERVED">;
+  guestName: string;
+  checkIn: string;
+  checkOut: string;
+  scheduledArrival: string | null;
+  scheduledDeparture: string | null;
+};
 
 export type RoomGridItem = {
   id: string;
@@ -25,6 +36,8 @@ export type RoomGridItem = {
   breakfastRate: number | null;
   /** Guest reservation when status is RESERVED or OCCUPIED */
   activeReservationId?: string | null;
+  /** All guest reservations touching today for this room, ordered by front-desk priority. */
+  todayReservations?: RoomGridReservation[];
 };
 
 type RoomStatusGridProps = {
@@ -33,6 +46,9 @@ type RoomStatusGridProps = {
 };
 
 function roomClickHint(room: RoomGridItem): string {
+  if ((room.todayReservations?.length ?? 0) > 1) {
+    return `${room.description} · View today's departing and arriving guests`;
+  }
   if (room.status === "OUT_OF_ORDER") return `${room.description} · Out of order`;
   if (room.status === "RESERVED" || room.status === "OCCUPIED") {
     return `${room.description} · View today's guest`;
@@ -46,6 +62,88 @@ function roomClickHint(room: RoomGridItem): string {
   return `${room.description} · up to ${room.maxPax} guests · Click to book`;
 }
 
+function reservationTimeLabel(reservation: RoomGridReservation): string {
+  if (reservation.status === "CHECKED_IN") {
+    return `Occupied until ${formatTime(reservation.scheduledDeparture ?? reservation.checkOut)}`;
+  }
+
+  return `Arrives ${formatTime(reservation.scheduledArrival ?? reservation.checkIn)}`;
+}
+
+function reservationStatusLabel(reservation: RoomGridReservation): string {
+  return reservation.status === "CHECKED_IN" ? "In-house" : "Reserved";
+}
+
+type TodayReservationPickerProps = {
+  room: RoomGridItem | null;
+  onClose: () => void;
+  onSelect: (reservationId: string) => void;
+};
+
+function TodayReservationPicker({ room, onClose, onSelect }: TodayReservationPickerProps) {
+  if (!room || !room.todayReservations || room.todayReservations.length <= 1) return null;
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-sm rounded-xl bg-white shadow-xl"
+        onClick={(event) => event.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="today-room-guests-title"
+      >
+        <div className="border-b border-slate-100 px-4 py-3">
+          <h3 id="today-room-guests-title" className="text-sm font-semibold text-slate-800">
+            Room {room.number} today
+          </h3>
+          <p className="mt-0.5 text-xs text-slate-500">
+            Same-day departure and arrival. Choose which guest record to open.
+          </p>
+        </div>
+
+        <div className="space-y-2 p-4">
+          {room.todayReservations.map((reservation) => (
+            <button
+              key={reservation.id}
+              type="button"
+              onClick={() => onSelect(reservation.id)}
+              className="w-full rounded-lg border border-slate-200 bg-slate-50 p-3 text-left transition hover:border-room-occupied/40 hover:bg-white"
+            >
+              <div className="flex items-center justify-between gap-3">
+                <span className="font-medium text-slate-800">{reservation.guestName}</span>
+                <span
+                  className={cn(
+                    "shrink-0 rounded-full px-2 py-0.5 text-xs font-medium",
+                    reservation.status === "CHECKED_IN"
+                      ? "bg-room-occupied/15 text-room-occupied"
+                      : "bg-room-reserved/40 text-slate-900",
+                  )}
+                >
+                  {reservationStatusLabel(reservation)}
+                </span>
+              </div>
+              <p className="mt-1 text-xs text-slate-500">{reservationTimeLabel(reservation)}</p>
+            </button>
+          ))}
+        </div>
+
+        <div className="border-t border-slate-100 p-4">
+          <button
+            type="button"
+            onClick={onClose}
+            className="w-full rounded-lg border border-slate-200 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function RoomStatusGrid({ rooms, bookable = true }: RoomStatusGridProps) {
   const user = useAuth();
   const isAdmin = isAdministrator(user.role);
@@ -55,6 +153,7 @@ export function RoomStatusGrid({ rooms, bookable = true }: RoomStatusGridProps) 
   const [drawerReservationId, setDrawerReservationId] = useState<string | null>(null);
   const [editReservationId, setEditReservationId] = useState<string | null>(null);
   const [cleaningRoom, setCleaningRoom] = useState<RoomGridItem | null>(null);
+  const [reservationPickerRoom, setReservationPickerRoom] = useState<RoomGridItem | null>(null);
 
   function openBooking(room: RoomGridItem) {
     setSelectedRoom(room);
@@ -68,6 +167,11 @@ export function RoomStatusGrid({ rooms, bookable = true }: RoomStatusGridProps) 
 
   function handleRoomClick(room: RoomGridItem) {
     if (room.status === "OUT_OF_ORDER") return;
+
+    if ((room.todayReservations?.length ?? 0) > 1) {
+      setReservationPickerRoom(room);
+      return;
+    }
 
     if (
       (room.status === "RESERVED" || room.status === "OCCUPIED") &&
@@ -107,9 +211,11 @@ export function RoomStatusGrid({ rooms, bookable = true }: RoomStatusGridProps) 
               room.status === "RESERVED" || room.status === "OCCUPIED";
             const isBookableToday = room.status === "VACANT" && bookable && !roomNeedsCleaningBeforeUse(room);
             const needsCleaning = roomNeedsCleaningBeforeUse(room);
+            const hasSameDayTurn = (room.todayReservations?.length ?? 0) > 1;
             const isClickable =
               room.status !== "OUT_OF_ORDER" &&
-              ((isReservedOrOccupied && Boolean(room.activeReservationId)) ||
+              (hasSameDayTurn ||
+                (isReservedOrOccupied && Boolean(room.activeReservationId)) ||
                 isBookableToday ||
                 needsCleaning);
 
@@ -121,14 +227,20 @@ export function RoomStatusGrid({ rooms, bookable = true }: RoomStatusGridProps) 
                 onClick={() => handleRoomClick(room)}
                 title={roomClickHint(room)}
                 className={cn(
-                  "flex h-9 items-center justify-center rounded-md text-xs font-semibold shadow-sm transition",
+                  "relative flex h-9 items-center justify-center rounded-md text-xs font-semibold shadow-sm transition",
                   getRoomGridColor(room.status, room.housekeepingStatus),
+                  hasSameDayTurn && "ring-2 ring-amber-400 ring-offset-1",
                   isClickable &&
                     "cursor-pointer hover:ring-2 hover:ring-room-occupied/60 hover:ring-offset-1",
                   !isClickable && "cursor-default opacity-80",
                 )}
               >
                 {room.number}
+                {hasSameDayTurn && (
+                  <span className="absolute -right-1 -top-1 rounded-full bg-amber-500 px-1 text-[9px] font-bold leading-3 text-white">
+                    2
+                  </span>
+                )}
               </button>
             );
           })}
@@ -143,6 +255,15 @@ export function RoomStatusGrid({ rooms, bookable = true }: RoomStatusGridProps) 
       />
 
       <RoomAttentionModal room={cleaningRoom} onClose={() => setCleaningRoom(null)} />
+
+      <TodayReservationPicker
+        room={reservationPickerRoom}
+        onClose={() => setReservationPickerRoom(null)}
+        onSelect={(reservationId) => {
+          setReservationPickerRoom(null);
+          setDrawerReservationId(reservationId);
+        }}
+      />
 
       <ReservationDrawer
         reservationId={drawerReservationId}
