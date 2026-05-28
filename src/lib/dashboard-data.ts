@@ -93,6 +93,18 @@ function compareTodayStays(a: DashboardTodayStay, b: DashboardTodayStay): number
   return getReservationSortTime(a).localeCompare(getReservationSortTime(b));
 }
 
+function toRoomGridReservation(reservation: DashboardTodayStay): RoomGridReservation {
+  return {
+    id: reservation.id,
+    status: reservation.status,
+    guestName: reservation.guestName,
+    checkIn: reservation.checkIn,
+    checkOut: reservation.checkOut,
+    scheduledArrival: reservation.scheduledArrival,
+    scheduledDeparture: reservation.scheduledDeparture,
+  };
+}
+
 function isPlaceholderDatabaseUrl(url: string | undefined): boolean {
   if (!url) return true;
   return (
@@ -176,7 +188,7 @@ export async function getDashboardSummary(): Promise<DashboardSummary> {
           baseRate: Number(r.baseRate),
           breakfastRate: r.breakfastRate != null ? Number(r.breakfastRate) : null,
           activeReservationId: todayStay?.id ?? null,
-          todayReservations: todayReservations.map(({ roomId: _roomId, ...reservation }) => reservation),
+          todayReservations: todayReservations.map(toRoomGridReservation),
         };
       })
       .sort((a, b) => compareRoomNumbers(a.number, b.number));
