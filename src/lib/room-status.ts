@@ -23,9 +23,11 @@ export function todayGuestStayWhere(day: Date = startOfHotelDay()) {
   const tomorrow = addHotelDays(day, 1);
   return {
     bookingType: "GUEST" as const,
-    status: { in: ["RESERVED", "CHECKED_IN"] as ReservationStatus[] },
     checkIn: { lt: tomorrow },
-    checkOut: { gt: day },
+    OR: [
+      { status: "CHECKED_IN" as ReservationStatus },
+      { status: "RESERVED" as ReservationStatus, checkOut: { gt: day } },
+    ],
   };
 }
 
@@ -97,7 +99,6 @@ export async function syncRoomOperationalStatus(
       bookingType: "GUEST",
       status: "CHECKED_IN",
       checkIn: { lt: tomorrow },
-      checkOut: { gt: day },
     },
   });
 
