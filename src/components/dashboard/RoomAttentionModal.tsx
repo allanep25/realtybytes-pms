@@ -2,6 +2,7 @@
 
 import type { RoomGridItem } from "@/components/dashboard/RoomStatusGrid";
 import { HOUSEKEEPING_STATUS_LABELS } from "@/lib/constants";
+import { formatTime } from "@/lib/format";
 import Link from "next/link";
 import { Sparkles, X } from "lucide-react";
 
@@ -38,6 +39,20 @@ export function RoomAttentionModal({ room, onClose }: RoomAttentionModalProps) {
         </div>
 
         <div className="space-y-4 p-5">
+          {room.checkoutSummary && (
+            <div className="rounded-lg border border-sky-100 bg-sky-50 px-3 py-2 text-sm">
+              <p className="text-xs font-semibold uppercase tracking-wide text-sky-700">
+                Last checkout
+              </p>
+              <p className="mt-1 font-medium text-slate-800">
+                {room.checkoutSummary.guestName} · {formatTime(room.checkoutSummary.checkedOutAt)}
+              </p>
+              <p className="mt-0.5 text-xs text-slate-500">
+                Cleared by {room.checkoutSummary.checkedOutByName ?? "staff not recorded"}
+              </p>
+            </div>
+          )}
+
           <p className="text-sm text-slate-600">
             This room is not ready for check-in yet. Housekeeping must finish and mark it clean
             before a guest can use it.

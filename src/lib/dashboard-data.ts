@@ -1,4 +1,5 @@
 import type {
+  RoomCheckoutSummary,
   RoomGridItem,
   RoomGridReservation,
 } from "@/components/dashboard/RoomStatusGrid";
@@ -73,6 +74,10 @@ type DashboardTodayStay = RoomGridReservation & {
   roomId: string;
 };
 
+type DashboardCheckoutSummary = RoomCheckoutSummary & {
+  roomId: string;
+};
+
 const RESERVATION_PRIORITY: Record<Extract<ReservationStatus, "CHECKED_IN" | "RESERVED">, number> = {
   CHECKED_IN: 0,
   RESERVED: 1,
@@ -105,6 +110,14 @@ function toRoomGridReservation(reservation: DashboardTodayStay): RoomGridReserva
   };
 }
 
+function toRoomCheckoutSummary(checkout: DashboardCheckoutSummary): RoomCheckoutSummary {
+  return {
+    guestName: checkout.guestName,
+    checkedOutAt: checkout.checkedOutAt,
+    checkedOutByName: checkout.checkedOutByName,
+  };
+}
+
 function isPlaceholderDatabaseUrl(url: string | undefined): boolean {
   if (!url) return true;
   return (
@@ -123,7 +136,7 @@ export async function getDashboardSummary(): Promise<DashboardSummary> {
   try {
     await syncAllRoomOperationalStatuses();
 
-    const [rooms, todayStays] = await Promise.all([
+    const [rooms, todayStays, recentCheckouts] = await Promise.all([
       prisma.room.findMany({
         orderBy: [{ floor: "asc" }, { number: "asc" }],
         select: {
@@ -151,6 +164,21 @@ export async function getDashboardSummary(): Promise<DashboardSummary> {
           guest: { select: { fullName: true } },
         },
       }),
+      prisma.reservation.findMany({
+        where: {
+          bookingType: "GUEST",
+          status: "CHECKED_OUT",
+          scheduledDeparture: { not: null },
+        },
+        select: {
+          roomId: true,
+          scheduledDeparture: true,
+          guest: { select: { fullName: true } },
+          checkedOutBy: { select: { name: true } },
+        },
+        orderBy: { scheduledDeparture: "desc" },
+        take: 500,
+      }),
     ]);
 
     const todayStaysByRoom = new Map<string, DashboardTodayStay[]>();
@@ -170,11 +198,25 @@ export async function getDashboardSummary(): Promise<DashboardSummary> {
       todayStaysByRoom.set(reservation.roomId, stays);
     }
 
+    const recentCheckoutByRoom = new Map<string, DashboardCheckoutSummary>();
+
+    for (const checkout of recentCheckouts) {
+      if (!checkout.scheduledDeparture || recentCheckoutByRoom.has(checkout.roomId)) continue;
+
+      recentCheckoutByRoom.set(checkout.roomId, {
+        roomId: checkout.roomId,
+        guestName: checkout.guest.fullName,
+        checkedOutAt: checkout.scheduledDeparture.toISOString(),
+        checkedOutByName: checkout.checkedOutBy?.name ?? null,
+      });
+    }
+
     const grid: RoomGridItem[] = rooms
       .map((r) => {
         const housekeepingStatus = r.housekeepingTask?.status ?? null;
         const todayReservations = (todayStaysByRoom.get(r.id) ?? []).sort(compareTodayStays);
         const todayStay = todayReservations[0] ?? null;
+        const checkoutSummary = recentCheckoutByRoom.get(r.id) ?? null;
         const status = deriveOperationalRoomStatus(r.status, housekeepingStatus, todayStay);
 
         return {
@@ -189,6 +231,7 @@ export async function getDashboardSummary(): Promise<DashboardSummary> {
           breakfastRate: r.breakfastRate != null ? Number(r.breakfastRate) : null,
           activeReservationId: todayStay?.id ?? null,
           todayReservations: todayReservations.map(toRoomGridReservation),
+          checkoutSummary: checkoutSummary ? toRoomCheckoutSummary(checkoutSummary) : null,
         };
       })
       .sort((a, b) => compareRoomNumbers(a.number, b.number));

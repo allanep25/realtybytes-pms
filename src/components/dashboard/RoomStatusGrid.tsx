@@ -24,6 +24,12 @@ export type RoomGridReservation = {
   scheduledDeparture: string | null;
 };
 
+export type RoomCheckoutSummary = {
+  guestName: string;
+  checkedOutAt: string;
+  checkedOutByName: string | null;
+};
+
 export type RoomGridItem = {
   id: string;
   number: string;
@@ -38,6 +44,8 @@ export type RoomGridItem = {
   activeReservationId?: string | null;
   /** All guest reservations touching today for this room, ordered by front-desk priority. */
   todayReservations?: RoomGridReservation[];
+  /** Most recent checkout that made this room need housekeeping. */
+  checkoutSummary?: RoomCheckoutSummary | null;
 };
 
 type RoomStatusGridProps = {
