@@ -1,11 +1,13 @@
 "use client";
 
 import { ReservationDrawer } from "@/components/calendar/ReservationDrawer";
+import { RoomAttentionModal } from "@/components/dashboard/RoomAttentionModal";
 import type { RoomGridItem } from "@/components/dashboard/RoomStatusGrid";
 import { ReservationFormModal } from "@/components/reservations/ReservationFormModal";
 import { formatDayOfMonth, formatMonthYear, formatShortDate, formatWeekdayShort, hotelCalendarDate, hotelDayOfWeek } from "@/lib/dates";
 import type { ReservationTimelineSerialized } from "@/lib/reservations";
 import { MaintenanceBlockModal } from "@/components/maintenance/MaintenanceBlockModal";
+import { roomGridShowsCleaningColor } from "@/lib/room-cleaning";
 import { cn, compareRoomNumbers } from "@/lib/utils";
 import { ChevronLeft, ChevronRight, Plus, Wrench } from "lucide-react";
 import Link from "next/link";
@@ -39,6 +41,7 @@ export function CalendarTimeline({
   const [modalOpen, setModalOpen] = useState(false);
   const [blockRoom, setBlockRoom] = useState<RoomGridItem | null>(null);
   const [blockOpen, setBlockOpen] = useState(false);
+  const [cleaningRoom, setCleaningRoom] = useState<RoomGridItem | null>(null);
 
   const { days, roomNumbers, bars, monthOffset } = data;
   const colCount = days.length;
@@ -78,12 +81,28 @@ export function CalendarTimeline({
     router.push(`${base}?month=${next}`);
   }
 
+  function openCleaningNotice(room: RoomGridItem) {
+    setCleaningRoom(room);
+  }
+
   function openBooking(roomNumber: string) {
     const room = roomByNumber.get(roomNumber);
-    if (room) {
-      setBookingRoom(room);
-      setModalOpen(true);
+    if (!room) return;
+    if (roomGridShowsCleaningColor(room)) {
+      openCleaningNotice(room);
+      return;
     }
+    setBookingRoom(room);
+    setModalOpen(true);
+  }
+
+  function openReservationBar(reservationId: string, roomNumber: string) {
+    const room = roomByNumber.get(roomNumber);
+    if (room && roomGridShowsCleaningColor(room)) {
+      openCleaningNotice(room);
+      return;
+    }
+    setSelectedId(reservationId);
   }
 
   function openGeneralBooking() {
@@ -282,7 +301,7 @@ export function CalendarTimeline({
                             key={bar.id}
                             type="button"
                             title={`${bar.guestName} — ${bar.title}`}
-                            onClick={() => setSelectedId(bar.id)}
+                            onClick={() => openReservationBar(bar.id, bar.roomNumber)}
                             className={cn(
                               "absolute top-1 z-10 flex cursor-pointer items-center overflow-hidden rounded px-1 text-[9px] font-medium text-white shadow-sm transition hover:ring-2 hover:ring-room-occupied/50",
                               compact && "text-[8px]",
@@ -315,6 +334,8 @@ export function CalendarTimeline({
           ))}
         </div>
       </div>
+
+      <RoomAttentionModal room={cleaningRoom} onClose={() => setCleaningRoom(null)} />
 
       <ReservationDrawer
         reservationId={selectedId}

@@ -207,7 +207,7 @@ export function RoomStatusGrid({ rooms, bookable = true }: RoomStatusGridProps) 
           <div>
             <h2 className="text-sm font-semibold text-slate-800">Room Status</h2>
             <p className="text-xs text-slate-400">
-              Today only · Vacant = walk-in or booking · Arriving today = view guest
+              Today only · Blue = needs cleaning · Green = vacant · Orange/red = guest today
             </p>
           </div>
           <Link href="/rooms" className="text-xs text-room-occupied hover:underline">
