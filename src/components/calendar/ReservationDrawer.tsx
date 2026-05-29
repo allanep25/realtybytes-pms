@@ -24,7 +24,26 @@ type ReservationDrawerProps = {
   onEditRequest?: (reservationId: string) => void;
 };
 
-type ActionPanel = null | "rebook" | "cancel";
+type ActionPanel = null | "rebook" | "cancel" | "room-change";
+
+type RoomChangeOption = {
+  id: string;
+  number: string;
+  description: string;
+  maxPax: number;
+  baseRate: number;
+  newTotal: number;
+  paid: number;
+  balanceDue: number;
+  difference: number;
+};
+
+type RoomChangeOptionsResponse = {
+  currentRoomNumber: string;
+  currentTotal: number;
+  paid: number;
+  rooms: RoomChangeOption[];
+};
 
 function toDateInput(iso: string): string {
   return hotelCalendarDate(new Date(iso));
@@ -56,6 +75,10 @@ export function ReservationDrawer({
   const [checkoutPaymentMethod, setCheckoutPaymentMethod] = useState("CASH");
   const [checkingOut, setCheckingOut] = useState(false);
   const [recordingPayment, setRecordingPayment] = useState(false);
+  const [roomChangeOptions, setRoomChangeOptions] = useState<RoomChangeOptionsResponse | null>(null);
+  const [selectedRoomChangeId, setSelectedRoomChangeId] = useState("");
+  const [loadingRoomChangeOptions, setLoadingRoomChangeOptions] = useState(false);
+  const [changingRoom, setChangingRoom] = useState(false);
 
   useEffect(() => {
     if (!reservationId) {
@@ -63,6 +86,8 @@ export function ReservationDrawer({
       setError(null);
       setSuccess(null);
       setActionPanel(null);
+      setRoomChangeOptions(null);
+      setSelectedRoomChangeId("");
       return;
     }
 
@@ -147,6 +172,9 @@ export function ReservationDrawer({
         ? calculateCancellationSettlement(detail.totalDue, detail.paid, detail.checkIn)
         : null,
     [detail],
+  );
+  const selectedRoomChange = roomChangeOptions?.rooms.find(
+    (room) => room.id === selectedRoomChangeId,
   );
 
   async function reloadDetail() {
@@ -466,6 +494,62 @@ export function ReservationDrawer({
       setError(e instanceof Error ? e.message : "No-show update failed");
     } finally {
       setActionLoading(false);
+    }
+  }
+
+  async function openRoomChangePanel() {
+    if (!reservationId) return;
+
+    setActionPanel("room-change");
+    setError(null);
+    setSuccess(null);
+    setRoomChangeOptions(null);
+    setSelectedRoomChangeId("");
+    setLoadingRoomChangeOptions(true);
+
+    try {
+      const res = await fetch(`/api/reservations/${reservationId}/change-room`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Failed to load room options");
+
+      const options = data as RoomChangeOptionsResponse;
+      setRoomChangeOptions(options);
+      setSelectedRoomChangeId(options.rooms[0]?.id ?? "");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to load room options");
+    } finally {
+      setLoadingRoomChangeOptions(false);
+    }
+  }
+
+  async function handleChangeRoom() {
+    if (!reservationId || !selectedRoomChangeId) return;
+
+    setChangingRoom(true);
+    setError(null);
+    setSuccess(null);
+
+    try {
+      const res = await fetch(`/api/reservations/${reservationId}/change-room`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ roomId: selectedRoomChangeId }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Room change failed");
+
+      setSuccess(
+        `Moved to Room ${data.toRoomNumber}. New balance: ${formatPHP(data.balanceDue)} after existing payments.`,
+      );
+      setActionPanel(null);
+      setRoomChangeOptions(null);
+      setSelectedRoomChangeId("");
+      router.refresh();
+      await reloadDetail();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Room change failed");
+    } finally {
+      setChangingRoom(false);
     }
   }
 
@@ -1066,6 +1150,131 @@ export function ReservationDrawer({
 
         {showActiveCheckout && detail && (
           <div className="border-t border-slate-100 p-5 space-y-3">
+            {actionPanel === "room-change" ? (
+              <div className="space-y-3 rounded-lg border border-blue-100 bg-blue-50/60 p-3">
+                <div>
+                  <p className="text-sm font-semibold text-slate-800">
+                    Upgrade / downgrade room
+                  </p>
+                  <p className="mt-1 text-xs text-slate-600">
+                    Select a clean vacant room. The room charge will recalculate using the new
+                    room rate, and existing payments remain credited.
+                  </p>
+                </div>
+
+                {loadingRoomChangeOptions ? (
+                  <p className="text-sm text-slate-500">Loading available rooms…</p>
+                ) : roomChangeOptions && roomChangeOptions.rooms.length > 0 ? (
+                  <>
+                    <label className="block text-sm">
+                      <span className="text-slate-500">Move from Room {roomChangeOptions.currentRoomNumber} to</span>
+                      <select
+                        value={selectedRoomChangeId}
+                        onChange={(e) => setSelectedRoomChangeId(e.target.value)}
+                        disabled={changingRoom}
+                        className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                      >
+                        {roomChangeOptions.rooms.map((room) => (
+                          <option key={room.id} value={room.id}>
+                            Room {room.number} — {formatPHP(room.baseRate)}/night · balance{" "}
+                            {formatPHP(room.balanceDue)}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+
+                    {selectedRoomChange && (
+                      <dl className="space-y-1 rounded-lg border border-slate-200 bg-white p-3 text-xs">
+                        <div className="flex justify-between gap-3">
+                          <dt className="text-slate-500">New room</dt>
+                          <dd className="font-medium text-slate-800">
+                            Room {selectedRoomChange.number} · {selectedRoomChange.description}
+                          </dd>
+                        </div>
+                        <div className="flex justify-between gap-3">
+                          <dt className="text-slate-500">New stay total</dt>
+                          <dd className="font-medium">{formatPHP(selectedRoomChange.newTotal)}</dd>
+                        </div>
+                        <div className="flex justify-between gap-3 text-room-vacant">
+                          <dt>Already paid</dt>
+                          <dd>− {formatPHP(selectedRoomChange.paid)}</dd>
+                        </div>
+                        <div className="flex justify-between gap-3 border-t border-slate-200 pt-1 font-semibold">
+                          <dt>Balance after room change</dt>
+                          <dd
+                            className={cn(
+                              selectedRoomChange.balanceDue > 0
+                                ? "text-room-occupied"
+                                : "text-room-vacant",
+                            )}
+                          >
+                            {formatPHP(selectedRoomChange.balanceDue)}
+                          </dd>
+                        </div>
+                        <p className="pt-1 text-[11px] text-slate-500">
+                          Rate change vs current stay:{" "}
+                          <span
+                            className={cn(
+                              selectedRoomChange.difference > 0
+                                ? "text-room-occupied"
+                                : selectedRoomChange.difference < 0
+                                  ? "text-room-vacant"
+                                  : "text-slate-600",
+                            )}
+                          >
+                            {selectedRoomChange.difference >= 0 ? "+" : ""}
+                            {formatPHP(selectedRoomChange.difference)}
+                          </span>
+                        </p>
+                      </dl>
+                    )}
+                  </>
+                ) : (
+                  <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+                    No clean vacant rooms are available for this stay.
+                  </p>
+                )}
+
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => void handleChangeRoom()}
+                    disabled={
+                      changingRoom ||
+                      loadingRoomChangeOptions ||
+                      !selectedRoomChangeId ||
+                      !roomChangeOptions ||
+                      roomChangeOptions.rooms.length === 0
+                    }
+                    className="flex-1 rounded-lg bg-room-occupied py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
+                  >
+                    {changingRoom ? "Moving…" : "Confirm room change"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActionPanel(null);
+                      setRoomChangeOptions(null);
+                      setSelectedRoomChangeId("");
+                    }}
+                    disabled={changingRoom}
+                    className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-600"
+                  >
+                    Back
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => void openRoomChangePanel()}
+                disabled={checkingOut || recordingPayment || actionLoading}
+                className="w-full rounded-lg border border-blue-200 bg-blue-50 py-2.5 text-sm font-medium text-blue-900 hover:bg-blue-100 disabled:opacity-50"
+              >
+                Upgrade / downgrade room
+              </button>
+            )}
+
             {readyForCheckout ? (
               <>
                 <p className="rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-sm text-room-vacant">
