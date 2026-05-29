@@ -20,6 +20,10 @@ function cleaningLabel(room: RoomGridItem): string {
 export function RoomAttentionModal({ room, onClose }: RoomAttentionModalProps) {
   if (!room) return null;
 
+  const arrivingGuest = room.todayReservations?.find(
+    (reservation) => reservation.status === "RESERVED",
+  );
+
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4 sm:items-center">
       <div className="w-full max-w-sm rounded-xl bg-white shadow-xl">
@@ -51,6 +55,13 @@ export function RoomAttentionModal({ room, onClose }: RoomAttentionModalProps) {
                 Cleared by {room.checkoutSummary.checkedOutByName ?? "staff not recorded"}
               </p>
             </div>
+          )}
+
+          {arrivingGuest && (
+            <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+              <strong>{arrivingGuest.guestName}</strong> is scheduled to arrive today. The room must
+              be cleaned before check-in.
+            </p>
           )}
 
           <p className="text-sm text-slate-600">

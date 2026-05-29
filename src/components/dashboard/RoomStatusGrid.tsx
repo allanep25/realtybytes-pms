@@ -8,7 +8,7 @@ import { ReservationFormModal } from "@/components/reservations/ReservationFormM
 import { getRoomGridColor } from "@/lib/constants";
 import { formatTime } from "@/lib/format";
 import { isAdministrator } from "@/lib/permissions";
-import { roomNeedsCleaningBeforeUse } from "@/lib/room-cleaning";
+import { roomGridShowsCleaningColor } from "@/lib/room-cleaning";
 import { cn } from "@/lib/utils";
 import type { HousekeepingStatus, ReservationStatus, RoomStatus } from "@prisma/client";
 import Link from "next/link";
@@ -58,14 +58,14 @@ function roomClickHint(room: RoomGridItem): string {
     return `${room.description} · View today's departing and arriving guests`;
   }
   if (room.status === "OUT_OF_ORDER") return `${room.description} · Out of order`;
+  if (roomGridShowsCleaningColor(room)) {
+    if (room.housekeepingStatus === "CLEANING") {
+      return `${room.description} · Cleaning — click for status`;
+    }
+    return `${room.description} · Needs cleaning — click for status`;
+  }
   if (room.status === "RESERVED" || room.status === "OCCUPIED") {
     return `${room.description} · View today's guest`;
-  }
-  if (room.status === "DIRTY" || room.housekeepingStatus === "CLEANING") {
-    return `${room.description} · Cleaning — click for status`;
-  }
-  if (room.housekeepingStatus === "DIRTY") {
-    return `${room.description} · Needs cleaning — click for status`;
   }
   return `${room.description} · up to ${room.maxPax} guests · Click to book`;
 }
@@ -176,6 +176,12 @@ export function RoomStatusGrid({ rooms, bookable = true }: RoomStatusGridProps) 
   function handleRoomClick(room: RoomGridItem) {
     if (room.status === "OUT_OF_ORDER") return;
 
+    // Blue grid = cleaning — always show the housekeeping notice first.
+    if (roomGridShowsCleaningColor(room)) {
+      setCleaningRoom(room);
+      return;
+    }
+
     if ((room.todayReservations?.length ?? 0) > 1) {
       setReservationPickerRoom(room);
       return;
@@ -186,11 +192,6 @@ export function RoomStatusGrid({ rooms, bookable = true }: RoomStatusGridProps) 
       room.activeReservationId
     ) {
       setDrawerReservationId(room.activeReservationId);
-      return;
-    }
-
-    if (roomNeedsCleaningBeforeUse(room)) {
-      setCleaningRoom(room);
       return;
     }
 
@@ -217,15 +218,16 @@ export function RoomStatusGrid({ rooms, bookable = true }: RoomStatusGridProps) 
           {rooms.map((room) => {
             const isReservedOrOccupied =
               room.status === "RESERVED" || room.status === "OCCUPIED";
-            const isBookableToday = room.status === "VACANT" && bookable && !roomNeedsCleaningBeforeUse(room);
-            const needsCleaning = roomNeedsCleaningBeforeUse(room);
+            const isBookableToday =
+              room.status === "VACANT" && bookable && !roomGridShowsCleaningColor(room);
+            const needsCleaning = roomGridShowsCleaningColor(room);
             const hasSameDayTurn = (room.todayReservations?.length ?? 0) > 1;
             const isClickable =
               room.status !== "OUT_OF_ORDER" &&
-              (hasSameDayTurn ||
+              (needsCleaning ||
+                hasSameDayTurn ||
                 (isReservedOrOccupied && Boolean(room.activeReservationId)) ||
-                isBookableToday ||
-                needsCleaning);
+                isBookableToday);
 
             return (
               <button
