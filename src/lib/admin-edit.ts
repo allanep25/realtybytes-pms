@@ -12,7 +12,8 @@ import {
 } from "@/lib/dates";
 import { buildStayFolioLines, folioLinesTotal } from "@/lib/stay-pricing";
 import { syncRoomOperationalStatus } from "@/lib/room-status";
-import type { BookingPlatform, BookingSource, Prisma } from "@prisma/client";
+import { normalizePaymentMethod } from "@/lib/payment-method";
+import type { BookingPlatform, BookingSource, PaymentMethod, Prisma } from "@prisma/client";
 
 export type EditableReservationListItem = {
   id: string;
@@ -68,6 +69,7 @@ export type EditableReservationRecord = {
     discount: number;
     total: number;
     paid: number;
+    paymentMethod: PaymentMethod | null;
     balanceDue: number;
   } | null;
   rooms: RoomOption[];
@@ -97,6 +99,8 @@ export type AdminUpdateRecordInput = {
     arrivalTime?: string | null;
   };
   discount?: number;
+  paid?: number;
+  paymentMethod?: PaymentMethod | null;
 };
 
 function toDateInput(value: Date): string {
@@ -255,6 +259,7 @@ export async function getEditableReservation(
           discount: true,
           total: true,
           paid: true,
+          paymentMethod: true,
         },
       },
       encodedBy: { select: { name: true } },
@@ -320,6 +325,7 @@ export async function getEditableReservation(
           discount,
           total,
           paid,
+          paymentMethod: folio.paymentMethod,
           balanceDue: Math.max(0, total - paid),
         }
       : null,
@@ -468,6 +474,43 @@ export async function adminUpdateReservationRecord(
     await prisma.folio.update({
       where: { id: existing.folio.id },
       data: { discount, subtotal, total, paid },
+    });
+  }
+
+  if (input.paid != null && existing.folio) {
+    const folio = await prisma.folio.findUniqueOrThrow({ where: { id: existing.folio.id } });
+    const total = Number(folio.total);
+    const paid = Math.max(0, Math.min(input.paid, total));
+    const paymentMethod =
+      normalizePaymentMethod(input.paymentMethod) ??
+      normalizePaymentMethod(folio.paymentMethod) ??
+      "CASH";
+    const existingPayment = await prisma.folioPayment.findFirst({
+      where: { folioId: folio.id },
+      orderBy: { paidAt: "asc" },
+    });
+    const paidAt = existingPayment?.paidAt ?? folio.paidAt ?? new Date();
+
+    await prisma.$transaction(async (tx) => {
+      await tx.folioPayment.deleteMany({ where: { folioId: folio.id } });
+      if (paid > 0) {
+        await tx.folioPayment.create({
+          data: {
+            folioId: folio.id,
+            amount: paid,
+            method: paymentMethod,
+            paidAt,
+          },
+        });
+      }
+      await tx.folio.update({
+        where: { id: folio.id },
+        data: {
+          paid,
+          paymentMethod: paid > 0 ? paymentMethod : null,
+          paidAt: paid > 0 ? paidAt : null,
+        },
+      });
     });
   }
 

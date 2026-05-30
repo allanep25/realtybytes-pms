@@ -4,11 +4,11 @@ import {
   BOOKING_PLATFORM_OPTIONS,
   BOOKING_SOURCE_OPTIONS,
 } from "@/lib/booking-source";
-import { RESERVATION_STATUS_LABELS } from "@/lib/constants";
+import { PAYMENT_METHOD_OPTIONS, RESERVATION_STATUS_LABELS } from "@/lib/constants";
 import { DISCOUNT_PRESETS, calcPresetDiscount } from "@/lib/billing";
 import { formatPHP } from "@/lib/format";
 import type { EditableReservationRecord } from "@/lib/admin-edit";
-import type { BookingPlatform, BookingSource } from "@prisma/client";
+import type { BookingPlatform, BookingSource, PaymentMethod } from "@prisma/client";
 import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -57,6 +57,8 @@ export function EditRecordForm({ reservationId, onClose, onSaved }: EditRecordFo
     arrivalTime: "14:00",
   });
   const [discount, setDiscount] = useState("0");
+  const [paid, setPaid] = useState("0");
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("CASH");
 
   function applyRecord(data: EditableReservationRecord) {
     setRecord(data);
@@ -83,6 +85,8 @@ export function EditRecordForm({ reservationId, onClose, onSaved }: EditRecordFo
       arrivalTime: data.reservation.arrivalTime ?? "14:00",
     });
     setDiscount(String(data.billing?.discount ?? 0));
+    setPaid(String(data.billing?.paid ?? 0));
+    setPaymentMethod(data.billing?.paymentMethod ?? "CASH");
   }
 
   useEffect(() => {
@@ -167,6 +171,8 @@ export function EditRecordForm({ reservationId, onClose, onSaved }: EditRecordFo
             arrivalTime: reservationForm.arrivalTime || null,
           },
           discount: record.billing ? Number(discount) || 0 : undefined,
+          paid: record.billing ? Number(paid) || 0 : undefined,
+          paymentMethod: record.billing ? paymentMethod : undefined,
         }),
       });
       const data = await res.json();
@@ -482,9 +488,10 @@ export function EditRecordForm({ reservationId, onClose, onSaved }: EditRecordFo
 
       {record.billing && (
         <section className="mt-6 rounded-lg border border-slate-200 bg-slate-50 p-4">
-          <h4 className="font-medium text-slate-800">Billing &amp; discount</h4>
+          <h4 className="font-medium text-slate-800">Billing, discount &amp; payment</h4>
           <p className="mt-1 text-xs text-slate-500">
-            Folio {record.billing.folioNumber} · apply guest or Senior/PWD discount before check-in
+            Folio {record.billing.folioNumber} · correct payment after room changes or encoding
+            mistakes
           </p>
 
           <dl className="mt-4 grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
@@ -500,13 +507,16 @@ export function EditRecordForm({ reservationId, onClose, onSaved }: EditRecordFo
             </div>
             <div>
               <dt className="text-slate-500">Paid</dt>
-              <dd className="font-medium text-slate-800">{formatPHP(record.billing.paid)}</dd>
+              <dd className="font-medium text-slate-800">{formatPHP(Number(paid) || 0)}</dd>
             </div>
             <div>
               <dt className="text-slate-500">Balance</dt>
               <dd className="font-medium text-slate-800">
                 {formatPHP(
-                  Math.max(0, record.billing.subtotal - (Number(discount) || 0) - record.billing.paid),
+                  Math.max(
+                    0,
+                    record.billing.subtotal - (Number(discount) || 0) - (Number(paid) || 0),
+                  ),
                 )}
               </dd>
             </div>
@@ -557,6 +567,40 @@ export function EditRecordForm({ reservationId, onClose, onSaved }: EditRecordFo
               <span className="text-sm text-slate-500">pesos off</span>
             </div>
           </div>
+
+          <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <label className="block text-sm">
+              <span className="text-slate-500">Correct total paid</span>
+              <input
+                type="number"
+                min={0}
+                max={Math.max(0, record.billing.subtotal - (Number(discount) || 0))}
+                step={0.01}
+                value={paid}
+                onChange={(e) => setPaid(e.target.value)}
+                className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+              />
+            </label>
+            <label className="block text-sm">
+              <span className="text-slate-500">Payment method</span>
+              <select
+                value={paymentMethod}
+                onChange={(e) => setPaymentMethod(e.target.value as PaymentMethod)}
+                disabled={(Number(paid) || 0) <= 0}
+                className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+              >
+                {PAYMENT_METHOD_OPTIONS.map((method) => (
+                  <option key={method.value} value={method.value}>
+                    {method.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+          <p className="mt-2 text-xs text-slate-500">
+            This replaces the folio&apos;s recorded payment total. Use it for wrong payment amount
+            or method corrections.
+          </p>
         </section>
       )}
 
