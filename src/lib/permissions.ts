@@ -11,6 +11,7 @@ const ROLE_ROUTES: Record<EmployeeRole, string[]> = {
     "/check-in",
     "/guests",
     "/billing",
+    "/expenses",
     "/reports",
     "/receipts",
     "/end-of-day",

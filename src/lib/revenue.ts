@@ -5,6 +5,7 @@ import {
   hotelCalendarDate,
   parseHotelCalendarDate,
 } from "@/lib/dates";
+import { getExpenseRowsForPeriod } from "@/lib/expenses";
 import { formatPHP } from "@/lib/format";
 import { BookingType, type PaymentMethod } from "@prisma/client";
 
@@ -19,7 +20,7 @@ export type PaymentTransaction = RevenueLedgerEntry;
 
 export type RevenueLedgerEntry = {
   id: string;
-  kind: "payment" | "discount";
+  kind: "payment" | "discount" | "expense";
   recordedAt: string;
   amount: number;
   guestName: string;
@@ -33,6 +34,8 @@ export type RevenueSummary = {
   from: string;
   to: string;
   total: number;
+  grossTotal: number;
+  expensesTotal: number;
   totalDiscount: number;
   previousPeriodTotal: number | null;
   changePercent: number | null;
@@ -60,12 +63,21 @@ function sumPayments(rows: { amount: number }[]) {
   return rows.reduce((acc, row) => acc + row.amount, 0);
 }
 
-function buildBreakdown(payments: { amount: number; method: string }[]): RevenueBreakdownItem[] {
+function buildBreakdown(
+  payments: { amount: number; method: string }[],
+  expenses: { amount: number; method: string }[] = [],
+): RevenueBreakdownItem[] {
   const totalsByMethod = new Map<string, number>();
   for (const payment of payments) {
     totalsByMethod.set(
       payment.method,
       (totalsByMethod.get(payment.method) ?? 0) + payment.amount,
+    );
+  }
+  for (const expense of expenses) {
+    totalsByMethod.set(
+      expense.method,
+      (totalsByMethod.get(expense.method) ?? 0) - expense.amount,
     );
   }
 
@@ -312,9 +324,10 @@ export async function getRevenueForPeriod(
   toStr: string,
 ): Promise<RevenueSummary> {
   const { from, toExclusive } = parsePeriod(fromStr, toStr);
-  const [payments, discountRows] = await Promise.all([
+  const [payments, discountRows, expenses] = await Promise.all([
     getPaymentRowsForPeriod(from, toExclusive),
     getDiscountRowsForPeriod(from, toExclusive),
+    getExpenseRowsForPeriod(fromStr, toStr),
   ]);
   const totalDiscount = discountRows.reduce((sum, row) => sum + row.amount, 0);
 
@@ -323,9 +336,13 @@ export async function getRevenueForPeriod(
 
   if (fromStr === toStr) {
     const previousFrom = addHotelDays(from, -1);
-    const previousPayments = await getPaymentRowsForPeriod(previousFrom, from);
-    previousPeriodTotal = sumPayments(previousPayments);
-    const total = sumPayments(payments);
+    const previousDate = hotelCalendarDate(previousFrom);
+    const [previousPayments, previousExpenses] = await Promise.all([
+      getPaymentRowsForPeriod(previousFrom, from),
+      getExpenseRowsForPeriod(previousDate, previousDate),
+    ]);
+    previousPeriodTotal = sumPayments(previousPayments) - sumPayments(previousExpenses);
+    const total = sumPayments(payments) - sumPayments(expenses);
     changePercent =
       previousPeriodTotal > 0
         ? ((total - previousPeriodTotal) / previousPeriodTotal) * 100
@@ -358,18 +375,38 @@ export async function getRevenueForPeriod(
     detail: `${formatDiscountDetail(row)} · Room charges ${formatPHP(row.subtotal)}`,
   }));
 
-  const transactions = [...paymentEntries, ...discountEntries].sort(
+  const expenseEntries: RevenueLedgerEntry[] = expenses.map((expense) => ({
+    id: `expense-${expense.id}`,
+    kind: "expense",
+    recordedAt: expense.spentAt,
+    amount: expense.amount,
+    guestName: "Expense",
+    roomNumber: "—",
+    folioNumber: "—",
+    methodLabel: methodLabel(expense.method),
+    detail:
+      expense.categoryLabel +
+      " · " +
+      expense.description +
+      (expense.vendor ? " · " + expense.vendor : "") +
+      " · Recorded by " +
+      expense.recordedByName,
+  }));
+
+  const transactions = [...paymentEntries, ...discountEntries, ...expenseEntries].sort(
     (a, b) => new Date(b.recordedAt).getTime() - new Date(a.recordedAt).getTime(),
   );
 
   return {
     from: fromStr,
     to: toStr,
-    total: sumPayments(payments),
+    total: sumPayments(payments) - sumPayments(expenses),
+    grossTotal: sumPayments(payments),
+    expensesTotal: sumPayments(expenses),
     totalDiscount,
     previousPeriodTotal,
     changePercent,
-    breakdown: buildBreakdown(payments),
+    breakdown: buildBreakdown(payments, expenses),
     transactions,
   };
 }

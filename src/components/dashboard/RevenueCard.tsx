@@ -53,9 +53,10 @@ export function RevenueCard({ initialSummary }: RevenueCardProps) {
     void loadSummary(from, to);
   }, [from, to, initialSummary, loadSummary]);
 
-  const { total, totalDiscount, changePercent, breakdown, transactions } = summary;
+  const { total, grossTotal, expensesTotal, totalDiscount, changePercent, breakdown, transactions } = summary;
   const paymentCount = transactions.filter((entry) => entry.kind === "payment").length;
   const discountCount = transactions.filter((entry) => entry.kind === "discount").length;
+  const expenseCount = transactions.filter((entry) => entry.kind === "expense").length;
   const positive = changePercent != null && changePercent >= 0;
   const isToday = from === to && from === today;
   const showComparison = isToday && total > 0 && changePercent != null;
@@ -109,10 +110,14 @@ export function RevenueCard({ initialSummary }: RevenueCardProps) {
               <span
                 className={cn(
                   "text-base font-bold tabular-nums",
-                  item.amount > 0 ? "text-slate-900" : "text-slate-400",
+                  item.amount > 0
+                    ? "text-slate-900"
+                    : item.amount < 0
+                      ? "text-room-dirty"
+                      : "text-slate-400",
                 )}
               >
-                {formatPHP(item.amount)}
+                {item.amount < 0 ? `− ${formatPHP(Math.abs(item.amount))}` : formatPHP(item.amount)}
               </span>
             </li>
           ))}
@@ -121,6 +126,14 @@ export function RevenueCard({ initialSummary }: RevenueCardProps) {
               <span className="font-semibold text-amber-900">Discounts on paid stays</span>
               <span className="text-base font-bold tabular-nums text-amber-900">
                 − {formatPHP(totalDiscount)}
+              </span>
+            </li>
+          )}
+          {expensesTotal > 0 && (
+            <li className="flex items-center justify-between gap-3 border-t border-dashed border-slate-200 pt-2">
+              <span className="font-semibold text-room-dirty">Expenses / cash pull-outs</span>
+              <span className="text-base font-bold tabular-nums text-room-dirty">
+                − {formatPHP(expensesTotal)}
               </span>
             </li>
           )}
@@ -135,10 +148,23 @@ export function RevenueCard({ initialSummary }: RevenueCardProps) {
           )}
         >
           <span className="text-sm font-bold text-slate-800">
-            {from === to ? "Total collected today" : "Total collected"}
+            {expensesTotal > 0
+              ? from === to
+                ? "Available after expenses today"
+                : "Available after expenses"
+              : from === to
+                ? "Total collected today"
+                : "Total collected"}
           </span>
           <span className="text-2xl font-bold tabular-nums text-slate-900">{formatPHP(total)}</span>
         </button>
+
+        {expensesTotal > 0 && !loading && (
+          <p className="mt-2 text-xs text-room-dirty">
+            {formatPHP(grossTotal)} collected − {formatPHP(expensesTotal)} expenses = {formatPHP(total)}
+            available.
+          </p>
+        )}
 
         {totalDiscount > 0 && !loading && (
           <p className="mt-2 text-xs text-amber-800">
@@ -171,6 +197,7 @@ export function RevenueCard({ initialSummary }: RevenueCardProps) {
         >
           <List className="h-4 w-4" />
           View money collected ({paymentCount}
+          {expenseCount > 0 ? ` − ${expenseCount} expense${expenseCount === 1 ? "" : "s"}` : ""}
           {discountCount > 0 ? ` + ${discountCount} paid-stay discounts` : ""})
         </button>
       </div>

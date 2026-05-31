@@ -80,6 +80,16 @@ enum PaymentMethod {
   BANK_TRANSFER
 }
 
+enum ExpenseCategory {
+  SUPPLIES
+  MAINTENANCE
+  FOOD_BEVERAGE
+  TRANSPORT
+  UTILITIES
+  SALARY
+  OTHER
+}
+
 model Room {
   id            String     @id @default(cuid())
   number        String     @unique
@@ -206,6 +216,7 @@ model Employee {
   checkedInReservations  Reservation[] @relation("ReservationCheckedInBy")
   checkedOutReservations Reservation[] @relation("ReservationCheckedOutBy")
   recordedFolioPayments  FolioPayment[] @relation("FolioPaymentsRecordedBy")
+  expenses               Expense[]      @relation("ExpensesRecordedBy")
   shiftNotes             ShiftNote[]     @relation("ShiftNotes")
   dayCloseRecords        DayCloseRecord[] @relation("DayCloseRecords")
 }
@@ -241,6 +252,26 @@ model ShiftNote {
   createdAt DateTime @default(now())
 
   author Employee @relation("ShiftNotes", fields: [authorId], references: [id])
+}
+
+model Expense {
+  id           String          @id @default(cuid())
+  businessDate String
+  spentAt      DateTime        @default(now())
+  amount       Decimal
+  method       PaymentMethod   @default(CASH)
+  category     ExpenseCategory @default(OTHER)
+  description  String
+  vendor       String?
+  recordedById String
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  recordedBy Employee @relation("ExpensesRecordedBy", fields: [recordedById], references: [id])
+
+  @@index([businessDate])
+  @@index([spentAt])
+  @@index([recordedById])
 }
 
 model DayCloseRecord {

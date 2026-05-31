@@ -23,9 +23,10 @@ export function RevenueTransactionsModal({
 }: RevenueTransactionsModalProps) {
   if (!open || !summary) return null;
 
-  const { transactions, from, to, total } = summary;
+  const { transactions, from, to, total, grossTotal, expensesTotal } = summary;
   const paymentCount = transactions.filter((entry) => entry.kind === "payment").length;
   const discountCount = transactions.filter((entry) => entry.kind === "discount").length;
+  const expenseCount = transactions.filter((entry) => entry.kind === "expense").length;
 
   return (
     <div
@@ -41,7 +42,10 @@ export function RevenueTransactionsModal({
             <h2 className="text-sm font-semibold text-slate-800">Money collected</h2>
             <p className="text-xs text-slate-400">
               {periodLabel(from, to)} · {paymentCount} payment{paymentCount === 1 ? "" : "s"} ·{" "}
-              {formatPHP(total)} collected
+              {expensesTotal > 0 ? `${formatPHP(grossTotal)} collected · ${formatPHP(total)} available` : `${formatPHP(total)} collected`}
+              {expenseCount > 0
+                ? ` · ${expenseCount} expense${expenseCount === 1 ? "" : "s"}`
+                : ""}
               {discountCount > 0
                 ? ` · ${discountCount} discount${discountCount === 1 ? "" : "s"} on paid stays`
                 : ""}
@@ -90,12 +94,14 @@ export function RevenueTransactionsModal({
 
 function TransactionRow({ entry }: { entry: RevenueLedgerEntry }) {
   const isDiscount = entry.kind === "discount";
+  const isExpense = entry.kind === "expense";
 
   return (
     <tr
       className={cn(
         "border-t border-slate-100",
         isDiscount && "bg-amber-50/60",
+        isExpense && "bg-red-50/50",
       )}
     >
       <td className="px-4 py-2.5 whitespace-nowrap text-slate-600">
@@ -111,7 +117,9 @@ function TransactionRow({ entry }: { entry: RevenueLedgerEntry }) {
             "rounded-full px-2 py-0.5 text-xs font-medium",
             isDiscount
               ? "bg-amber-100 text-amber-900"
-              : "bg-slate-100 text-slate-700",
+              : isExpense
+                ? "bg-red-100 text-room-dirty"
+                : "bg-slate-100 text-slate-700",
           )}
         >
           {entry.methodLabel}
@@ -121,10 +129,10 @@ function TransactionRow({ entry }: { entry: RevenueLedgerEntry }) {
       <td
         className={cn(
           "px-4 py-2.5 text-right font-medium tabular-nums",
-          isDiscount ? "text-amber-900" : "text-slate-800",
+          isDiscount ? "text-amber-900" : isExpense ? "text-room-dirty" : "text-slate-800",
         )}
       >
-        {isDiscount ? `− ${formatPHP(entry.amount)}` : formatPHP(entry.amount)}
+        {isDiscount || isExpense ? `− ${formatPHP(entry.amount)}` : formatPHP(entry.amount)}
       </td>
     </tr>
   );

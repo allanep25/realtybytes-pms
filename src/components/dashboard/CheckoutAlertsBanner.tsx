@@ -1,6 +1,6 @@
 import type { CheckoutAlert } from "@/lib/checkout-alerts";
 import { cn } from "@/lib/utils";
-import { AlertTriangle, Sparkles } from "lucide-react";
+import { AlertTriangle, CreditCard, Sparkles } from "lucide-react";
 import Link from "next/link";
 
 type CheckoutAlertsBannerProps = {
@@ -10,13 +10,14 @@ type CheckoutAlertsBannerProps = {
 function groupAlerts(alerts: CheckoutAlert[]) {
   const departures = alerts.filter((a) => a.type === "departure_pending");
   const cleaning = alerts.filter((a) => a.type === "needs_cleaning");
-  return { departures, cleaning };
+  const balances = alerts.filter((a) => a.type === "unpaid_balance");
+  return { departures, cleaning, balances };
 }
 
 export function CheckoutAlertsBanner({ alerts }: CheckoutAlertsBannerProps) {
   if (alerts.length === 0) return null;
 
-  const { departures, cleaning } = groupAlerts(alerts);
+  const { departures, cleaning, balances } = groupAlerts(alerts);
 
   return (
     <div className="mb-4 rounded-xl border border-slate-200 border-l-4 border-l-amber-500 bg-card p-4 shadow-sm">
@@ -32,6 +33,11 @@ export function CheckoutAlertsBanner({ alerts }: CheckoutAlertsBannerProps) {
           {departures.length > 0 && (
             <Link href="/check-in?tab=check-out" className="text-slate-600 hover:text-room-occupied hover:underline">
               Open check-out →
+            </Link>
+          )}
+          {balances.length > 0 && (
+            <Link href="/billing" className="text-slate-600 hover:text-room-dirty hover:underline">
+              Open billing →
             </Link>
           )}
           {cleaning.length > 0 && (
@@ -50,6 +56,17 @@ export function CheckoutAlertsBanner({ alerts }: CheckoutAlertsBannerProps) {
           >
             <span className="font-semibold">Rm {alert.roomNumber}</span>
             <span className="text-amber-800/80">·</span>
+            <span className="truncate">{alert.message.replace(/^Room \d+ · /, "")}</span>
+          </span>
+        ))}
+        {balances.map((alert) => (
+          <span
+            key={alert.id}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-2.5 py-1 text-sm text-red-950"
+          >
+            <CreditCard className="h-3.5 w-3.5 shrink-0 text-room-dirty" />
+            <span className="font-semibold">Rm {alert.roomNumber}</span>
+            <span className="text-red-800/80">·</span>
             <span className="truncate">{alert.message.replace(/^Room \d+ · /, "")}</span>
           </span>
         ))}
