@@ -163,16 +163,23 @@ export function ReportsGenerator({ defaultFrom, defaultTo }: ReportsGeneratorPro
 
       {report && (
         <>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
-            <StatCard label="Room Revenue" value={formatPHP(report.totalRevenue)} />
-            <StatCard label="Collected" value={formatPHP(report.totalCollected)} />
-            <StatCard label="Guest Stays" value={String(report.totalTransactions)} />
-            <StatCard
-              label="Occupancy Rate"
-              value={`${report.occupancyRate.toFixed(2)}%`}
-            />
-            <StatCard label="Average Daily Rate" value={formatPHP(report.adr)} />
-          </div>
+          {report.type === "STAFF_TRANSACTIONS" ? (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <StatCard label="Transactions" value={String(report.totalTransactions)} />
+              <StatCard label="Collected by selected staff" value={formatPHP(report.totalCollected)} />
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
+              <StatCard label="Room Revenue" value={formatPHP(report.totalRevenue)} />
+              <StatCard label="Collected" value={formatPHP(report.totalCollected)} />
+              <StatCard label="Guest Stays" value={String(report.totalTransactions)} />
+              <StatCard
+                label="Occupancy Rate"
+                value={`${report.occupancyRate.toFixed(2)}%`}
+              />
+              <StatCard label="Average Daily Rate" value={formatPHP(report.adr)} />
+            </div>
+          )}
 
           <div className="flex flex-wrap gap-3">
             <button

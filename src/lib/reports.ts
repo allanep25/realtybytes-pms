@@ -150,7 +150,25 @@ async function getStaffTransactionPayments(
   return prisma.folioPayment.findMany({
     where: {
       paidAt: { gte: from, lt: toExclusive },
-      ...(staffId ? { recordedById: staffId } : {}),
+      ...(staffId
+        ? {
+            OR: [
+              { recordedById: staffId },
+              {
+                recordedById: null,
+                folio: {
+                  reservation: {
+                    OR: [
+                      { encodedById: staffId },
+                      { checkedInById: staffId },
+                      { checkedOutById: staffId },
+                    ],
+                  },
+                },
+              },
+            ],
+          }
+        : {}),
       folio: { reservation: { bookingType: "GUEST" } },
     },
     include: {
@@ -164,6 +182,9 @@ async function getStaffTransactionPayments(
               status: true,
               guest: { select: { fullName: true } },
               room: { select: { number: true } },
+              encodedBy: { select: { name: true, role: true } },
+              checkedInBy: { select: { name: true, role: true } },
+              checkedOutBy: { select: { name: true, role: true } },
             },
           },
         },
@@ -182,9 +203,13 @@ function buildStaffTransactionRows(
 ): ReportRow[] {
   return payments.map((payment) => {
     const reservation = payment.folio.reservation;
+    const fallbackStaff =
+      reservation.checkedOutBy ?? reservation.checkedInBy ?? reservation.encodedBy ?? null;
     const staffLabel = payment.recordedBy
       ? payment.recordedBy.name + " (" + payment.recordedBy.role.replace("_", " ") + ")"
-      : "Not recorded (older transaction)";
+      : fallbackStaff
+        ? fallbackStaff.name + " (inferred from reservation)"
+        : "Not recorded (older transaction)";
     const statusLabel =
       RESERVATION_STATUS_LABELS[reservation.status as ReservationStatus] ?? reservation.status;
 
@@ -307,8 +332,8 @@ export async function generateReport(
       totalRevenue: collected,
       totalCollected: collected,
       totalTransactions: payments.length,
-      occupancyRate,
-      adr,
+      occupancyRate: 0,
+      adr: 0,
       rows,
     };
   }
