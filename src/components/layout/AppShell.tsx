@@ -3,6 +3,7 @@
 import { AuthProvider } from "@/components/auth/AuthProvider";
 import type { SessionUser } from "@/lib/auth-types";
 import { useState } from "react";
+import { PullToRefresh } from "./PullToRefresh";
 import { Sidebar } from "./Sidebar";
 import { TopBar } from "./TopBar";
 
@@ -18,6 +19,7 @@ export function AppShell({ title, hotelName, user, children }: AppShellProps) {
 
   return (
     <AuthProvider user={user}>
+      <PullToRefresh />
       <div className="min-h-screen bg-slate-50">
         <Sidebar
           hotelName={hotelName}
