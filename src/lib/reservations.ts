@@ -82,6 +82,7 @@ export type ReservationDetail = {
   roomNumber: string;
   roomType: string;
   roomDescription: string;
+  roomBaseRate: number;
   checkIn: string;
   checkOut: string;
   status: ReservationStatus;
@@ -502,6 +503,7 @@ export async function getReservationById(id: string): Promise<ReservationDetail 
     roomNumber: res.room.number,
     roomType: res.room.type,
     roomDescription: res.room.description,
+    roomBaseRate: Number(res.room.baseRate),
     checkIn: res.checkIn.toISOString(),
     checkOut: res.checkOut.toISOString(),
     status: res.status,

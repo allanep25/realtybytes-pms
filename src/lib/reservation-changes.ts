@@ -22,9 +22,10 @@ export type RebookReservationInput = {
 
 export type CancelReservationResult = {
   roomNumber: string;
-  policy: "free" | "late";
+  policy: "free" | "late" | "arrival_window";
   refundAmount: number;
   forfeitAmount: number;
+  cancellationFee: number;
 };
 
 async function rebuildReservationFolio(reservationId: string) {
@@ -94,15 +95,21 @@ export async function cancelReservationWithPolicy(
 
   const roomAmount = reservation.folio ? Number(reservation.folio.total) : 0;
   const paid = reservation.folio ? Number(reservation.folio.paid) : 0;
-  const settlement = calculateCancellationSettlement(roomAmount, paid, reservation.checkIn);
+  const settlement = calculateCancellationSettlement(roomAmount, paid, reservation.checkIn, new Date(), {
+    scheduledArrival: reservation.scheduledArrival,
+    roomRate: Number(reservation.room.baseRate),
+  });
 
   await prisma.$transaction(async (tx) => {
     if (reservation.folio) {
-      if (settlement.policy === "late" && settlement.forfeitAmount > 0) {
+      if (settlement.policy !== "free" && settlement.forfeitAmount > 0) {
         await tx.folioLine.create({
           data: {
             folioId: reservation.folio.id,
-            description: "Late cancellation — 20% room charge retained from deposit",
+            description:
+              settlement.policy === "arrival_window"
+                ? "Arrival-window cancellation — 40% room rate retained from deposit"
+                : "Late cancellation — 20% room rate retained from deposit",
             quantity: 1,
             rate: settlement.forfeitAmount,
             amount: settlement.forfeitAmount,
@@ -137,6 +144,7 @@ export async function cancelReservationWithPolicy(
     policy: settlement.policy,
     refundAmount: settlement.refundAmount,
     forfeitAmount: settlement.forfeitAmount,
+    cancellationFee: settlement.cancellationFee,
   };
 }
 
