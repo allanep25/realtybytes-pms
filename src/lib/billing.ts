@@ -47,6 +47,7 @@ export type UpdateFolioInput = {
   discount?: number;
   paymentMethod?: PaymentMethod;
   paymentAmount?: number;
+  recordedById?: string | null;
 };
 
 async function recalculateFolio(folioId: string) {
@@ -244,7 +245,7 @@ export async function updateFolio(folioId: string, input: UpdateFolioInput) {
   if (input.paymentAmount != null && input.paymentAmount > 0) {
     const method = requirePaymentMethodForAmount(input.paymentAmount, input.paymentMethod);
     paid = Math.min(paid + input.paymentAmount, total);
-    await recordFolioPayment(folioId, input.paymentAmount, method);
+    await recordFolioPayment(folioId, input.paymentAmount, method, new Date(), input.recordedById);
     await prisma.folio.update({
       where: { id: folioId },
       data: {

@@ -147,7 +147,7 @@ async function createStayFolio(
   nights: number,
   extensionDays: number,
   extensionHours: number,
-  options?: { depositAmount?: number; paymentMethod?: PaymentMethod },
+  options?: { depositAmount?: number; paymentMethod?: PaymentMethod; recordedById?: string | null },
 ): Promise<string> {
   const lines = buildStayFolioLines({
     roomNumber,
@@ -179,7 +179,7 @@ async function createStayFolio(
   });
 
   if (paid > 0 && paymentMethod) {
-    await recordFolioPayment(folio.id, paid, paymentMethod);
+    await recordFolioPayment(folio.id, paid, paymentMethod, new Date(), options?.recordedById);
   }
 
   return folioNumber;
@@ -484,6 +484,7 @@ export async function performCheckIn(
     {
       depositAmount: input.depositAmount,
       paymentMethod: input.paymentMethod,
+      recordedById: staff.employeeId,
     },
   );
 
@@ -605,6 +606,7 @@ export async function createReservation(
     {
       depositAmount,
       paymentMethod: input.paymentMethod,
+      recordedById: staff.employeeId,
     },
   );
 
@@ -704,6 +706,7 @@ export async function performCheckInFromReservation(
     discount?: number;
     paymentAmount?: number;
     paymentMethod?: PaymentMethod;
+    recordedById?: string | null;
   } = {};
 
   const existingFolio = await prisma.folio.findUniqueOrThrow({ where: { id: folioId } });
@@ -718,6 +721,7 @@ export async function performCheckInFromReservation(
     const method = requirePaymentMethodForAmount(input.paymentAmount, input.paymentMethod);
     folioUpdate.paymentAmount = input.paymentAmount;
     folioUpdate.paymentMethod = method;
+    folioUpdate.recordedById = staff.employeeId;
   } else if (input.paymentMethod) {
     const method = normalizePaymentMethod(input.paymentMethod);
     if (method) folioUpdate.paymentMethod = method;
@@ -774,6 +778,7 @@ export async function performCheckOut(
       discount?: number;
       paymentAmount?: number;
       paymentMethod?: PaymentMethod;
+      recordedById?: string | null;
     } = {};
 
     if (input.discount != null) {
@@ -789,6 +794,7 @@ export async function performCheckOut(
       const method = requirePaymentMethodForAmount(input.paymentAmount, input.paymentMethod);
       folioUpdate.paymentAmount = input.paymentAmount;
       folioUpdate.paymentMethod = method;
+      folioUpdate.recordedById = staff.employeeId;
     } else if (input.paymentMethod) {
       const method = normalizePaymentMethod(input.paymentMethod);
       if (method) folioUpdate.paymentMethod = method;

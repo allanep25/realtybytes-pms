@@ -101,6 +101,7 @@ export type AdminUpdateRecordInput = {
   discount?: number;
   paid?: number;
   paymentMethod?: PaymentMethod | null;
+  paymentRecordedById?: string | null;
 };
 
 function toDateInput(value: Date): string {
@@ -500,6 +501,7 @@ export async function adminUpdateReservationRecord(
             amount: paid,
             method: paymentMethod,
             paidAt,
+            recordedById: input.paymentRecordedById ?? null,
           },
         });
       }

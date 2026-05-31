@@ -36,7 +36,10 @@ export async function PATCH(request: Request, context: RouteContext) {
 
   try {
     const body = (await request.json()) as AdminUpdateRecordInput;
-    const record = await adminUpdateReservationRecord(id, body);
+    const record = await adminUpdateReservationRecord(id, {
+      ...body,
+      paymentRecordedById: session.id,
+    });
 
     revalidatePath("/");
     revalidatePath("/calendar");

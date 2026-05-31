@@ -1,4 +1,5 @@
 import { getFolioById, updateFolio } from "@/lib/billing";
+import { getSession } from "@/lib/auth";
 import { normalizePaymentMethod } from "@/lib/payment-method";
 import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
@@ -18,6 +19,10 @@ export async function GET(_request: Request, context: RouteContext) {
 
 export async function PATCH(request: Request, context: RouteContext) {
   const { id } = await context.params;
+  const session = await getSession();
+  if (!session) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
   try {
     const body = await request.json();
@@ -25,6 +30,7 @@ export async function PATCH(request: Request, context: RouteContext) {
       discount: body.discount,
       paymentAmount: body.paymentAmount,
       paymentMethod: normalizePaymentMethod(body.paymentMethod) ?? undefined,
+      recordedById: session.id,
     });
 
     revalidatePath("/billing");

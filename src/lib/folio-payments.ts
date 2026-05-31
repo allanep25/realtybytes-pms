@@ -7,6 +7,7 @@ export async function recordFolioPayment(
   amount: number,
   method: PaymentMethod,
   paidAt: Date = new Date(),
+  recordedById?: string | null,
 ) {
   if (amount <= 0) return;
 
@@ -21,6 +22,7 @@ export async function recordFolioPayment(
       amount,
       method: normalized,
       paidAt,
+      recordedById: recordedById ?? null,
     },
   });
 }

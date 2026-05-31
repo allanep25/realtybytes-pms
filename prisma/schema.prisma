@@ -166,15 +166,18 @@ model Folio {
 }
 
 model FolioPayment {
-  id      String        @id @default(cuid())
-  folioId String
-  amount  Decimal
-  method  PaymentMethod @default(CASH)
-  paidAt  DateTime      @default(now())
+  id           String        @id @default(cuid())
+  folioId      String
+  amount       Decimal
+  method       PaymentMethod @default(CASH)
+  paidAt       DateTime      @default(now())
+  recordedById String?
 
-  folio Folio @relation(fields: [folioId], references: [id], onDelete: Cascade)
+  folio      Folio     @relation(fields: [folioId], references: [id], onDelete: Cascade)
+  recordedBy Employee? @relation("FolioPaymentsRecordedBy", fields: [recordedById], references: [id])
 
   @@index([paidAt])
+  @@index([recordedById])
 }
 
 model FolioLine {
@@ -202,6 +205,7 @@ model Employee {
   encodedReservations    Reservation[] @relation("ReservationEncodedBy")
   checkedInReservations  Reservation[] @relation("ReservationCheckedInBy")
   checkedOutReservations Reservation[] @relation("ReservationCheckedOutBy")
+  recordedFolioPayments  FolioPayment[] @relation("FolioPaymentsRecordedBy")
   shiftNotes             ShiftNote[]     @relation("ShiftNotes")
   dayCloseRecords        DayCloseRecord[] @relation("DayCloseRecords")
 }

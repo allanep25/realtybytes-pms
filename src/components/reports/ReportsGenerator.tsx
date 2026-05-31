@@ -13,15 +13,24 @@ type ReportsGeneratorProps = {
 
 const REPORT_TYPES: { value: ReportType; label: string }[] = [
   { value: "DAILY_SALES", label: "Daily Sales Report" },
+  { value: "STAFF_TRANSACTIONS", label: "Front Desk Staff Transactions" },
   { value: "WEEKLY_SUMMARY", label: "Weekly Owner Summary" },
   { value: "OCCUPANCY", label: "Occupancy Report" },
   { value: "REVENUE_SUMMARY", label: "Revenue Summary" },
 ];
 
+type StaffOption = {
+  id: string;
+  name: string;
+  role: string;
+};
+
 export function ReportsGenerator({ defaultFrom, defaultTo }: ReportsGeneratorProps) {
   const [type, setType] = useState<ReportType>("DAILY_SALES");
   const [from, setFrom] = useState(defaultFrom);
   const [to, setTo] = useState(defaultTo);
+  const [staffId, setStaffId] = useState("");
+  const [staffOptions, setStaffOptions] = useState<StaffOption[]>([]);
   const [report, setReport] = useState<ReportSummary | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -31,6 +40,9 @@ export function ReportsGenerator({ defaultFrom, defaultTo }: ReportsGeneratorPro
     setError(null);
     try {
       const params = new URLSearchParams({ type, from, to });
+      if (type === "STAFF_TRANSACTIONS" && staffId) {
+        params.set("staffId", staffId);
+      }
       const res = await fetch(`/api/reports?${params}`);
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Failed to generate");
@@ -44,20 +56,33 @@ export function ReportsGenerator({ defaultFrom, defaultTo }: ReportsGeneratorPro
     } finally {
       setLoading(false);
     }
-  }, [type, from, to]);
+  }, [type, from, to, staffId]);
 
   useEffect(() => {
     void generate();
   }, [generate]);
 
+  useEffect(() => {
+    fetch("/api/reports/staff")
+      .then((res) => (res.ok ? res.json() : []))
+      .then((data: StaffOption[]) => setStaffOptions(data))
+      .catch(() => setStaffOptions([]));
+  }, []);
+
   function exportFile(format: "csv" | "pdf") {
     const params = new URLSearchParams({ type, from, to, format });
+    if (type === "STAFF_TRANSACTIONS" && staffId) {
+      params.set("staffId", staffId);
+    }
     window.open(`/api/reports/export?${params}`, "_blank");
   }
 
   function printPdf() {
     if (!report) return;
     const params = new URLSearchParams({ type, from, to, format: "html" });
+    if (type === "STAFF_TRANSACTIONS" && staffId) {
+      params.set("staffId", staffId);
+    }
     const w = window.open(`/api/reports/export?${params}`, "_blank");
     w?.addEventListener("load", () => w.print());
   }
@@ -84,6 +109,23 @@ export function ReportsGenerator({ defaultFrom, defaultTo }: ReportsGeneratorPro
             ))}
           </select>
         </label>
+        {type === "STAFF_TRANSACTIONS" && (
+          <label className="text-sm">
+            <span className="mb-1 block text-slate-500">Front desk staff</span>
+            <select
+              value={staffId}
+              onChange={(e) => setStaffId(e.target.value)}
+              className="rounded-lg border border-slate-200 px-3 py-2 text-sm min-w-[220px]"
+            >
+              <option value="">All staff</option>
+              {staffOptions.map((staff) => (
+                <option key={staff.id} value={staff.id}>
+                  {staff.name} — {staff.role.replace("_", " ")}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
         <label className="text-sm">
           <span className="mb-1 block text-slate-500">From</span>
           <input
@@ -170,8 +212,8 @@ export function ReportsGenerator({ defaultFrom, defaultTo }: ReportsGeneratorPro
                 {report.rows.length === 0 ? (
                   <tr>
                     <td colSpan={3} className="px-4 py-8 text-center text-slate-400">
-                      No guest stays in this date range. Widen the From/To dates or add
-                      reservations that overlap the period.
+                      No records in this date range. Widen the From/To dates or choose another
+                      staff member.
                     </td>
                   </tr>
                 ) : (

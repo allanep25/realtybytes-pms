@@ -8,13 +8,14 @@ export async function GET(request: Request) {
   const from = searchParams.get("from");
   const to = searchParams.get("to");
   const format = searchParams.get("format") ?? "csv";
+  const staffId = searchParams.get("staffId");
 
   if (!from || !to) {
     return NextResponse.json({ error: "from and to required" }, { status: 400 });
   }
 
   try {
-    const report = await generateReport(type, from, to);
+    const report = await generateReport(type, from, to, { staffId });
     const slug = `${type.toLowerCase()}_${from}_${to}`;
 
     if (format === "pdf" || format === "html") {

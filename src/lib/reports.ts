@@ -1,10 +1,15 @@
-import { RESERVATION_STATUS_LABELS } from "@/lib/constants";
+import { PAYMENT_METHOD_OPTIONS, RESERVATION_STATUS_LABELS } from "@/lib/constants";
 import { prisma } from "@/lib/db";
 import { addDays, daysBetween, startOfDay } from "@/lib/dates";
 import { formatStaffTrail, mapStaffAttribution } from "@/lib/staff-attribution";
-import type { ReservationStatus } from "@prisma/client";
+import type { EmployeeRole, ReservationStatus } from "@prisma/client";
 
-export type ReportType = "DAILY_SALES" | "OCCUPANCY" | "REVENUE_SUMMARY" | "WEEKLY_SUMMARY";
+export type ReportType =
+  | "DAILY_SALES"
+  | "OCCUPANCY"
+  | "REVENUE_SUMMARY"
+  | "WEEKLY_SUMMARY"
+  | "STAFF_TRANSACTIONS";
 
 export type ReportSummary = {
   type: ReportType;
@@ -30,6 +35,13 @@ const REPORT_LABELS: Record<ReportType, string> = {
   OCCUPANCY: "Occupancy Report",
   REVENUE_SUMMARY: "Revenue Summary",
   WEEKLY_SUMMARY: "Weekly Owner Summary",
+  STAFF_TRANSACTIONS: "Front Desk Staff Transactions",
+};
+
+export type ReportStaffOption = {
+  id: string;
+  name: string;
+  role: EmployeeRole;
 };
 
 function parseRange(fromStr: string, toStr: string) {
@@ -119,11 +131,84 @@ async function getCollectedPayments(from: Date, toExclusive: Date) {
   });
 }
 
-function buildStayRows(
-  stays: Awaited<ReturnType<typeof getGuestStaysInRange>>,
+export async function getReportStaffOptions(): Promise<ReportStaffOption[]> {
+  return prisma.employee.findMany({
+    where: {
+      status: "ACTIVE",
+      role: { in: ["FRONT_DESK", "ADMINISTRATOR"] },
+    },
+    orderBy: [{ role: "asc" }, { name: "asc" }],
+    select: { id: true, name: true, role: true },
+  });
+}
+
+async function getStaffTransactionPayments(
   from: Date,
   toExclusive: Date,
+  staffId?: string | null,
+) {
+  return prisma.folioPayment.findMany({
+    where: {
+      paidAt: { gte: from, lt: toExclusive },
+      ...(staffId ? { recordedById: staffId } : {}),
+      folio: { reservation: { bookingType: "GUEST" } },
+    },
+    include: {
+      recordedBy: { select: { name: true, role: true } },
+      folio: {
+        include: {
+          reservation: {
+            select: {
+              checkIn: true,
+              checkOut: true,
+              status: true,
+              guest: { select: { fullName: true } },
+              room: { select: { number: true } },
+            },
+          },
+        },
+      },
+    },
+    orderBy: { paidAt: "desc" },
+  });
+}
+
+function paymentMethodLabel(method: string): string {
+  return PAYMENT_METHOD_OPTIONS.find((option) => option.value === method)?.label ?? method;
+}
+
+function buildStaffTransactionRows(
+  payments: Awaited<ReturnType<typeof getStaffTransactionPayments>>,
 ): ReportRow[] {
+  return payments.map((payment) => {
+    const reservation = payment.folio.reservation;
+    const staffLabel = payment.recordedBy
+      ? payment.recordedBy.name + " (" + payment.recordedBy.role.replace("_", " ") + ")"
+      : "Not recorded (older transaction)";
+    const statusLabel =
+      RESERVATION_STATUS_LABELS[reservation.status as ReservationStatus] ?? reservation.status;
+
+    return {
+      label:
+        reservation.guest.fullName +
+        " — Rm " +
+        reservation.room.number +
+        " · " +
+        payment.folio.folioNumber,
+      value:
+        formatReportDate(payment.paidAt) +
+        " · " +
+        paymentMethodLabel(payment.method) +
+        " · " +
+        statusLabel +
+        " · Recorded by " +
+        staffLabel,
+      amount: Number(payment.amount),
+    };
+  });
+}
+
+function buildStayRows(stays: Awaited<ReturnType<typeof getGuestStaysInRange>>): ReportRow[] {
   return stays.map((res) => {
     const baseRate = Number(res.room.baseRate);
     const total = estimateStayTotal(
@@ -181,6 +266,7 @@ export async function generateReport(
   type: ReportType,
   fromStr: string,
   toStr: string,
+  options: { staffId?: string | null } = {},
 ): Promise<ReportSummary> {
   const { from, to, toExclusive } = parseRange(fromStr, toStr);
 
@@ -206,7 +292,26 @@ export async function generateReport(
   const totalTransactions = stays.length;
   const { occupancyRate, adr } = metrics;
 
-  const stayRows = buildStayRows(stays, from, toExclusive);
+  const stayRows = buildStayRows(stays);
+
+  if (type === "STAFF_TRANSACTIONS") {
+    const payments = await getStaffTransactionPayments(from, toExclusive, options.staffId);
+    const rows = buildStaffTransactionRows(payments);
+    const collected = payments.reduce((sum, payment) => sum + Number(payment.amount), 0);
+
+    return {
+      type,
+      label: REPORT_LABELS[type],
+      from: from.toISOString(),
+      to: to.toISOString(),
+      totalRevenue: collected,
+      totalCollected: collected,
+      totalTransactions: payments.length,
+      occupancyRate,
+      adr,
+      rows,
+    };
+  }
 
   if (type === "OCCUPANCY") {
     return {
