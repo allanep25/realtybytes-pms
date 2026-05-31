@@ -4,8 +4,8 @@ import { HOUSEKEEPING_STATUS_LABELS, ROOM_STATUS_LABELS } from "@/lib/constants"
 import type { HousekeepingTaskItem } from "@/lib/housekeeping";
 import { cn, compareRoomNumbers } from "@/lib/utils";
 import type { HousekeepingStatus } from "@prisma/client";
-import { Search } from "lucide-react";
-import { useMemo, useState } from "react";
+import { Bell, Search, Volume2 } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 const STATUS_BADGE: Record<string, string> = {
@@ -111,12 +111,92 @@ function TaskCard({
   );
 }
 
-export function HousekeepingDesk({ tasks, currentUserId }: HousekeepingDeskProps) {
+function playAlertSound() {
+  const audioWindow = window as typeof window & { webkitAudioContext?: typeof AudioContext };
+  const AudioContextClass = window.AudioContext ?? audioWindow.webkitAudioContext;
+  if (!AudioContextClass) return;
+
+  const context = new AudioContextClass();
+  const oscillator = context.createOscillator();
+  const gain = context.createGain();
+
+  oscillator.type = "sine";
+  oscillator.frequency.setValueAtTime(880, context.currentTime);
+  oscillator.frequency.setValueAtTime(660, context.currentTime + 0.18);
+  gain.gain.setValueAtTime(0.0001, context.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.25, context.currentTime + 0.03);
+  gain.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + 0.45);
+
+  oscillator.connect(gain);
+  gain.connect(context.destination);
+  oscillator.start();
+  oscillator.stop(context.currentTime + 0.5);
+}
+
+export function HousekeepingDesk({ tasks: initialTasks, currentUserId }: HousekeepingDeskProps) {
   const router = useRouter();
+  const [tasks, setTasks] = useState(initialTasks);
   const [search, setSearch] = useState("");
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [soundEnabled, setSoundEnabled] = useState(false);
+  const [alertMessage, setAlertMessage] = useState<string | null>(null);
+  const knownDirtyRoomIds = useRef(new Set(initialTasks.filter((task) => task.status === "DIRTY").map((task) => task.roomId)));
+
+  useEffect(() => {
+    setTasks(initialTasks);
+    knownDirtyRoomIds.current = new Set(
+      initialTasks.filter((task) => task.status === "DIRTY").map((task) => task.roomId),
+    );
+  }, [initialTasks]);
+
+  const loadLatestTasks = useCallback(async ({ notify }: { notify: boolean }) => {
+    const res = await fetch("/api/housekeeping/tasks", { cache: "no-store" });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error ?? "Failed to load housekeeping tasks");
+
+    const nextTasks = data as HousekeepingTaskItem[];
+    const nextDirtyTasks = nextTasks.filter((task) => task.status === "DIRTY");
+    const newDirtyTasks = nextDirtyTasks.filter((task) => !knownDirtyRoomIds.current.has(task.roomId));
+    knownDirtyRoomIds.current = new Set(nextDirtyTasks.map((task) => task.roomId));
+    setTasks(nextTasks);
+
+    if (notify && newDirtyTasks.length > 0) {
+      const rooms = newDirtyTasks.map((task) => task.roomNumber).sort(compareRoomNumbers).join(", ");
+      const message = `New checkout room needs cleaning: Room ${rooms}`;
+      setAlertMessage(message);
+
+      if (soundEnabled) playAlertSound();
+      if (soundEnabled && "Notification" in window && Notification.permission === "granted") {
+        new Notification("Housekeeping alert", { body: message });
+      }
+    }
+  }, [soundEnabled]);
+
+  async function enableSoundAlerts() {
+    try {
+      playAlertSound();
+      if ("Notification" in window && Notification.permission === "default") {
+        await Notification.requestPermission();
+      }
+      setSoundEnabled(true);
+      setAlertMessage("Sound alerts enabled for new checkout rooms.");
+    } catch {
+      setSoundEnabled(true);
+      setAlertMessage("Sound alerts enabled. Keep this page open to receive alerts.");
+    }
+  }
+
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      void loadLatestTasks({ notify: true }).catch((e) => {
+        setError(e instanceof Error ? e.message : "Failed to refresh housekeeping tasks");
+      });
+    }, 15000);
+
+    return () => window.clearInterval(interval);
+  }, [loadLatestTasks]);
 
   const filtered = useMemo(
     () =>
@@ -164,6 +244,11 @@ export function HousekeepingDesk({ tasks, currentUserId }: HousekeepingDeskProps
           ? `Room ${data.roomNumber} is now vacant — ready for new guests.`
           : `Room ${data.roomNumber} marked as cleaning.`,
       );
+      setTasks((current) =>
+        status === "CLEAN"
+          ? current.filter((task) => task.roomId !== roomId)
+          : current.map((task) => (task.roomId === roomId ? data : task)),
+      );
       router.refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Update failed");
@@ -175,12 +260,35 @@ export function HousekeepingDesk({ tasks, currentUserId }: HousekeepingDeskProps
   return (
     <div className="space-y-5">
       <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-        <p className="text-sm font-medium text-slate-800">Rooms waiting to be cleaned</p>
-        <p className="mt-1 text-sm text-slate-500">
-          When finished, tap <strong>Mark vacant — ready for guests</strong>. Front desk will see
-          the room as vacant on the dashboard and can assign new guests.
-        </p>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <p className="text-sm font-medium text-slate-800">Rooms waiting to be cleaned</p>
+            <p className="mt-1 text-sm text-slate-500">
+              Keep this page open on the housekeeping phone. It refreshes every 15 seconds and can
+              play a sound when front desk checks out a room.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => void enableSoundAlerts()}
+            className={cn(
+              "inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium",
+              soundEnabled
+                ? "bg-room-vacant text-white"
+                : "border border-room-cleaning/30 bg-room-cleaning/10 text-room-cleaning",
+            )}
+          >
+            {soundEnabled ? <Bell className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+            {soundEnabled ? "Sound alerts on" : "Enable sound alerts"}
+          </button>
+        </div>
       </div>
+
+      {alertMessage && (
+        <p className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900">
+          {alertMessage}
+        </p>
+      )}
 
       {error && (
         <p className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-room-dirty">
