@@ -13,7 +13,7 @@ type ReportsGeneratorProps = {
 
 const REPORT_TYPES: { value: ReportType; label: string }[] = [
   { value: "DAILY_SALES", label: "Daily Sales Report" },
-  { value: "STAFF_TRANSACTIONS", label: "Front Desk Staff Transactions" },
+  { value: "STAFF_TRANSACTIONS", label: "Staff Transactions" },
   { value: "WEEKLY_SUMMARY", label: "Weekly Owner Summary" },
   { value: "OCCUPANCY", label: "Occupancy Report" },
   { value: "REVENUE_SUMMARY", label: "Revenue Summary" },
@@ -111,7 +111,7 @@ export function ReportsGenerator({ defaultFrom, defaultTo }: ReportsGeneratorPro
         </label>
         {type === "STAFF_TRANSACTIONS" && (
           <label className="text-sm">
-            <span className="mb-1 block text-slate-500">Front desk staff</span>
+            <span className="mb-1 block text-slate-500">Staff account</span>
             <select
               value={staffId}
               onChange={(e) => setStaffId(e.target.value)}

@@ -35,7 +35,7 @@ const REPORT_LABELS: Record<ReportType, string> = {
   OCCUPANCY: "Occupancy Report",
   REVENUE_SUMMARY: "Revenue Summary",
   WEEKLY_SUMMARY: "Weekly Owner Summary",
-  STAFF_TRANSACTIONS: "Front Desk Staff Transactions",
+  STAFF_TRANSACTIONS: "Staff Transactions",
 };
 
 export type ReportStaffOption = {
@@ -135,7 +135,7 @@ export async function getReportStaffOptions(): Promise<ReportStaffOption[]> {
   return prisma.employee.findMany({
     where: {
       status: "ACTIVE",
-      role: { in: ["FRONT_DESK", "ADMINISTRATOR"] },
+      role: { in: ["FRONT_DESK", "SECURITY", "ADMINISTRATOR"] },
     },
     orderBy: [{ role: "asc" }, { name: "asc" }],
     select: { id: true, name: true, role: true },
