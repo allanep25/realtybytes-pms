@@ -61,6 +61,29 @@ Web-based HMS for **Amar Residence**, scaffolded from the SunnyView-style dashbo
 
 Set `SEED_ADMIN_PASSWORD` in `.env` before running `npm run db:seed` or `npm run db:reset`.
 
+## Demo database seed
+
+For presentations, use a **separate demo PostgreSQL database** and run:
+
+```bash
+npm run db:push
+npm run db:demo-seed -- --confirm
+```
+
+The demo seed intentionally resets the connected database, so do not run it against production.
+It creates rooms, demo staff accounts, guests, reservations, payments, expenses, and
+housekeeping examples.
+
+All demo accounts use password `demo1234` unless `DEMO_PASSWORD` is set:
+
+| Role | Email |
+|------|-------|
+| Administrator | `demo.admin@amar.test` |
+| Front Desk | `demo.frontdesk@amar.test` |
+| Front Desk | `demo.frontdesk2@amar.test` |
+| Security / Guard | `demo.guard@amar.test` |
+| Housekeeping | `demo.housekeeping@amar.test` |
+
 ## Getting started
 
 ### 1. Install dependencies
