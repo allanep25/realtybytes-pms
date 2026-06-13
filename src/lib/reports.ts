@@ -1,15 +1,18 @@
 import { PAYMENT_METHOD_OPTIONS, RESERVATION_STATUS_LABELS } from "@/lib/constants";
 import { prisma } from "@/lib/db";
 import { addDays, daysBetween, startOfDay } from "@/lib/dates";
+import { getExpenseRowsForPeriod } from "@/lib/expenses";
+import { normalizePaymentMethod } from "@/lib/payment-method";
 import { formatStaffTrail, mapStaffAttribution } from "@/lib/staff-attribution";
-import type { EmployeeRole, ReservationStatus } from "@prisma/client";
+import type { EmployeeRole, PaymentMethod, ReservationStatus } from "@prisma/client";
 
 export type ReportType =
   | "DAILY_SALES"
   | "OCCUPANCY"
   | "REVENUE_SUMMARY"
   | "WEEKLY_SUMMARY"
-  | "STAFF_TRANSACTIONS";
+  | "STAFF_TRANSACTIONS"
+  | "EXPENSES";
 
 export type ReportSummary = {
   type: ReportType;
@@ -36,6 +39,7 @@ const REPORT_LABELS: Record<ReportType, string> = {
   REVENUE_SUMMARY: "Revenue Summary",
   WEEKLY_SUMMARY: "Weekly Owner Summary",
   STAFF_TRANSACTIONS: "Staff Transactions",
+  EXPENSES: "Expenses Report",
 };
 
 export type ReportStaffOption = {
@@ -102,6 +106,10 @@ async function getGuestStaysInRange(from: Date, toExclusive: Date) {
           paid: true,
           paidAt: true,
           paymentMethod: true,
+          payments: {
+            select: { method: true, amount: true },
+            orderBy: { paidAt: "asc" },
+          },
         },
       },
       encodedBy: { select: { name: true, role: true } },
@@ -146,10 +154,12 @@ async function getStaffTransactionPayments(
   from: Date,
   toExclusive: Date,
   staffId?: string | null,
+  method?: PaymentMethod | null,
 ) {
   return prisma.folioPayment.findMany({
     where: {
       paidAt: { gte: from, lt: toExclusive },
+      ...(method ? { method } : {}),
       ...(staffId
         ? {
             OR: [
@@ -233,6 +243,30 @@ function buildStaffTransactionRows(
   });
 }
 
+type StayWithFolio = Awaited<ReturnType<typeof getGuestStaysInRange>>[number];
+
+function stayPaymentsWithAmount(res: StayWithFolio) {
+  return res.folio?.payments?.filter((payment) => Number(payment.amount) > 0) ?? [];
+}
+
+function stayMatchesPaymentMethod(res: StayWithFolio, method: PaymentMethod): boolean {
+  const payments = stayPaymentsWithAmount(res);
+  if (payments.length > 0) return payments.some((payment) => payment.method === method);
+  return Number(res.folio?.paid ?? 0) > 0 && res.folio?.paymentMethod === method;
+}
+
+function stayCollectedForMethod(res: StayWithFolio, method: PaymentMethod): number {
+  const payments = stayPaymentsWithAmount(res);
+  if (payments.length > 0) {
+    return payments
+      .filter((payment) => payment.method === method)
+      .reduce((sum, payment) => sum + Number(payment.amount), 0);
+  }
+  return Number(res.folio?.paid ?? 0) > 0 && res.folio?.paymentMethod === method
+    ? Number(res.folio?.paid ?? 0)
+    : 0;
+}
+
 function buildStayRows(stays: Awaited<ReturnType<typeof getGuestStaysInRange>>): ReportRow[] {
   return stays.map((res) => {
     const baseRate = Number(res.room.baseRate);
@@ -251,7 +285,21 @@ function buildStayRows(stays: Awaited<ReturnType<typeof getGuestStaysInRange>>):
       mapStaffAttribution(res.checkedInBy),
       mapStaffAttribution(res.checkedOutBy),
     );
-    const stayInfo = `${formatReportDate(res.checkIn)} – ${formatReportDate(res.checkOut)} · ${statusLabel} · Paid ${formatMoney(paid)} · Balance ${formatMoney(balance)}`;
+    const paymentMethods = res.folio?.payments
+      ?.filter((payment) => Number(payment.amount) > 0)
+      .map((payment) => payment.method) ?? [];
+    const distinctMethods = [...new Set(paymentMethods)];
+    const methodSource =
+      distinctMethods.length > 0
+        ? distinctMethods
+        : res.folio?.paymentMethod
+          ? [res.folio.paymentMethod]
+          : [];
+    const methodLabel =
+      paid > 0 && methodSource.length > 0
+        ? methodSource.map(paymentMethodLabel).join(", ")
+        : null;
+    const stayInfo = `${formatReportDate(res.checkIn)} – ${formatReportDate(res.checkOut)} · ${statusLabel} · Paid ${formatMoney(paid)}${methodLabel ? ` (${methodLabel})` : ""} · Balance ${formatMoney(balance)}`;
 
     return {
       label: `${res.folio?.folioNumber ?? "Stay"} — ${res.guest.fullName} (Rm ${res.room.number})`,
@@ -261,9 +309,12 @@ function buildStayRows(stays: Awaited<ReturnType<typeof getGuestStaysInRange>>):
   });
 }
 
-async function computeOccupancyAndAdr(from: Date, toExclusive: Date, roomCount: number) {
-  const stays = await getGuestStaysInRange(from, toExclusive);
-
+function occupancyAndAdrFromStays(
+  stays: Awaited<ReturnType<typeof getGuestStaysInRange>>,
+  from: Date,
+  toExclusive: Date,
+  roomCount: number,
+) {
   const rangeDays = Math.max(1, daysBetween(from, addDays(toExclusive, -1)));
   const availableRoomNights = roomCount * rangeDays;
   let occupiedRoomNights = 0;
@@ -287,14 +338,57 @@ async function computeOccupancyAndAdr(from: Date, toExclusive: Date, roomCount: 
   return { occupancyRate, adr, occupiedRoomNights, roomRevenue };
 }
 
+async function computeOccupancyAndAdr(from: Date, toExclusive: Date, roomCount: number) {
+  const stays = await getGuestStaysInRange(from, toExclusive);
+  return occupancyAndAdrFromStays(stays, from, toExclusive, roomCount);
+}
+
+function buildExpenseRows(
+  expenses: Awaited<ReturnType<typeof getExpenseRowsForPeriod>>,
+): ReportRow[] {
+  return expenses.map((expense) => {
+    const details = [
+      expense.businessDate,
+      paymentMethodLabel(expense.method),
+      ...(expense.vendor ? [expense.vendor] : []),
+      `Recorded by ${expense.recordedByName}`,
+    ];
+    return {
+      label: `${expense.categoryLabel} — ${expense.description}`,
+      value: details.join(" · "),
+      amount: expense.amount,
+    };
+  });
+}
+
 export async function generateReport(
   type: ReportType,
   fromStr: string,
   toStr: string,
-  options: { staffId?: string | null } = {},
+  options: { staffId?: string | null; paymentMethod?: string | null } = {},
 ): Promise<ReportSummary> {
-  const { from, to, toExclusive } = parseRange(fromStr, toStr);
+  const { from, to } = parseRange(fromStr, toStr);
+  const paymentFilter = normalizePaymentMethod(options.paymentMethod);
 
+  if (type === "EXPENSES") {
+    const expenses = await getExpenseRowsForPeriod(fromStr.slice(0, 10), toStr.slice(0, 10));
+    const total = expenses.reduce((sum, expense) => sum + expense.amount, 0);
+
+    return {
+      type,
+      label: REPORT_LABELS[type],
+      from: from.toISOString(),
+      to: to.toISOString(),
+      totalRevenue: total,
+      totalCollected: total,
+      totalTransactions: expenses.length,
+      occupancyRate: 0,
+      adr: 0,
+      rows: buildExpenseRows(expenses),
+    };
+  }
+
+  const toExclusive = addDays(to, 1);
   const roomCount = await prisma.room.count();
   const [stays, collectedPayments, metrics] = await Promise.all([
     getGuestStaysInRange(from, toExclusive),
@@ -320,7 +414,12 @@ export async function generateReport(
   const stayRows = buildStayRows(stays);
 
   if (type === "STAFF_TRANSACTIONS") {
-    const payments = await getStaffTransactionPayments(from, toExclusive, options.staffId);
+    const payments = await getStaffTransactionPayments(
+      from,
+      toExclusive,
+      options.staffId,
+      paymentFilter,
+    );
     const rows = buildStaffTransactionRows(payments);
     const collected = payments.reduce((sum, payment) => sum + Number(payment.amount), 0);
 
@@ -439,17 +538,41 @@ export async function generateReport(
     };
   }
 
+  const displayStays = paymentFilter
+    ? stays.filter((res) => stayMatchesPaymentMethod(res, paymentFilter))
+    : stays;
+  const displayRows = paymentFilter ? buildStayRows(displayStays) : stayRows;
+  const displayRevenue = paymentFilter
+    ? displayStays.reduce(
+        (sum, res) =>
+          sum +
+          estimateStayTotal(
+            res.checkIn,
+            res.checkOut,
+            Number(res.room.baseRate),
+            res.folio ? Number(res.folio.total) : null,
+          ),
+        0,
+      )
+    : totalRevenue;
+  const displayCollected = paymentFilter
+    ? displayStays.reduce((sum, res) => sum + stayCollectedForMethod(res, paymentFilter), 0)
+    : totalCollected;
+  const displayMetrics = paymentFilter
+    ? occupancyAndAdrFromStays(displayStays, from, toExclusive, roomCount)
+    : { occupancyRate, adr };
+
   return {
     type,
     label: REPORT_LABELS[type],
     from: from.toISOString(),
     to: to.toISOString(),
-    totalRevenue,
-    totalCollected,
-    totalTransactions,
-    occupancyRate,
-    adr,
-    rows: stayRows,
+    totalRevenue: displayRevenue,
+    totalCollected: displayCollected,
+    totalTransactions: displayStays.length,
+    occupancyRate: displayMetrics.occupancyRate,
+    adr: displayMetrics.adr,
+    rows: displayRows,
   };
 }
 
