@@ -130,9 +130,16 @@ export function ReportsGenerator({ defaultFrom, defaultTo }: ReportsGeneratorPro
 
   function exportKeycardCsv() {
     if (!keycardResult) return;
-    const header = ["Room", "Detail", "Status"];
+    const header = ["Room No.", "Check-in", "Departure", "Status", "Guest", "Notes"];
     const lines = keycardResult.rows.map((row) =>
-      [row.label, row.detail, KEYCARD_STATUS_LABELS[row.status]]
+      [
+        row.room,
+        row.checkIn,
+        row.departure,
+        KEYCARD_STATUS_LABELS[row.status],
+        row.guest,
+        row.note,
+      ]
         .map((cell) => `"${String(cell).replace(/"/g, '""')}"`)
         .join(","),
     );
@@ -310,23 +317,27 @@ export function ReportsGenerator({ defaultFrom, defaultTo }: ReportsGeneratorPro
             <table className="w-full text-sm">
               <thead className="bg-slate-50 text-left text-xs font-medium uppercase text-slate-500">
                 <tr>
-                  <th className="px-4 py-3">Card / Booking</th>
-                  <th className="px-4 py-3">Detail</th>
+                  <th className="px-4 py-3">Room No.</th>
+                  <th className="px-4 py-3">Check-in</th>
+                  <th className="px-4 py-3">Departure</th>
                   <th className="px-4 py-3">Status</th>
+                  <th className="px-4 py-3">Guest</th>
+                  <th className="px-4 py-3">Notes</th>
                 </tr>
               </thead>
               <tbody>
                 {keycardResult.rows.length === 0 ? (
                   <tr>
-                    <td colSpan={3} className="px-4 py-8 text-center text-slate-400">
+                    <td colSpan={6} className="px-4 py-8 text-center text-slate-400">
                       No keycard rows or bookings found for this date range.
                     </td>
                   </tr>
                 ) : (
                   keycardResult.rows.map((row, i) => (
                     <tr key={i} className="border-t border-slate-50">
-                      <td className="px-4 py-2.5">{row.label}</td>
-                      <td className="px-4 py-2.5 text-slate-500">{row.detail}</td>
+                      <td className="px-4 py-2.5 font-medium">{row.room}</td>
+                      <td className="px-4 py-2.5 text-slate-500">{row.checkIn || "—"}</td>
+                      <td className="px-4 py-2.5 text-slate-500">{row.departure || "—"}</td>
                       <td className="px-4 py-2.5">
                         <span
                           className={cn(
@@ -337,6 +348,8 @@ export function ReportsGenerator({ defaultFrom, defaultTo }: ReportsGeneratorPro
                           {KEYCARD_STATUS_LABELS[row.status]}
                         </span>
                       </td>
+                      <td className="px-4 py-2.5 text-slate-500">{row.guest || "—"}</td>
+                      <td className="px-4 py-2.5 text-slate-500">{row.note}</td>
                     </tr>
                   ))
                 )}

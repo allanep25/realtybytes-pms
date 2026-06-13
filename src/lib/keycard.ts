@@ -13,8 +13,10 @@ export type KeycardEntry = {
 
 export type KeycardReconRow = {
   room: string;
-  label: string;
-  detail: string;
+  checkIn: string;
+  departure: string;
+  guest: string;
+  note: string;
   status: KeycardRowStatus;
 };
 
@@ -190,10 +192,6 @@ export async function reconcileKeycards(
   for (const entry of entries) {
     const issuedKey = entry.issuedKey ?? entry.expiresKey ?? "";
     const expiresKey = entry.expiresKey ?? entry.issuedKey ?? issuedKey;
-    const period =
-      issuedKey && expiresKey && issuedKey !== expiresKey
-        ? `${issuedKey} → ${expiresKey}`
-        : issuedKey || expiresKey || "no dates";
 
     const hit = reservationViews.find(
       (res) =>
@@ -207,18 +205,20 @@ export async function reconcileKeycards(
       matched += 1;
       rows.push({
         room: entry.room,
-        label: `Rm ${entry.room} — card ${period}`,
-        detail: `Matched booking: ${hit.guest} (${hit.startKey} → ${hit.endKey})`,
+        checkIn: issuedKey,
+        departure: expiresKey,
+        guest: hit.guest,
+        note: `Matched booking ${hit.startKey} → ${hit.endKey}`,
         status: "MATCHED",
       });
     } else {
       keycardNoBooking += 1;
       rows.push({
         room: entry.room,
-        label: `Rm ${entry.room} — card ${period}`,
-        detail: entry.guest
-          ? `No PMS booking found · keycard guest: ${entry.guest}`
-          : "No PMS booking found for this room/date",
+        checkIn: issuedKey,
+        departure: expiresKey,
+        guest: entry.guest ?? "",
+        note: "No PMS booking found for this room/date",
         status: "KEYCARD_NO_BOOKING",
       });
     }
@@ -230,21 +230,16 @@ export async function reconcileKeycards(
     bookingNoKeycard += 1;
     rows.push({
       room: res.room,
-      label: `Rm ${res.room} — booking ${res.startKey} → ${res.endKey}`,
-      detail: `Recorded stay: ${res.guest} · no matching keycard issued`,
+      checkIn: res.startKey,
+      departure: res.endKey,
+      guest: res.guest,
+      note: "Recorded stay · no matching keycard issued",
       status: "BOOKING_NO_KEYCARD",
     });
   }
 
-  const statusOrder: Record<KeycardRowStatus, number> = {
-    KEYCARD_NO_BOOKING: 0,
-    BOOKING_NO_KEYCARD: 1,
-    MATCHED: 2,
-  };
   rows.sort((a, b) => {
-    if (statusOrder[a.status] !== statusOrder[b.status]) {
-      return statusOrder[a.status] - statusOrder[b.status];
-    }
+    if (a.checkIn !== b.checkIn) return a.checkIn.localeCompare(b.checkIn);
     return a.room.localeCompare(b.room, undefined, { numeric: true });
   });
 
