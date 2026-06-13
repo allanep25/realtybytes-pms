@@ -105,6 +105,10 @@ async function getGuestStaysInRange(from: Date, toExclusive: Date) {
           paid: true,
           paidAt: true,
           paymentMethod: true,
+          payments: {
+            select: { method: true, amount: true },
+            orderBy: { paidAt: "asc" },
+          },
         },
       },
       encodedBy: { select: { name: true, role: true } },
@@ -254,9 +258,20 @@ function buildStayRows(stays: Awaited<ReturnType<typeof getGuestStaysInRange>>):
       mapStaffAttribution(res.checkedInBy),
       mapStaffAttribution(res.checkedOutBy),
     );
-    const methodLabel = paid > 0 && res.folio?.paymentMethod
-      ? paymentMethodLabel(res.folio.paymentMethod)
-      : null;
+    const paymentMethods = res.folio?.payments
+      ?.filter((payment) => Number(payment.amount) > 0)
+      .map((payment) => payment.method) ?? [];
+    const distinctMethods = [...new Set(paymentMethods)];
+    const methodSource =
+      distinctMethods.length > 0
+        ? distinctMethods
+        : res.folio?.paymentMethod
+          ? [res.folio.paymentMethod]
+          : [];
+    const methodLabel =
+      paid > 0 && methodSource.length > 0
+        ? methodSource.map(paymentMethodLabel).join(", ")
+        : null;
     const stayInfo = `${formatReportDate(res.checkIn)} – ${formatReportDate(res.checkOut)} · ${statusLabel} · Paid ${formatMoney(paid)}${methodLabel ? ` (${methodLabel})` : ""} · Balance ${formatMoney(balance)}`;
 
     return {
