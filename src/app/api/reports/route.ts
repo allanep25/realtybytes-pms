@@ -7,6 +7,7 @@ export async function GET(request: Request) {
   const from = searchParams.get("from");
   const to = searchParams.get("to");
   const staffId = searchParams.get("staffId");
+  const paymentMethod = searchParams.get("paymentMethod");
 
   if (!from || !to) {
     return NextResponse.json(
@@ -16,7 +17,7 @@ export async function GET(request: Request) {
   }
 
   try {
-    const report = await generateReport(type, from, to, { staffId });
+    const report = await generateReport(type, from, to, { staffId, paymentMethod });
     return NextResponse.json(report);
   } catch (e) {
     const message = e instanceof Error ? e.message : "Failed to generate report";

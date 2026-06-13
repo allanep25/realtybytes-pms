@@ -1,5 +1,6 @@
 "use client";
 
+import { PAYMENT_METHOD_OPTIONS } from "@/lib/constants";
 import { formatPHP } from "@/lib/format";
 import type { ReportSummary, ReportType } from "@/lib/reports";
 import { cn } from "@/lib/utils";
@@ -10,6 +11,8 @@ type ReportsGeneratorProps = {
   defaultFrom: string;
   defaultTo: string;
 };
+
+const PAYMENT_METHOD_FILTER_TYPES: ReportType[] = ["DAILY_SALES", "STAFF_TRANSACTIONS"];
 
 const REPORT_TYPES: { value: ReportType; label: string }[] = [
   { value: "DAILY_SALES", label: "Daily Sales Report" },
@@ -31,7 +34,10 @@ export function ReportsGenerator({ defaultFrom, defaultTo }: ReportsGeneratorPro
   const [from, setFrom] = useState(defaultFrom);
   const [to, setTo] = useState(defaultTo);
   const [staffId, setStaffId] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState("");
   const [staffOptions, setStaffOptions] = useState<StaffOption[]>([]);
+
+  const supportsPaymentFilter = PAYMENT_METHOD_FILTER_TYPES.includes(type);
   const [report, setReport] = useState<ReportSummary | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -43,6 +49,9 @@ export function ReportsGenerator({ defaultFrom, defaultTo }: ReportsGeneratorPro
       const params = new URLSearchParams({ type, from, to });
       if (type === "STAFF_TRANSACTIONS" && staffId) {
         params.set("staffId", staffId);
+      }
+      if (PAYMENT_METHOD_FILTER_TYPES.includes(type) && paymentMethod) {
+        params.set("paymentMethod", paymentMethod);
       }
       const res = await fetch(`/api/reports?${params}`);
       const data = await res.json();
@@ -57,7 +66,7 @@ export function ReportsGenerator({ defaultFrom, defaultTo }: ReportsGeneratorPro
     } finally {
       setLoading(false);
     }
-  }, [type, from, to, staffId]);
+  }, [type, from, to, staffId, paymentMethod]);
 
   useEffect(() => {
     void generate();
@@ -75,6 +84,9 @@ export function ReportsGenerator({ defaultFrom, defaultTo }: ReportsGeneratorPro
     if (type === "STAFF_TRANSACTIONS" && staffId) {
       params.set("staffId", staffId);
     }
+    if (PAYMENT_METHOD_FILTER_TYPES.includes(type) && paymentMethod) {
+      params.set("paymentMethod", paymentMethod);
+    }
     window.open(`/api/reports/export?${params}`, "_blank");
   }
 
@@ -83,6 +95,9 @@ export function ReportsGenerator({ defaultFrom, defaultTo }: ReportsGeneratorPro
     const params = new URLSearchParams({ type, from, to, format: "html" });
     if (type === "STAFF_TRANSACTIONS" && staffId) {
       params.set("staffId", staffId);
+    }
+    if (PAYMENT_METHOD_FILTER_TYPES.includes(type) && paymentMethod) {
+      params.set("paymentMethod", paymentMethod);
     }
     const w = window.open(`/api/reports/export?${params}`, "_blank");
     w?.addEventListener("load", () => w.print());
@@ -123,6 +138,23 @@ export function ReportsGenerator({ defaultFrom, defaultTo }: ReportsGeneratorPro
               {staffOptions.map((staff) => (
                 <option key={staff.id} value={staff.id}>
                   {staff.name} — {staff.role.replace("_", " ")}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+        {supportsPaymentFilter && (
+          <label className="text-sm">
+            <span className="mb-1 block text-slate-500">Mode of payment</span>
+            <select
+              value={paymentMethod}
+              onChange={(e) => setPaymentMethod(e.target.value)}
+              className="rounded-lg border border-slate-200 px-3 py-2 text-sm min-w-[180px]"
+            >
+              <option value="">All methods</option>
+              {PAYMENT_METHOD_OPTIONS.map((method) => (
+                <option key={method.value} value={method.value}>
+                  {method.label}
                 </option>
               ))}
             </select>
