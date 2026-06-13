@@ -1,6 +1,7 @@
 import { PAYMENT_METHOD_OPTIONS, RESERVATION_STATUS_LABELS } from "@/lib/constants";
 import { prisma } from "@/lib/db";
 import { addDays, daysBetween, startOfDay } from "@/lib/dates";
+import { getExpenseRowsForPeriod } from "@/lib/expenses";
 import { formatStaffTrail, mapStaffAttribution } from "@/lib/staff-attribution";
 import type { EmployeeRole, ReservationStatus } from "@prisma/client";
 
@@ -9,7 +10,8 @@ export type ReportType =
   | "OCCUPANCY"
   | "REVENUE_SUMMARY"
   | "WEEKLY_SUMMARY"
-  | "STAFF_TRANSACTIONS";
+  | "STAFF_TRANSACTIONS"
+  | "EXPENSES";
 
 export type ReportSummary = {
   type: ReportType;
@@ -36,6 +38,7 @@ const REPORT_LABELS: Record<ReportType, string> = {
   REVENUE_SUMMARY: "Revenue Summary",
   WEEKLY_SUMMARY: "Weekly Owner Summary",
   STAFF_TRANSACTIONS: "Staff Transactions",
+  EXPENSES: "Expenses Report",
 };
 
 export type ReportStaffOption = {
@@ -251,7 +254,10 @@ function buildStayRows(stays: Awaited<ReturnType<typeof getGuestStaysInRange>>):
       mapStaffAttribution(res.checkedInBy),
       mapStaffAttribution(res.checkedOutBy),
     );
-    const stayInfo = `${formatReportDate(res.checkIn)} – ${formatReportDate(res.checkOut)} · ${statusLabel} · Paid ${formatMoney(paid)} · Balance ${formatMoney(balance)}`;
+    const methodLabel = paid > 0 && res.folio?.paymentMethod
+      ? paymentMethodLabel(res.folio.paymentMethod)
+      : null;
+    const stayInfo = `${formatReportDate(res.checkIn)} – ${formatReportDate(res.checkOut)} · ${statusLabel} · Paid ${formatMoney(paid)}${methodLabel ? ` (${methodLabel})` : ""} · Balance ${formatMoney(balance)}`;
 
     return {
       label: `${res.folio?.folioNumber ?? "Stay"} — ${res.guest.fullName} (Rm ${res.room.number})`,
@@ -287,14 +293,51 @@ async function computeOccupancyAndAdr(from: Date, toExclusive: Date, roomCount: 
   return { occupancyRate, adr, occupiedRoomNights, roomRevenue };
 }
 
+function buildExpenseRows(
+  expenses: Awaited<ReturnType<typeof getExpenseRowsForPeriod>>,
+): ReportRow[] {
+  return expenses.map((expense) => {
+    const details = [
+      expense.businessDate,
+      paymentMethodLabel(expense.method),
+      ...(expense.vendor ? [expense.vendor] : []),
+      `Recorded by ${expense.recordedByName}`,
+    ];
+    return {
+      label: `${expense.categoryLabel} — ${expense.description}`,
+      value: details.join(" · "),
+      amount: expense.amount,
+    };
+  });
+}
+
 export async function generateReport(
   type: ReportType,
   fromStr: string,
   toStr: string,
   options: { staffId?: string | null } = {},
 ): Promise<ReportSummary> {
-  const { from, to, toExclusive } = parseRange(fromStr, toStr);
+  const { from, to } = parseRange(fromStr, toStr);
 
+  if (type === "EXPENSES") {
+    const expenses = await getExpenseRowsForPeriod(fromStr.slice(0, 10), toStr.slice(0, 10));
+    const total = expenses.reduce((sum, expense) => sum + expense.amount, 0);
+
+    return {
+      type,
+      label: REPORT_LABELS[type],
+      from: from.toISOString(),
+      to: to.toISOString(),
+      totalRevenue: total,
+      totalCollected: total,
+      totalTransactions: expenses.length,
+      occupancyRate: 0,
+      adr: 0,
+      rows: buildExpenseRows(expenses),
+    };
+  }
+
+  const toExclusive = addDays(to, 1);
   const roomCount = await prisma.room.count();
   const [stays, collectedPayments, metrics] = await Promise.all([
     getGuestStaysInRange(from, toExclusive),

@@ -7,11 +7,18 @@ export function reportToCsv(report: ReportSummary): string {
     `Period,${report.from.slice(0, 10)} to ${report.to.slice(0, 10)}`,
     "",
     "Metric,Value",
-    `Room Revenue,${report.totalRevenue.toFixed(2)}`,
-    `Collected,${report.totalCollected.toFixed(2)}`,
-    `Guest Stays,${report.totalTransactions}`,
-    `Occupancy Rate,${report.occupancyRate.toFixed(2)}%`,
-    `ADR,${report.adr.toFixed(2)}`,
+    ...(report.type === "EXPENSES"
+      ? [
+          `Total Expenses,${report.totalRevenue.toFixed(2)}`,
+          `Expense Entries,${report.totalTransactions}`,
+        ]
+      : [
+          `Room Revenue,${report.totalRevenue.toFixed(2)}`,
+          `Collected,${report.totalCollected.toFixed(2)}`,
+          `Guest Stays,${report.totalTransactions}`,
+          `Occupancy Rate,${report.occupancyRate.toFixed(2)}%`,
+          `ADR,${report.adr.toFixed(2)}`,
+        ]),
     "",
     "Detail,Date,Amount",
   ];
@@ -36,6 +43,16 @@ export function reportToHtml(report: ReportSummary): string {
     )
     .join("");
 
+  const statCards =
+    report.type === "EXPENSES"
+      ? `<div class="stat"><label>Total Expenses</label><value>${escapeHtml(formatPHP(report.totalRevenue))}</value></div>
+    <div class="stat"><label>Expense Entries</label><value>${report.totalTransactions}</value></div>`
+      : `<div class="stat"><label>Room Revenue</label><value>${escapeHtml(formatPHP(report.totalRevenue))}</value></div>
+    <div class="stat"><label>Collected</label><value>${escapeHtml(formatPHP(report.totalCollected))}</value></div>
+    <div class="stat"><label>Guest Stays</label><value>${report.totalTransactions}</value></div>
+    <div class="stat"><label>Occupancy Rate</label><value>${report.occupancyRate.toFixed(2)}%</value></div>
+    <div class="stat"><label>ADR</label><value>${escapeHtml(formatPHP(report.adr))}</value></div>`;
+
   return `<!DOCTYPE html>
 <html>
 <head>
@@ -58,11 +75,7 @@ export function reportToHtml(report: ReportSummary): string {
   <h1>Amar Residence — ${escapeHtml(report.label)}</h1>
   <p class="meta">Period: ${from} to ${to} · Generated ${new Date().toLocaleString("en-PH")}</p>
   <div class="stats">
-    <div class="stat"><label>Room Revenue</label><value>${escapeHtml(formatPHP(report.totalRevenue))}</value></div>
-    <div class="stat"><label>Collected</label><value>${escapeHtml(formatPHP(report.totalCollected))}</value></div>
-    <div class="stat"><label>Guest Stays</label><value>${report.totalTransactions}</value></div>
-    <div class="stat"><label>Occupancy Rate</label><value>${report.occupancyRate.toFixed(2)}%</value></div>
-    <div class="stat"><label>ADR</label><value>${escapeHtml(formatPHP(report.adr))}</value></div>
+    ${statCards}
   </div>
   <table>
     <thead><tr><th>Detail</th><th>Info</th><th style="text-align:right">Amount</th></tr></thead>

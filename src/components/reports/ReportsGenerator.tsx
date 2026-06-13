@@ -14,6 +14,7 @@ type ReportsGeneratorProps = {
 const REPORT_TYPES: { value: ReportType; label: string }[] = [
   { value: "DAILY_SALES", label: "Daily Sales Report" },
   { value: "STAFF_TRANSACTIONS", label: "Staff Transactions" },
+  { value: "EXPENSES", label: "Expenses Report" },
   { value: "WEEKLY_SUMMARY", label: "Weekly Owner Summary" },
   { value: "OCCUPANCY", label: "Occupancy Report" },
   { value: "REVENUE_SUMMARY", label: "Revenue Summary" },
@@ -90,9 +91,10 @@ export function ReportsGenerator({ defaultFrom, defaultTo }: ReportsGeneratorPro
   return (
     <div className="space-y-6">
       <p className="text-sm text-slate-600">
-        Daily Sales lists every guest stay in the date range with room charges, paid amount, and
-        balance. Collected shows payments actually received — record payments in Billing or at
-        check-out.
+        Daily Sales lists every guest stay in the date range with room charges, paid amount (and
+        mode of payment), and balance. The Expenses Report lists all expenses recorded in the
+        selected date range. Collected shows payments actually received — record payments in
+        Billing or at check-out.
       </p>
       <div className="flex flex-wrap items-end gap-3 rounded-xl border border-slate-200 bg-card p-4 shadow-sm">
         <label className="text-sm">
@@ -167,6 +169,11 @@ export function ReportsGenerator({ defaultFrom, defaultTo }: ReportsGeneratorPro
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <StatCard label="Transactions" value={String(report.totalTransactions)} />
               <StatCard label="Collected by selected staff" value={formatPHP(report.totalCollected)} />
+            </div>
+          ) : report.type === "EXPENSES" ? (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <StatCard label="Total Expenses" value={formatPHP(report.totalRevenue)} />
+              <StatCard label="Expense Entries" value={String(report.totalTransactions)} />
             </div>
           ) : (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
