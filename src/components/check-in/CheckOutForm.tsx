@@ -1,5 +1,6 @@
 "use client";
 
+import { AdditionalChargesModal } from "@/components/check-in/AdditionalChargesModal";
 import { PAYMENT_METHOD_OPTIONS } from "@/lib/constants";
 import { formatDate, formatPHP } from "@/lib/format";
 import type { ActiveStay } from "@/lib/check-in-out";
@@ -12,12 +13,18 @@ type CheckOutFormProps = {
   activeStays: ActiveStay[];
 };
 
+function methodLabel(value: string): string {
+  return PAYMENT_METHOD_OPTIONS.find((m) => m.value === value)?.label ?? value;
+}
+
 export function CheckOutForm({ activeStays }: CheckOutFormProps) {
   const router = useRouter();
   const [selectedId, setSelectedId] = useState(activeStays[0]?.reservationId ?? "");
   const [paymentMethod, setPaymentMethod] = useState("CASH");
+  const [paymentAmount, setPaymentAmount] = useState("");
   const [recordingPayment, setRecordingPayment] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [chargesOpen, setChargesOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
@@ -28,6 +35,12 @@ export function CheckOutForm({ activeStays }: CheckOutFormProps) {
     e.preventDefault();
     if (!stay?.folioId || stay.balanceDue <= 0) return;
 
+    const amount = paymentAmount.trim() === "" ? stay.balanceDue : Number(paymentAmount);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      setError("Enter a payment amount greater than 0.");
+      return;
+    }
+
     setRecordingPayment(true);
     setError(null);
     setSuccess(null);
@@ -37,7 +50,7 @@ export function CheckOutForm({ activeStays }: CheckOutFormProps) {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          paymentAmount: stay.balanceDue,
+          paymentAmount: amount,
           paymentMethod,
         }),
       });
@@ -45,7 +58,13 @@ export function CheckOutForm({ activeStays }: CheckOutFormProps) {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Payment failed");
 
-      setSuccess(`Full payment recorded for ${stay.guestName}. Guest is ready to check out.`);
+      const remaining = Math.max(0, stay.balanceDue - amount);
+      setSuccess(
+        remaining <= 0.001
+          ? `Payment recorded. ${stay.guestName} is fully paid and ready to check out.`
+          : `Recorded ${formatPHP(amount)} (${methodLabel(paymentMethod)}). Remaining balance ${formatPHP(remaining)} — record another payment.`,
+      );
+      setPaymentAmount("");
       router.refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Payment failed");
@@ -192,6 +211,20 @@ export function CheckOutForm({ activeStays }: CheckOutFormProps) {
               )}
             </dl>
 
+            {stay.folioId && (
+              <button
+                type="button"
+                onClick={() => {
+                  setError(null);
+                  setSuccess(null);
+                  setChargesOpen(true);
+                }}
+                className="mt-4 w-full rounded-lg border border-room-occupied px-4 py-2 text-sm font-medium text-room-occupied hover:bg-room-occupied/10"
+              >
+                + Add Charges
+              </button>
+            )}
+
             <div className="mt-4 border-t border-slate-100 pt-4">
               <div className="flex justify-between text-sm">
                 <span className="text-slate-500">Total</span>
@@ -212,22 +245,46 @@ export function CheckOutForm({ activeStays }: CheckOutFormProps) {
             {stay.balanceDue > 0 && (
               <form onSubmit={handleRecordPayment} className="mt-4 space-y-3">
                 <p className="text-xs text-slate-500">
-                  Record the full balance before check-out is enabled.
+                  Record one or more payments until the balance is settled (e.g. GCash deposit +
+                  Cash balance). Each is saved with its own method.
                 </p>
-                <label className="block text-sm">
-                  <span className="text-slate-500">Payment method</span>
-                  <select
-                    value={paymentMethod}
-                    onChange={(e) => setPaymentMethod(e.target.value)}
-                    className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2"
+                <div className="grid grid-cols-2 gap-3">
+                  <label className="block text-sm">
+                    <span className="text-slate-500">Payment method</span>
+                    <select
+                      value={paymentMethod}
+                      onChange={(e) => setPaymentMethod(e.target.value)}
+                      className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2"
+                    >
+                      {PAYMENT_METHOD_OPTIONS.map((m) => (
+                        <option key={m.value} value={m.value}>
+                          {m.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="block text-sm">
+                    <span className="text-slate-500">Amount</span>
+                    <input
+                      type="number"
+                      min={0}
+                      step="0.01"
+                      value={paymentAmount}
+                      onChange={(e) => setPaymentAmount(e.target.value)}
+                      placeholder={String(stay.balanceDue)}
+                      className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2"
+                    />
+                  </label>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setPaymentAmount(String(stay.balanceDue))}
+                    className="rounded-lg border border-slate-200 px-3 py-2 text-xs text-slate-600 hover:bg-slate-50"
                   >
-                    {PAYMENT_METHOD_OPTIONS.map((m) => (
-                      <option key={m.value} value={m.value}>
-                        {m.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+                    Full balance ({formatPHP(stay.balanceDue)})
+                  </button>
+                </div>
                 <button
                   type="submit"
                   disabled={recordingPayment || !stay.folioId}
@@ -236,9 +293,7 @@ export function CheckOutForm({ activeStays }: CheckOutFormProps) {
                     "bg-room-vacant hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50",
                   )}
                 >
-                  {recordingPayment
-                    ? "Recording…"
-                    : `Confirm full payment (${formatPHP(stay.balanceDue)})`}
+                  {recordingPayment ? "Recording…" : "Record payment"}
                 </button>
               </form>
             )}
@@ -251,6 +306,19 @@ export function CheckOutForm({ activeStays }: CheckOutFormProps) {
           </section>
         )}
       </div>
+
+      {stay?.folioId && (
+        <AdditionalChargesModal
+          open={chargesOpen}
+          folioId={stay.folioId}
+          guestName={stay.guestName}
+          onClose={() => setChargesOpen(false)}
+          onSuccess={() => {
+            setSuccess(`Additional charges added to ${stay.guestName}'s bill.`);
+            router.refresh();
+          }}
+        />
+      )}
 
       {stay && (
         <form onSubmit={handleCheckOut} className="flex justify-end">
