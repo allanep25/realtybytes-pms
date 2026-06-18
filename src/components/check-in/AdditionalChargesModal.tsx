@@ -23,7 +23,7 @@ type ChargeItem = {
 
 const DEFAULT_ITEMS: ChargeItem[] = [
   { key: "extra-bed", description: "Extra Bed", selected: false, quantity: 1, rate: 500 },
-  { key: "food", description: "Food", selected: false, quantity: 1, rate: 0 },
+  { key: "food", description: "Food and drinks", selected: false, quantity: 1, rate: 0 },
   { key: "late-checkout", description: "Late Checkout", selected: false, quantity: 1, rate: 500 },
 ];
 
