@@ -285,20 +285,27 @@ function buildStayRows(stays: Awaited<ReturnType<typeof getGuestStaysInRange>>):
       mapStaffAttribution(res.checkedInBy),
       mapStaffAttribution(res.checkedOutBy),
     );
-    const paymentMethods = res.folio?.payments
-      ?.filter((payment) => Number(payment.amount) > 0)
-      .map((payment) => payment.method) ?? [];
-    const distinctMethods = [...new Set(paymentMethods)];
-    const methodSource =
-      distinctMethods.length > 0
-        ? distinctMethods
-        : res.folio?.paymentMethod
-          ? [res.folio.paymentMethod]
-          : [];
-    const methodLabel =
-      paid > 0 && methodSource.length > 0
-        ? methodSource.map(paymentMethodLabel).join(", ")
-        : null;
+    const positivePayments =
+      res.folio?.payments?.filter((payment) => Number(payment.amount) > 0) ?? [];
+    const amountByMethod = new Map<string, number>();
+    for (const payment of positivePayments) {
+      amountByMethod.set(
+        payment.method,
+        (amountByMethod.get(payment.method) ?? 0) + Number(payment.amount),
+      );
+    }
+    let methodLabel: string | null = null;
+    if (paid > 0) {
+      if (amountByMethod.size > 1) {
+        methodLabel = [...amountByMethod.entries()]
+          .map(([method, amount]) => `${paymentMethodLabel(method)} ${formatMoney(amount)}`)
+          .join(", ");
+      } else if (amountByMethod.size === 1) {
+        methodLabel = paymentMethodLabel([...amountByMethod.keys()][0]);
+      } else if (res.folio?.paymentMethod) {
+        methodLabel = paymentMethodLabel(res.folio.paymentMethod);
+      }
+    }
     const stayInfo = `${formatReportDate(res.checkIn)} – ${formatReportDate(res.checkOut)} · ${statusLabel} · Paid ${formatMoney(paid)}${methodLabel ? ` (${methodLabel})` : ""} · Balance ${formatMoney(balance)}`;
 
     return {
