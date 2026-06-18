@@ -1,5 +1,6 @@
 "use client";
 
+import { AdditionalChargesModal } from "@/components/check-in/AdditionalChargesModal";
 import { PAYMENT_METHOD_OPTIONS } from "@/lib/constants";
 import { formatDate, formatPHP } from "@/lib/format";
 import type { ActiveStay } from "@/lib/check-in-out";
@@ -18,6 +19,7 @@ export function CheckOutForm({ activeStays }: CheckOutFormProps) {
   const [paymentMethod, setPaymentMethod] = useState("CASH");
   const [recordingPayment, setRecordingPayment] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [chargesOpen, setChargesOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
@@ -192,6 +194,20 @@ export function CheckOutForm({ activeStays }: CheckOutFormProps) {
               )}
             </dl>
 
+            {stay.folioId && (
+              <button
+                type="button"
+                onClick={() => {
+                  setError(null);
+                  setSuccess(null);
+                  setChargesOpen(true);
+                }}
+                className="mt-4 w-full rounded-lg border border-room-occupied px-4 py-2 text-sm font-medium text-room-occupied hover:bg-room-occupied/10"
+              >
+                + Add Charges
+              </button>
+            )}
+
             <div className="mt-4 border-t border-slate-100 pt-4">
               <div className="flex justify-between text-sm">
                 <span className="text-slate-500">Total</span>
@@ -251,6 +267,19 @@ export function CheckOutForm({ activeStays }: CheckOutFormProps) {
           </section>
         )}
       </div>
+
+      {stay?.folioId && (
+        <AdditionalChargesModal
+          open={chargesOpen}
+          folioId={stay.folioId}
+          guestName={stay.guestName}
+          onClose={() => setChargesOpen(false)}
+          onSuccess={() => {
+            setSuccess(`Additional charges added to ${stay.guestName}'s bill.`);
+            router.refresh();
+          }}
+        />
+      )}
 
       {stay && (
         <form onSubmit={handleCheckOut} className="flex justify-end">
