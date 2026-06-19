@@ -425,6 +425,12 @@ export function BillingWorkspace({
                       <dd className="font-medium">− {formatPHP(folio.discount)}</dd>
                     </div>
                   )}
+                  {folio.discount > 0 && folio.discountReason && (
+                    <div className="flex justify-between gap-2 text-xs text-slate-400">
+                      <dt>Discount reason</dt>
+                      <dd className="text-right italic">{folio.discountReason}</dd>
+                    </div>
+                  )}
                   <div className="flex justify-between font-semibold">
                     <dt>Total</dt>
                     <dd>{formatPHP(folio.total)}</dd>

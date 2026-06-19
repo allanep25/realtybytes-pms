@@ -31,9 +31,12 @@ export type FolioDetail = {
   paymentMethod: PaymentMethod | null;
   subtotal: number;
   discount: number;
+  discountReason: string | null;
   total: number;
   paid: number;
   balanceDue: number;
+  ownerReceivedAt: string | null;
+  ownerReceivedByName: string | null;
   lines: FolioLineItem[];
 };
 
@@ -45,6 +48,7 @@ export type AddLineInput = {
 
 export type UpdateFolioInput = {
   discount?: number;
+  discountReason?: string | null;
   paymentMethod?: PaymentMethod;
   paymentAmount?: number;
   recordedById?: string | null;
@@ -73,8 +77,11 @@ function mapFolioDetail(
     paymentMethod: PaymentMethod | null;
     subtotal: unknown;
     discount: unknown;
+    discountReason: string | null;
     total: unknown;
     paid: unknown;
+    ownerReceivedAt: Date | null;
+    ownerReceivedBy?: { name: string } | null;
     lines: { id: string; description: string; quantity: number; rate: unknown; amount: unknown }[];
     reservation: {
       status: string;
@@ -97,9 +104,12 @@ function mapFolioDetail(
     paymentMethod: folio.paymentMethod,
     subtotal,
     discount,
+    discountReason: folio.discountReason,
     total,
     paid,
     balanceDue: Math.max(0, total - paid),
+    ownerReceivedAt: folio.ownerReceivedAt ? folio.ownerReceivedAt.toISOString() : null,
+    ownerReceivedByName: folio.ownerReceivedBy?.name ?? null,
     lines: folio.lines.map((l) => ({
       id: l.id,
       description: l.description,
@@ -112,6 +122,7 @@ function mapFolioDetail(
 
 const folioInclude = {
   lines: { orderBy: { id: "asc" as const } },
+  ownerReceivedBy: { select: { name: true } },
   reservation: {
     include: {
       guest: { select: { fullName: true } },
@@ -228,12 +239,18 @@ export async function updateFolio(folioId: string, input: UpdateFolioInput) {
     const lines = await prisma.folioLine.findMany({ where: { folioId } });
     const subtotal = lines.reduce((s, l) => s + Number(l.amount), 0);
     const discount = Math.max(0, Math.min(input.discount, subtotal));
+    const reason =
+      input.discountReason !== undefined
+        ? input.discountReason?.trim() || null
+        : undefined;
     await prisma.folio.update({
       where: { id: folioId },
       data: {
         discount,
         subtotal,
         total: Math.max(0, subtotal - discount),
+        // Clear the stored reason when the discount is removed.
+        ...(reason !== undefined ? { discountReason: discount > 0 ? reason : null } : {}),
       },
     });
   }
@@ -264,6 +281,24 @@ export async function updateFolio(folioId: string, input: UpdateFolioInput) {
     }
   }
 
+  return getFolioById(folioId);
+}
+
+/**
+ * Records (or clears) the owner/admin's confirmation that the cash collected for
+ * this guest's folio was physically handed over by the front desk.
+ */
+export async function setFolioOwnerReceived(
+  folioId: string,
+  received: boolean,
+  employeeId: string,
+) {
+  await prisma.folio.update({
+    where: { id: folioId },
+    data: received
+      ? { ownerReceivedAt: new Date(), ownerReceivedById: employeeId }
+      : { ownerReceivedAt: null, ownerReceivedById: null },
+  });
   return getFolioById(folioId);
 }
 

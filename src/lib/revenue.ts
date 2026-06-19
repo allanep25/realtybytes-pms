@@ -28,6 +28,9 @@ export type RevenueLedgerEntry = {
   folioNumber: string;
   methodLabel: string;
   detail: string;
+  folioId?: string;
+  ownerReceivedAt?: string | null;
+  ownerReceivedByName?: string | null;
 };
 
 export type RevenueSummary = {
@@ -51,12 +54,15 @@ type PaymentRow = {
   guestName: string;
   roomNumber: string;
   folioNumber: string;
+  folioId: string;
   reservationStatus: string;
   checkIn: Date;
   checkOut: Date;
   folioTotal: number;
   folioPaid: number;
   folioDiscount: number;
+  ownerReceivedAt: Date | null;
+  ownerReceivedByName: string | null;
 };
 
 function sumPayments(rows: { amount: number }[]) {
@@ -143,6 +149,7 @@ async function getLegacyFolioPayments(from: Date, toExclusive: Date): Promise<Pa
       ],
     },
     include: {
+      ownerReceivedBy: { select: { name: true } },
       reservation: {
         select: {
           status: true,
@@ -163,12 +170,15 @@ async function getLegacyFolioPayments(from: Date, toExclusive: Date): Promise<Pa
     guestName: folio.reservation.guest.fullName,
     roomNumber: folio.reservation.room.number,
     folioNumber: folio.folioNumber,
+    folioId: folio.id,
     reservationStatus: folio.reservation.status,
     checkIn: folio.reservation.checkIn,
     checkOut: folio.reservation.checkOut,
     folioTotal: Number(folio.total),
     folioPaid: Number(folio.paid),
     folioDiscount: Number(folio.discount),
+    ownerReceivedAt: folio.ownerReceivedAt,
+    ownerReceivedByName: folio.ownerReceivedBy?.name ?? null,
   }));
 }
 
@@ -182,6 +192,7 @@ async function getPaymentRowsForPeriod(from: Date, toExclusive: Date): Promise<P
       include: {
         folio: {
           include: {
+            ownerReceivedBy: { select: { name: true } },
             reservation: {
               select: {
                 status: true,
@@ -207,12 +218,15 @@ async function getPaymentRowsForPeriod(from: Date, toExclusive: Date): Promise<P
     guestName: payment.folio.reservation.guest.fullName,
     roomNumber: payment.folio.reservation.room.number,
     folioNumber: payment.folio.folioNumber,
+    folioId: payment.folio.id,
     reservationStatus: payment.folio.reservation.status,
     checkIn: payment.folio.reservation.checkIn,
     checkOut: payment.folio.reservation.checkOut,
     folioTotal: Number(payment.folio.total),
     folioPaid: Number(payment.folio.paid),
     folioDiscount: Number(payment.folio.discount),
+    ownerReceivedAt: payment.folio.ownerReceivedAt,
+    ownerReceivedByName: payment.folio.ownerReceivedBy?.name ?? null,
   }));
 
   return [...tracked, ...legacyPayments].sort(
@@ -233,6 +247,7 @@ type DiscountRow = {
   reservationStatus: string;
   checkIn: Date;
   checkOut: Date;
+  discountReason: string | null;
 };
 
 function formatDiscountDetail(row: DiscountRow): string {
@@ -316,6 +331,7 @@ async function getDiscountRowsForPeriod(from: Date, toExclusive: Date): Promise<
     reservationStatus: folio.reservation.status,
     checkIn: folio.reservation.checkIn,
     checkOut: folio.reservation.checkOut,
+    discountReason: folio.discountReason,
   }));
 }
 
@@ -361,6 +377,9 @@ export async function getRevenueForPeriod(
     folioNumber: payment.folioNumber,
     methodLabel: methodLabel(payment.method),
     detail: formatPaymentDetail(payment),
+    folioId: payment.folioId,
+    ownerReceivedAt: payment.ownerReceivedAt ? payment.ownerReceivedAt.toISOString() : null,
+    ownerReceivedByName: payment.ownerReceivedByName,
   }));
 
   const discountEntries: RevenueLedgerEntry[] = discountRows.map((row) => ({
@@ -372,7 +391,9 @@ export async function getRevenueForPeriod(
     roomNumber: row.roomNumber,
     folioNumber: row.folioNumber,
     methodLabel: "Guest discount",
-    detail: `${formatDiscountDetail(row)} · Room charges ${formatPHP(row.subtotal)}`,
+    detail: `${formatDiscountDetail(row)} · Room charges ${formatPHP(row.subtotal)}${
+      row.discountReason ? ` · Reason: ${row.discountReason}` : ""
+    }`,
   }));
 
   const expenseEntries: RevenueLedgerEntry[] = expenses.map((expense) => ({

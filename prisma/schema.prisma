@@ -164,15 +164,19 @@ model Folio {
   paymentMethod PaymentMethod?
   subtotal      Decimal        @default(0)
   discount      Decimal        @default(0)
+  discountReason String?
   total         Decimal        @default(0)
   paid          Decimal        @default(0)
   paidAt        DateTime?
+  ownerReceivedAt   DateTime?
+  ownerReceivedById String?
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
 
-  reservation Reservation @relation(fields: [reservationId], references: [id])
-  lines       FolioLine[]
-  payments    FolioPayment[]
+  reservation     Reservation @relation(fields: [reservationId], references: [id])
+  lines           FolioLine[]
+  payments        FolioPayment[]
+  ownerReceivedBy Employee?   @relation("FolioOwnerReceived", fields: [ownerReceivedById], references: [id])
 }
 
 model FolioPayment {
@@ -216,6 +220,7 @@ model Employee {
   checkedInReservations  Reservation[] @relation("ReservationCheckedInBy")
   checkedOutReservations Reservation[] @relation("ReservationCheckedOutBy")
   recordedFolioPayments  FolioPayment[] @relation("FolioPaymentsRecordedBy")
+  ownerReceivedFolios    Folio[]        @relation("FolioOwnerReceived")
   expenses               Expense[]      @relation("ExpensesRecordedBy")
   shiftNotes             ShiftNote[]     @relation("ShiftNotes")
   dayCloseRecords        DayCloseRecord[] @relation("DayCloseRecords")

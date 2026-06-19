@@ -59,6 +59,7 @@ export function AdditionalChargesModal({
   const [penaltyAmount, setPenaltyAmount] = useState(0);
   const [discountOn, setDiscountOn] = useState(false);
   const [discountAmount, setDiscountAmount] = useState(0);
+  const [discountReason, setDiscountReason] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -75,6 +76,7 @@ export function AdditionalChargesModal({
     setPenaltyAmount(0);
     setDiscountOn(false);
     setDiscountAmount(0);
+    setDiscountReason("");
     setError(null);
   }
 
@@ -121,7 +123,10 @@ export function AdditionalChargesModal({
         const res = await fetch(`/api/folios/${folioId}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ discount: current + Math.max(0, discountAmount) }),
+          body: JSON.stringify({
+            discount: current + Math.max(0, discountAmount),
+            discountReason: discountReason.trim() || undefined,
+          }),
         });
         if (!res.ok) {
           const data = await res.json();
@@ -264,31 +269,42 @@ export function AdditionalChargesModal({
 
             <li
               className={cn(
-                "grid grid-cols-[auto_1fr_6rem] items-center gap-2 rounded-lg border px-3 py-2",
+                "rounded-lg border px-3 py-2",
                 discountOn ? "border-room-vacant bg-room-vacant/5" : "border-slate-100",
               )}
             >
-              <input
-                type="checkbox"
-                checked={discountOn}
-                onChange={(e) => setDiscountOn(e.target.checked)}
-                className="h-4 w-4 accent-room-vacant"
-                aria-label="Apply discount and adjustment"
-              />
-              <div>
-                <span className="text-sm font-medium text-slate-800">Discount and adjustment</span>
-                <span className="block text-xs text-slate-400">Deducted from total</span>
+              <div className="grid grid-cols-[auto_1fr_6rem] items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={discountOn}
+                  onChange={(e) => setDiscountOn(e.target.checked)}
+                  className="h-4 w-4 accent-room-vacant"
+                  aria-label="Apply discount and adjustment"
+                />
+                <div>
+                  <span className="text-sm font-medium text-slate-800">Discount and adjustment</span>
+                  <span className="block text-xs text-slate-400">Deducted from total</span>
+                </div>
+                <input
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  value={discountAmount}
+                  disabled={!discountOn}
+                  onChange={(e) => setDiscountAmount(Number(e.target.value))}
+                  className={cn(numberClass, "text-right")}
+                  placeholder="Amount"
+                />
               </div>
-              <input
-                type="number"
-                min={0}
-                step="0.01"
-                value={discountAmount}
-                disabled={!discountOn}
-                onChange={(e) => setDiscountAmount(Number(e.target.value))}
-                className={cn(numberClass, "text-right")}
-                placeholder="Amount"
-              />
+              {discountOn && (
+                <input
+                  type="text"
+                  value={discountReason}
+                  onChange={(e) => setDiscountReason(e.target.value)}
+                  className="mt-2 w-full rounded-lg border border-slate-200 px-2 py-1.5 text-sm focus:border-room-vacant focus:outline-none focus:ring-1 focus:ring-room-vacant"
+                  placeholder="Reason for discount (e.g. regular guest, manager comp)"
+                />
+              )}
             </li>
           </ul>
 
