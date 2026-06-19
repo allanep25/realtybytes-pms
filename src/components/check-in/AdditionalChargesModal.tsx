@@ -59,6 +59,7 @@ export function AdditionalChargesModal({
   const [penaltyAmount, setPenaltyAmount] = useState(0);
   const [discountOn, setDiscountOn] = useState(false);
   const [discountAmount, setDiscountAmount] = useState(0);
+  const [discountReason, setDiscountReason] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -75,6 +76,7 @@ export function AdditionalChargesModal({
     setPenaltyAmount(0);
     setDiscountOn(false);
     setDiscountAmount(0);
+    setDiscountReason("");
     setError(null);
   }
 
@@ -88,6 +90,10 @@ export function AdditionalChargesModal({
     selectedItems.reduce((sum, it) => sum + Math.max(1, it.quantity) * Math.max(0, it.rate), 0) +
     (penaltyOn ? Math.max(0, penaltyAmount) : 0);
   const netTotal = chargesTotal - (discountOn ? Math.max(0, discountAmount) : 0);
+
+  const itemInvalid = (it: QtyItem) => it.selected && !(it.rate > 0);
+  const penaltyInvalid = penaltyOn && !(penaltyAmount > 0);
+  const hasInvalidPrice = items.some(itemInvalid) || penaltyInvalid;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -121,7 +127,10 @@ export function AdditionalChargesModal({
         const res = await fetch(`/api/folios/${folioId}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ discount: current + Math.max(0, discountAmount) }),
+          body: JSON.stringify({
+            discount: current + Math.max(0, discountAmount),
+            discountReason: discountReason.trim() || undefined,
+          }),
         });
         if (!res.ok) {
           const data = await res.json();
@@ -190,7 +199,11 @@ export function AdditionalChargesModal({
                 key={it.key}
                 className={cn(
                   "grid grid-cols-[auto_1fr_4rem_6rem] items-center gap-2 rounded-lg border px-3 py-2",
-                  it.selected ? "border-room-occupied bg-room-occupied/5" : "border-slate-100",
+                  itemInvalid(it)
+                    ? "border-room-dirty bg-red-50"
+                    : it.selected
+                      ? "border-room-occupied bg-room-occupied/5"
+                      : "border-slate-100",
                 )}
               >
                 <input
@@ -220,15 +233,28 @@ export function AdditionalChargesModal({
                   value={it.rate}
                   disabled={!it.selected}
                   onChange={(e) => update(it.key, { rate: Number(e.target.value) })}
-                  className={cn(numberClass, "text-right")}
+                  className={cn(
+                    numberClass,
+                    "text-right",
+                    itemInvalid(it) && "border-room-dirty focus:border-room-dirty focus:ring-room-dirty",
+                  )}
                 />
+                {itemInvalid(it) && (
+                  <p className="col-span-4 text-xs text-room-dirty">
+                    Enter a price greater than 0, or untick this charge.
+                  </p>
+                )}
               </li>
             ))}
 
             <li
               className={cn(
                 "rounded-lg border px-3 py-2",
-                penaltyOn ? "border-room-occupied bg-room-occupied/5" : "border-slate-100",
+                penaltyInvalid
+                  ? "border-room-dirty bg-red-50"
+                  : penaltyOn
+                    ? "border-room-occupied bg-room-occupied/5"
+                    : "border-slate-100",
               )}
             >
               <div className="grid grid-cols-[auto_1fr_6rem] items-center gap-2">
@@ -247,10 +273,19 @@ export function AdditionalChargesModal({
                   value={penaltyAmount}
                   disabled={!penaltyOn}
                   onChange={(e) => setPenaltyAmount(Number(e.target.value))}
-                  className={cn(numberClass, "text-right")}
+                  className={cn(
+                    numberClass,
+                    "text-right",
+                    penaltyInvalid && "border-room-dirty focus:border-room-dirty focus:ring-room-dirty",
+                  )}
                   placeholder="Amount"
                 />
               </div>
+              {penaltyInvalid && (
+                <p className="mt-2 text-xs text-room-dirty">
+                  Enter an amount greater than 0, or untick this charge.
+                </p>
+              )}
               {penaltyOn && (
                 <input
                   type="text"
@@ -264,31 +299,42 @@ export function AdditionalChargesModal({
 
             <li
               className={cn(
-                "grid grid-cols-[auto_1fr_6rem] items-center gap-2 rounded-lg border px-3 py-2",
+                "rounded-lg border px-3 py-2",
                 discountOn ? "border-room-vacant bg-room-vacant/5" : "border-slate-100",
               )}
             >
-              <input
-                type="checkbox"
-                checked={discountOn}
-                onChange={(e) => setDiscountOn(e.target.checked)}
-                className="h-4 w-4 accent-room-vacant"
-                aria-label="Apply discount and adjustment"
-              />
-              <div>
-                <span className="text-sm font-medium text-slate-800">Discount and adjustment</span>
-                <span className="block text-xs text-slate-400">Deducted from total</span>
+              <div className="grid grid-cols-[auto_1fr_6rem] items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={discountOn}
+                  onChange={(e) => setDiscountOn(e.target.checked)}
+                  className="h-4 w-4 accent-room-vacant"
+                  aria-label="Apply discount and adjustment"
+                />
+                <div>
+                  <span className="text-sm font-medium text-slate-800">Discount and adjustment</span>
+                  <span className="block text-xs text-slate-400">Deducted from total</span>
+                </div>
+                <input
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  value={discountAmount}
+                  disabled={!discountOn}
+                  onChange={(e) => setDiscountAmount(Number(e.target.value))}
+                  className={cn(numberClass, "text-right")}
+                  placeholder="Amount"
+                />
               </div>
-              <input
-                type="number"
-                min={0}
-                step="0.01"
-                value={discountAmount}
-                disabled={!discountOn}
-                onChange={(e) => setDiscountAmount(Number(e.target.value))}
-                className={cn(numberClass, "text-right")}
-                placeholder="Amount"
-              />
+              {discountOn && (
+                <input
+                  type="text"
+                  value={discountReason}
+                  onChange={(e) => setDiscountReason(e.target.value)}
+                  className="mt-2 w-full rounded-lg border border-slate-200 px-2 py-1.5 text-sm focus:border-room-vacant focus:outline-none focus:ring-1 focus:ring-room-vacant"
+                  placeholder="Reason for discount (e.g. regular guest, manager comp)"
+                />
+              )}
             </li>
           </ul>
 
@@ -319,7 +365,8 @@ export function AdditionalChargesModal({
             </button>
             <button
               type="submit"
-              disabled={saving}
+              disabled={saving || hasInvalidPrice}
+              title={hasInvalidPrice ? "Enter a price for each selected charge first." : undefined}
               className={cn(
                 "rounded-lg px-4 py-2 text-sm font-medium text-white",
                 "bg-room-occupied hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50",

@@ -5,7 +5,7 @@ import { RevenueCard } from "@/components/dashboard/RevenueCard";
 import { DashboardStatCards } from "@/components/dashboard/DashboardStatCards";
 import { RoomStatusGrid } from "@/components/dashboard/RoomStatusGrid";
 import { getSession } from "@/lib/auth";
-import { canViewDashboardRevenue } from "@/lib/permissions";
+import { canViewDashboardRevenue, isAdministrator } from "@/lib/permissions";
 import { getDashboardSummary } from "@/lib/dashboard-data";
 import {
   getReservationTimeline,
@@ -23,6 +23,7 @@ export const dynamic = "force-dynamic";
 export default async function DashboardPage() {
   const session = await getSession();
   const showRevenue = session != null && canViewDashboardRevenue(session.role);
+  const canConfirmReceipt = session != null && isAdministrator(session.role);
 
   const weekOffset = 0;
   const { start, end } = getWeekTimelineRange(weekOffset);
@@ -77,7 +78,12 @@ export default async function DashboardPage() {
         </div>
 
         <div className="space-y-3">
-          {showRevenue && revenueSummary && <RevenueCard initialSummary={revenueSummary} />}
+          {showRevenue && revenueSummary && (
+            <RevenueCard
+              initialSummary={revenueSummary}
+              canConfirmReceipt={canConfirmReceipt}
+            />
+          )}
           <ActivityList
             title="Today's Arrivals"
             items={arrivals}

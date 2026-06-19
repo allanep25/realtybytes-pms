@@ -28,6 +28,7 @@ export async function PATCH(request: Request, context: RouteContext) {
     const body = await request.json();
     const folio = await updateFolio(id, {
       discount: body.discount,
+      discountReason: body.discountReason,
       paymentAmount: body.paymentAmount,
       paymentMethod: normalizePaymentMethod(body.paymentMethod) ?? undefined,
       recordedById: session.id,

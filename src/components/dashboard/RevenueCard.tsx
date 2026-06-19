@@ -10,6 +10,7 @@ import { useCallback, useEffect, useState } from "react";
 
 type RevenueCardProps = {
   initialSummary: RevenueSummary;
+  canConfirmReceipt?: boolean;
 };
 
 function periodTitle(from: string, to: string) {
@@ -19,7 +20,7 @@ function periodTitle(from: string, to: string) {
   return `Revenue · ${formatDate(from)} — ${formatDate(to)}`;
 }
 
-export function RevenueCard({ initialSummary }: RevenueCardProps) {
+export function RevenueCard({ initialSummary, canConfirmReceipt = false }: RevenueCardProps) {
   const today = hotelCalendarDate();
   const [from, setFrom] = useState(initialSummary.from);
   const [to, setTo] = useState(initialSummary.to);
@@ -206,6 +207,8 @@ export function RevenueCard({ initialSummary }: RevenueCardProps) {
         open={showTransactions}
         onClose={() => setShowTransactions(false)}
         summary={summary}
+        canConfirmReceipt={canConfirmReceipt}
+        onReceiptChange={() => loadSummary(from, to)}
       />
     </>
   );

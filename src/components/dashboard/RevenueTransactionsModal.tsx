@@ -3,12 +3,15 @@
 import type { RevenueLedgerEntry, RevenueSummary } from "@/lib/revenue";
 import { formatDate, formatPHP, formatTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import { X } from "lucide-react";
+import { Check, X } from "lucide-react";
+import { useState } from "react";
 
 type RevenueTransactionsModalProps = {
   open: boolean;
   onClose: () => void;
   summary: RevenueSummary | null;
+  canConfirmReceipt?: boolean;
+  onReceiptChange?: () => void;
 };
 
 function periodLabel(from: string, to: string) {
@@ -20,6 +23,8 @@ export function RevenueTransactionsModal({
   open,
   onClose,
   summary,
+  canConfirmReceipt = false,
+  onReceiptChange,
 }: RevenueTransactionsModalProps) {
   if (!open || !summary) return null;
 
@@ -27,6 +32,10 @@ export function RevenueTransactionsModal({
   const paymentCount = transactions.filter((entry) => entry.kind === "payment").length;
   const discountCount = transactions.filter((entry) => entry.kind === "discount").length;
   const expenseCount = transactions.filter((entry) => entry.kind === "expense").length;
+
+  // Show the "money received" control only once per guest folio (the first
+  // payment row for that folio); later split-payment rows just show the status.
+  const folioFirstRow = new Set<string>();
 
   return (
     <div
@@ -77,12 +86,28 @@ export function RevenueTransactionsModal({
                   <th className="px-4 py-3">Type</th>
                   <th className="px-4 py-3">Details</th>
                   <th className="px-4 py-3 text-right">Amount</th>
+                  <th className="px-4 py-3 text-center">Received by owner</th>
                 </tr>
               </thead>
               <tbody>
-                {transactions.map((entry) => (
-                  <TransactionRow key={entry.id} entry={entry} />
-                ))}
+                {transactions.map((entry) => {
+                  let showControl = false;
+                  if (entry.kind === "payment" && entry.folioId) {
+                    if (!folioFirstRow.has(entry.folioId)) {
+                      folioFirstRow.add(entry.folioId);
+                      showControl = true;
+                    }
+                  }
+                  return (
+                    <TransactionRow
+                      key={entry.id}
+                      entry={entry}
+                      canConfirmReceipt={canConfirmReceipt}
+                      showControl={showControl}
+                      onReceiptChange={onReceiptChange}
+                    />
+                  );
+                })}
               </tbody>
             </table>
           )}
@@ -92,7 +117,17 @@ export function RevenueTransactionsModal({
   );
 }
 
-function TransactionRow({ entry }: { entry: RevenueLedgerEntry }) {
+function TransactionRow({
+  entry,
+  canConfirmReceipt,
+  showControl,
+  onReceiptChange,
+}: {
+  entry: RevenueLedgerEntry;
+  canConfirmReceipt: boolean;
+  showControl: boolean;
+  onReceiptChange?: () => void;
+}) {
   const isDiscount = entry.kind === "discount";
   const isExpense = entry.kind === "expense";
 
@@ -134,6 +169,104 @@ function TransactionRow({ entry }: { entry: RevenueLedgerEntry }) {
       >
         {isDiscount || isExpense ? `− ${formatPHP(entry.amount)}` : formatPHP(entry.amount)}
       </td>
+      <td className="px-4 py-2.5 text-center">
+        {entry.kind === "payment" && entry.folioId ? (
+          <ReceiptControl
+            folioId={entry.folioId}
+            received={Boolean(entry.ownerReceivedAt)}
+            receivedByName={entry.ownerReceivedByName ?? null}
+            canConfirmReceipt={canConfirmReceipt}
+            interactive={showControl}
+            onReceiptChange={onReceiptChange}
+          />
+        ) : (
+          <span className="text-xs text-slate-300">—</span>
+        )}
+      </td>
     </tr>
+  );
+}
+
+function ReceiptControl({
+  folioId,
+  received,
+  receivedByName,
+  canConfirmReceipt,
+  interactive,
+  onReceiptChange,
+}: {
+  folioId: string;
+  received: boolean;
+  receivedByName: string | null;
+  canConfirmReceipt: boolean;
+  interactive: boolean;
+  onReceiptChange?: () => void;
+}) {
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState(false);
+
+  async function toggle() {
+    setPending(true);
+    setError(false);
+    try {
+      const res = await fetch(`/api/folios/${folioId}/owner-received`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ received: !received }),
+      });
+      if (!res.ok) throw new Error("Failed");
+      onReceiptChange?.();
+    } catch {
+      setError(true);
+    } finally {
+      setPending(false);
+    }
+  }
+
+  if (received) {
+    return (
+      <div className="flex flex-col items-center gap-1">
+        <span className="inline-flex items-center gap-1 rounded-full bg-room-vacant/15 px-2 py-0.5 text-xs font-semibold text-room-vacant">
+          <Check className="h-3 w-3" /> Received
+        </span>
+        {receivedByName && (
+          <span className="text-[10px] text-slate-400">by {receivedByName}</span>
+        )}
+        {canConfirmReceipt && interactive && (
+          <button
+            type="button"
+            onClick={toggle}
+            disabled={pending}
+            className="text-[10px] text-slate-400 underline hover:text-slate-600 disabled:opacity-50"
+          >
+            Undo
+          </button>
+        )}
+      </div>
+    );
+  }
+
+  if (!canConfirmReceipt) {
+    return <span className="text-xs text-slate-300">Not yet</span>;
+  }
+
+  if (!interactive) {
+    return <span className="text-xs text-slate-300">Not yet</span>;
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={toggle}
+      disabled={pending}
+      className={cn(
+        "rounded-lg border px-2.5 py-1 text-xs font-semibold transition disabled:opacity-50",
+        error
+          ? "border-red-300 bg-red-50 text-room-dirty"
+          : "border-room-vacant/40 bg-room-vacant/10 text-room-vacant hover:bg-room-vacant/20",
+      )}
+    >
+      {pending ? "Saving…" : error ? "Retry" : "Mark received"}
+    </button>
   );
 }
