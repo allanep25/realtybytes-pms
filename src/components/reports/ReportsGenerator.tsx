@@ -25,6 +25,7 @@ const REPORT_TYPES: { value: UiReportType; label: string }[] = [
   { value: "WEEKLY_SUMMARY", label: "Weekly Owner Summary" },
   { value: "OCCUPANCY", label: "Occupancy Report" },
   { value: "REVENUE_SUMMARY", label: "Revenue Summary" },
+  { value: "FINANCIAL", label: "Financial Statement" },
 ];
 
 const KEYCARD_STATUS_STYLES: Record<KeycardRowStatus, string> = {
@@ -376,6 +377,12 @@ export function ReportsGenerator({ defaultFrom, defaultTo }: ReportsGeneratorPro
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <StatCard label="Total Expenses" value={formatPHP(report.totalRevenue)} />
               <StatCard label="Expense Entries" value={String(report.totalTransactions)} />
+            </div>
+          ) : report.type === "FINANCIAL" ? (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+              <StatCard label="Total Revenue" value={formatPHP(report.totalRevenue)} />
+              <StatCard label="Total Expenses" value={formatPHP(report.totalExpenses ?? 0)} />
+              <StatCard label="Net Income" value={formatPHP(report.netIncome ?? 0)} />
             </div>
           ) : (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">

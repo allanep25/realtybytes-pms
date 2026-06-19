@@ -130,8 +130,25 @@ export type TodayRevenue = {
   breakdown: RevenueBreakdownItem[];
 };
 
-function barColor(status: ReservationStatus, bookingType: BookingType): string {
+function isExpiredReservation(
+  status: ReservationStatus,
+  bookingType: BookingType,
+  checkOut: Date,
+): boolean {
+  return (
+    bookingType !== "MAINTENANCE" &&
+    status === "RESERVED" &&
+    hotelCalendarDate(checkOut) < hotelCalendarDate()
+  );
+}
+
+function barColor(
+  status: ReservationStatus,
+  bookingType: BookingType,
+  checkOut: Date,
+): string {
   if (bookingType === "MAINTENANCE") return "bg-room-dirty";
+  if (isExpiredReservation(status, bookingType, checkOut)) return "bg-slate-400";
   switch (status) {
     case "CHECKED_IN":
       return "bg-room-occupied";
@@ -305,7 +322,7 @@ export async function getReservationTimeline(
       guestName: guestLabel,
       startCol: clampedStart,
       span: clampedSpan,
-      colorClass: barColor(res.status, res.bookingType),
+      colorClass: barColor(res.status, res.bookingType, res.checkOut),
       title: `${res.room.number} — ${guestLabel} (${channel})`,
       status: res.status,
       bookingType: res.bookingType,
@@ -369,7 +386,7 @@ export async function getMonthCalendarGrid(monthOffset = 0): Promise<MonthCalend
           id: res.id,
           roomNumber: res.room.number,
           guestName: guestLabel,
-          colorClass: barColor(res.status, res.bookingType),
+          colorClass: barColor(res.status, res.bookingType, res.checkOut),
           title: `${res.room.number} — ${guestLabel} (${channel})`,
         });
       }

@@ -12,7 +12,13 @@ export function reportToCsv(report: ReportSummary): string {
           `Total Expenses,${report.totalRevenue.toFixed(2)}`,
           `Expense Entries,${report.totalTransactions}`,
         ]
-      : [
+      : report.type === "FINANCIAL"
+        ? [
+            `Total Revenue,${report.totalRevenue.toFixed(2)}`,
+            `Total Expenses,${(report.totalExpenses ?? 0).toFixed(2)}`,
+            `Net Income,${(report.netIncome ?? 0).toFixed(2)}`,
+          ]
+        : [
           `Room Revenue,${report.totalRevenue.toFixed(2)}`,
           `Collected,${report.totalCollected.toFixed(2)}`,
           `Guest Stays,${report.totalTransactions}`,
@@ -47,6 +53,10 @@ export function reportToHtml(report: ReportSummary): string {
     report.type === "EXPENSES"
       ? `<div class="stat"><label>Total Expenses</label><value>${escapeHtml(formatPHP(report.totalRevenue))}</value></div>
     <div class="stat"><label>Expense Entries</label><value>${report.totalTransactions}</value></div>`
+      : report.type === "FINANCIAL"
+        ? `<div class="stat"><label>Total Revenue</label><value>${escapeHtml(formatPHP(report.totalRevenue))}</value></div>
+    <div class="stat"><label>Total Expenses</label><value>${escapeHtml(formatPHP(report.totalExpenses ?? 0))}</value></div>
+    <div class="stat"><label>Net Income</label><value>${escapeHtml(formatPHP(report.netIncome ?? 0))}</value></div>`
       : `<div class="stat"><label>Room Revenue</label><value>${escapeHtml(formatPHP(report.totalRevenue))}</value></div>
     <div class="stat"><label>Collected</label><value>${escapeHtml(formatPHP(report.totalCollected))}</value></div>
     <div class="stat"><label>Guest Stays</label><value>${report.totalTransactions}</value></div>

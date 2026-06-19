@@ -12,7 +12,8 @@ export type ReportType =
   | "REVENUE_SUMMARY"
   | "WEEKLY_SUMMARY"
   | "STAFF_TRANSACTIONS"
-  | "EXPENSES";
+  | "EXPENSES"
+  | "FINANCIAL";
 
 export type ReportSummary = {
   type: ReportType;
@@ -24,6 +25,8 @@ export type ReportSummary = {
   totalTransactions: number;
   occupancyRate: number;
   adr: number;
+  totalExpenses?: number;
+  netIncome?: number;
   rows: ReportRow[];
 };
 
@@ -40,6 +43,7 @@ const REPORT_LABELS: Record<ReportType, string> = {
   WEEKLY_SUMMARY: "Weekly Owner Summary",
   STAFF_TRANSACTIONS: "Staff Transactions",
   EXPENSES: "Expenses Report",
+  FINANCIAL: "Financial Statement",
 };
 
 export type ReportStaffOption = {
@@ -137,6 +141,75 @@ async function getCollectedPayments(from: Date, toExclusive: Date) {
     },
     orderBy: { paidAt: "asc" },
   });
+}
+
+async function getRevenueByMethod(from: Date, toExclusive: Date) {
+  const payments = await prisma.folioPayment.findMany({
+    where: {
+      paidAt: { gte: from, lt: toExclusive },
+      amount: { gt: 0 },
+      folio: { reservation: { bookingType: "GUEST" } },
+    },
+    select: { method: true, amount: true },
+  });
+  const byMethod = new Map<string, number>();
+  for (const payment of payments) {
+    byMethod.set(payment.method, (byMethod.get(payment.method) ?? 0) + Number(payment.amount));
+  }
+  return { byMethod, count: payments.length };
+}
+
+/**
+ * Point-in-time balance sheet figures derived from folios as of the `to` date:
+ * Accounts Receivable (unpaid guest balances) and Deposits / Unearned revenue
+ * (payments held for stays that have not yet checked out).
+ */
+async function getBalanceSheetSnapshot(toExclusive: Date) {
+  // For a current snapshot we can trust folio.paid as the paid-to-date figure
+  // for legacy folios that have no per-payment records. For a historical `to`
+  // date, folio.paid (all-time) would wrongly count later payments as already
+  // collected, so we only use recorded payments dated on/before the snapshot.
+  const isCurrentSnapshot = toExclusive > new Date();
+  const folios = await prisma.folio.findMany({
+    where: {
+      reservation: {
+        bookingType: "GUEST",
+        status: { notIn: ["CANCELLED", "NO_SHOW"] },
+        checkIn: { lt: toExclusive },
+      },
+    },
+    select: {
+      total: true,
+      paid: true,
+      reservation: { select: { checkOut: true } },
+      payments: {
+        where: { paidAt: { lt: toExclusive } },
+        select: { amount: true },
+      },
+    },
+  });
+
+  let receivable = 0;
+  let unearned = 0;
+  for (const folio of folios) {
+    const recordedPaid = folio.payments.reduce((sum, p) => sum + Number(p.amount), 0);
+    const paidAsOf =
+      folio.payments.length > 0
+        ? recordedPaid
+        : isCurrentSnapshot
+          ? Number(folio.paid)
+          : 0;
+    const total = Number(folio.total);
+    const balance = total - paidAsOf;
+    if (balance > 0) receivable += balance;
+    const completed = folio.reservation
+      ? folio.reservation.checkOut < toExclusive
+      : true;
+    if (!completed && paidAsOf > 0) {
+      unearned += total > 0 ? Math.min(paidAsOf, total) : paidAsOf;
+    }
+  }
+  return { receivable, unearned };
 }
 
 export async function getReportStaffOptions(): Promise<ReportStaffOption[]> {
@@ -392,6 +465,90 @@ export async function generateReport(
       occupancyRate: 0,
       adr: 0,
       rows: buildExpenseRows(expenses),
+    };
+  }
+
+  if (type === "FINANCIAL") {
+    const toExclusiveFin = addDays(to, 1);
+    const [{ byMethod: revenueByMethod, count: paymentCount }, expenses, snapshot] =
+      await Promise.all([
+        getRevenueByMethod(from, toExclusiveFin),
+        getExpenseRowsForPeriod(fromStr.slice(0, 10), toStr.slice(0, 10)),
+        getBalanceSheetSnapshot(toExclusiveFin),
+      ]);
+
+    const totalRevenue = [...revenueByMethod.values()].reduce((sum, a) => sum + a, 0);
+    const expenseByCategory = new Map<string, { label: string; amount: number }>();
+    for (const expense of expenses) {
+      const current = expenseByCategory.get(expense.category) ?? {
+        label: expense.categoryLabel,
+        amount: 0,
+      };
+      current.amount += expense.amount;
+      expenseByCategory.set(expense.category, current);
+    }
+    const totalExpenses = expenses.reduce((sum, e) => sum + e.amount, 0);
+    const netIncome = totalRevenue - totalExpenses;
+
+    const rows: ReportRow[] = [];
+    rows.push({
+      label: "INCOME STATEMENT",
+      value: `${formatReportDate(from)} – ${formatReportDate(to)}`,
+    });
+    rows.push({ label: "Revenue (payments collected)", value: "Cash received in period" });
+    if (revenueByMethod.size === 0) {
+      rows.push({ label: "  No payments collected", value: "", amount: 0 });
+    } else {
+      for (const [method, amount] of revenueByMethod) {
+        rows.push({ label: `  ${paymentMethodLabel(method)}`, value: "Collected", amount });
+      }
+    }
+    rows.push({ label: "Total Revenue", value: "", amount: totalRevenue });
+    rows.push({ label: "Less: Operating Expenses", value: "By category" });
+    if (expenseByCategory.size === 0) {
+      rows.push({ label: "  No expenses recorded", value: "", amount: 0 });
+    } else {
+      for (const { label, amount } of expenseByCategory.values()) {
+        rows.push({ label: `  ${label}`, value: "Expense", amount });
+      }
+    }
+    rows.push({ label: "Total Expenses", value: "", amount: totalExpenses });
+    rows.push({
+      label: "NET INCOME",
+      value: netIncome >= 0 ? "Profit for the period" : "Loss for the period",
+      amount: netIncome,
+    });
+
+    rows.push({ label: "BALANCE SHEET SNAPSHOT", value: `As of ${formatReportDate(to)}` });
+    rows.push({
+      label: "Accounts Receivable",
+      value: "Unpaid guest balances (money owed to you)",
+      amount: snapshot.receivable,
+    });
+    rows.push({
+      label: "Deposits / Unearned Revenue",
+      value: "Payments held for stays not yet checked out",
+      amount: snapshot.unearned,
+    });
+    rows.push({
+      label: "Net Income (this period)",
+      value: "From income statement above",
+      amount: netIncome,
+    });
+
+    return {
+      type,
+      label: REPORT_LABELS[type],
+      from: from.toISOString(),
+      to: to.toISOString(),
+      totalRevenue,
+      totalCollected: totalRevenue,
+      totalTransactions: paymentCount,
+      occupancyRate: 0,
+      adr: 0,
+      totalExpenses,
+      netIncome,
+      rows,
     };
   }
 
