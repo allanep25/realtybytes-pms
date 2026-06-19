@@ -138,7 +138,7 @@ function isExpiredReservation(
   return (
     bookingType !== "MAINTENANCE" &&
     status === "RESERVED" &&
-    hotelCalendarDate(checkOut) <= hotelCalendarDate()
+    hotelCalendarDate(checkOut) < hotelCalendarDate()
   );
 }
 

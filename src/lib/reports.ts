@@ -165,6 +165,11 @@ async function getRevenueByMethod(from: Date, toExclusive: Date) {
  * (payments held for stays that have not yet checked out).
  */
 async function getBalanceSheetSnapshot(toExclusive: Date) {
+  // For a current snapshot we can trust folio.paid as the paid-to-date figure
+  // for legacy folios that have no per-payment records. For a historical `to`
+  // date, folio.paid (all-time) would wrongly count later payments as already
+  // collected, so we only use recorded payments dated on/before the snapshot.
+  const isCurrentSnapshot = toExclusive > new Date();
   const folios = await prisma.folio.findMany({
     where: {
       reservation: {
@@ -188,7 +193,12 @@ async function getBalanceSheetSnapshot(toExclusive: Date) {
   let unearned = 0;
   for (const folio of folios) {
     const recordedPaid = folio.payments.reduce((sum, p) => sum + Number(p.amount), 0);
-    const paidAsOf = folio.payments.length > 0 ? recordedPaid : Number(folio.paid);
+    const paidAsOf =
+      folio.payments.length > 0
+        ? recordedPaid
+        : isCurrentSnapshot
+          ? Number(folio.paid)
+          : 0;
     const total = Number(folio.total);
     const balance = total - paidAsOf;
     if (balance > 0) receivable += balance;
