@@ -22,7 +22,7 @@ export async function POST(request: Request) {
     }
 
     const token = await createSessionToken(user);
-    await setSessionCookie(token);
+    await setSessionCookie(token, user.role);
 
     return NextResponse.json({
       user,
