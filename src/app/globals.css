@@ -3,18 +3,23 @@
 @source inline("bg-room-cleaning", "text-room-cleaning", "border-l-room-cleaning", "bg-room-maintenance");
 
 @theme {
-  --color-sidebar: #1a233a;
-  --color-sidebar-hover: #243049;
-  --color-sidebar-active: #2d3a56;
-  --color-surface: #f4f6f9;
-  --color-card: #ffffff;
 
-  --color-room-occupied: #e57373;
-  --color-room-vacant: #5cb85c;
-  --color-room-reserved: #f0ad4e;
-  --color-room-dirty: #d9534f;
-  --color-room-cleaning: #3b82f6;
-  --color-room-maintenance: #ea580c;
+  /* ===== RealtyBytes Brand ===== */
+
+  --color-sidebar: #161B22;
+  --color-sidebar-hover: #222B36;
+  --color-sidebar-active: #F97316;
+
+  --color-surface: #F8FAFC;
+  --color-card: #FFFFFF;
+
+  /* Status Colors */
+
+  --color-room-occupied: #EF4444;
+  --color-room-vacant: #22C55E;
+  --color-room-reserved: #F59E0B;
+  --color-room-dirty: #3B82F6;
+  --color-room-maintenance: #F97316;
 
   --font-sans: "Segoe UI", system-ui, -apple-system, sans-serif;
 }
