@@ -51,7 +51,7 @@ export function LoginForm() {
       <div className="hidden w-1/2 flex-col justify-between bg-sidebar p-10 text-white lg:flex">
         <div className="flex items-center gap-4">
           <Image
-            src="/amar-residences-logo.png"
+            src="/realtybytes-logo.png"
             alt={HOTEL_NAME}
             width={128}
             height={128}
@@ -70,7 +70,7 @@ export function LoginForm() {
         <div className="w-full max-w-md">
           <div className="mb-8 flex flex-col items-center text-center lg:hidden">
             <Image
-              src="/amar-residences-logo.png"
+              src="/realtybytes-logo.png"
               alt={HOTEL_NAME}
               width={128}
               height={128}
