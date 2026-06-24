@@ -19,11 +19,12 @@ const SESSION_COOKIE_OPTIONS = {
   path: "/",
 };
 
-export async function setSessionCookie(token: string) {
+export async function setSessionCookie(token: string, role?: import("@prisma/client").EmployeeRole) {
   const cookieStore = await cookies();
+  const maxAge = role === "ADMINISTRATOR" ? 60 * 60 * 24 * 30 : 60 * 60 * 8;
   cookieStore.set(SESSION_COOKIE, token, {
     ...SESSION_COOKIE_OPTIONS,
-    maxAge: 60 * 60 * 8,
+    maxAge,
   });
 }
 

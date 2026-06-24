@@ -13,10 +13,11 @@ function getSecret() {
 }
 
 export async function createSessionToken(user: SessionUser): Promise<string> {
+  const expiry = user.role === "ADMINISTRATOR" ? "30d" : "8h";
   return new SignJWT({ ...user })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
-    .setExpirationTime("8h")
+    .setExpirationTime(expiry)
     .sign(getSecret());
 }
 
