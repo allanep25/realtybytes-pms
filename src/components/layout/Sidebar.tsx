@@ -38,7 +38,7 @@ export function Sidebar({
           className="flex min-w-0 flex-1 flex-col items-center gap-2 lg:items-start"
         >
           <Image
-            src="/amar-residences-logo.png"
+            src="/realtybytes-logo.png"
             alt={hotelName}
             width={128}
             height={128}
