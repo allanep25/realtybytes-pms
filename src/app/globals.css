@@ -1,6 +1,6 @@
 @import "tailwindcss";
 
-@source inline("bg-room-cleaning", "text-room-cleaning", "border-l-room-cleaning", "bg-room-maintenance");
+@source inline("bg-room-cleaning", "text-room-cleaning", "border-l-room-cleaning", "bg-room-maintenance", "text-room-maintenance", "border-l-room-maintenance");
 
 @theme {
 
