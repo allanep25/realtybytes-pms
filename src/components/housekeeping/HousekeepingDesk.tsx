@@ -89,7 +89,7 @@ function TaskCard({
         <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-3">
           <div className="flex items-center justify-between gap-2">
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-              Checklist
+              Room Inventory Checklist
             </p>
             <p className="text-xs text-slate-500">
               {checklistComplete}/{checklistTotal} complete

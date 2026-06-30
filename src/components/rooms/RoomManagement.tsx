@@ -504,7 +504,7 @@ export function RoomManagement({
               </label>
 
               <label className="block text-sm sm:col-span-2">
-                <span className="text-slate-500">Housekeeping checklist</span>
+                <span className="text-slate-500">Room Inventory Checklist</span>
                 <textarea
                   value={form.housekeepingChecklist}
                   onChange={(e) =>
@@ -515,7 +515,7 @@ export function RoomManagement({
                   className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2"
                 />
                 <span className="mt-1 block text-xs text-slate-400">
-                  One item per line. Housekeeping will tick these off during room checks.
+                  One item per line. These items will be used during housekeeping room checks.
                 </span>
               </label>
             </div>
