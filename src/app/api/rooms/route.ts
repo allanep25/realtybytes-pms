@@ -39,13 +39,13 @@ export async function POST(request: Request) {
     if (typeof number !== "string" || number.trim() === "") {
       return NextResponse.json({ error: "Room number is required" }, { status: 400 });
     }
-    if (!Number.isFinite(floor) || floor < 1 || !Number.isInteger(floor)) {
+    if (floor == null || !Number.isFinite(floor) || floor < 1 || !Number.isInteger(floor)) {
       return NextResponse.json({ error: "Invalid floor" }, { status: 400 });
     }
-    if (!Number.isFinite(maxPax) || maxPax < 1 || !Number.isInteger(maxPax)) {
+    if (maxPax == null || !Number.isFinite(maxPax) || maxPax < 1 || !Number.isInteger(maxPax)) {
       return NextResponse.json({ error: "Invalid pax" }, { status: 400 });
     }
-    if (!Number.isFinite(baseRate) || baseRate < 0) {
+    if (baseRate == null || !Number.isFinite(baseRate) || baseRate < 0) {
       return NextResponse.json({ error: "Invalid base rate" }, { status: 400 });
     }
     if (breakfastRate != null && (!Number.isFinite(breakfastRate) || breakfastRate < 0)) {
