@@ -1,6 +1,6 @@
 import type { RoomType } from "@prisma/client";
 
-/** Official room catalog — Amar Residence (from rate sheet) */
+/** Official room catalog — RealtyBytes (from rate sheet) */
 export type RoomCatalogEntry = {
   number: string;
   floor: number;

@@ -3,7 +3,7 @@
 
 services:
   - type: web
-    name: amar-residence
+    name: realtybytes-pms
     runtime: node
     plan: starter
     buildCommand: npm install && npm run build
@@ -15,15 +15,15 @@ services:
         value: production
       - key: DATABASE_URL
         fromDatabase:
-          name: amar-residence-db
+          name: realtybytes-pms-db
           property: connectionString
       - key: AUTH_SECRET
         generateValue: true
       - key: NEXT_PUBLIC_APP_NAME
-        value: Amar Residence
+        value: RealtyBytes
 
 databases:
-  - name: amar-residence-db
+  - name: realtybytes-pms-db
     plan: starter
-    databaseName: amar_residence
-    user: amar
+    databaseName: realtybytes_pms
+    user: realtybytes

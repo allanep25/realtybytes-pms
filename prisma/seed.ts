@@ -1,3 +1,5 @@
+import "dotenv/config";
+
 import {
   EmployeeRole,
   EmployeeStatus,
@@ -26,7 +28,7 @@ const ROOMS = ROOM_NUMBERS.map((number) => {
 
 async function main() {
   const adminEmail =
-    process.env.SEED_ADMIN_EMAIL?.trim().toLowerCase() || "admin@amarresidence.com";
+    process.env.SEED_ADMIN_EMAIL?.trim().toLowerCase() || "admin@realtybytes.test";
   const adminName = process.env.SEED_ADMIN_NAME?.trim() || "Administrator";
   const adminPassword = process.env.SEED_ADMIN_PASSWORD;
 
@@ -48,12 +50,12 @@ async function main() {
   await prisma.hotelSettings.create({
     data: {
       id: "default",
-      name: "Amar Residences",
+      name: "RealtyBytes",
       tagline: "",
       address: "",
       phone: "",
       email: adminEmail,
-      receiptFooter: "Thank you for staying at Amar Residences!",
+      receiptFooter: "Thank you for staying at RealtyBytes!",
     },
   });
 

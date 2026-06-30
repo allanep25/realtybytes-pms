@@ -240,7 +240,7 @@ model HousekeepingTask {
 
 model HotelSettings {
   id           String  @id @default("default")
-  name         String  @default("Amar Residences")
+  name         String  @default("RealtyBytes")
   tagline      String  @default("")
   address      String?
   phone        String?

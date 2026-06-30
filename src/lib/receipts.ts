@@ -37,7 +37,7 @@ export type ReceiptData = {
 export async function getHotelInfo(): Promise<HotelInfo> {
   const settings = await prisma.hotelSettings.findUnique({ where: { id: "default" } });
   return {
-    name: settings?.name ?? "Amar Residences",
+    name: settings?.name ?? "RealtyBytes",
     tagline: settings?.tagline ?? "",
     address: settings?.address ?? null,
     phone: settings?.phone ?? null,

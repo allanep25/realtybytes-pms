@@ -168,7 +168,7 @@ CREATE TABLE "HousekeepingTask" (
 -- CreateTable
 CREATE TABLE "HotelSettings" (
     "id" TEXT NOT NULL DEFAULT 'default',
-    "name" TEXT NOT NULL DEFAULT 'Amar Residences',
+    "name" TEXT NOT NULL DEFAULT 'RealtyBytes',
     "tagline" TEXT NOT NULL DEFAULT '',
     "address" TEXT,
     "phone" TEXT,

@@ -374,7 +374,7 @@ export function EmployeeManagement({ employees, isAdmin }: EmployeeManagementPro
                   value={form.email}
                   onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
                   className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2"
-                  placeholder="staff@amarresidence.com"
+                  placeholder="staff@realtybytes.test"
                 />
               </label>
               <label className="block text-sm">

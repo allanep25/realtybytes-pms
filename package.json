@@ -1,5 +1,5 @@
 {
-  "name": "amar-residence",
+  "name": "realtybytes-pms",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -10,7 +10,7 @@
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
     "db:seed": "prisma db seed",
-    "db:reset": "tsx prisma/seed.ts",
+    "db:reset": "tsx --env-file=.env prisma/seed.ts",
     "db:demo-seed": "tsx prisma/demo-seed.ts",
     "db:deploy": "prisma migrate resolve --applied 20250101000000_init || true && prisma migrate deploy && tsx prisma/deploy-seed-if-empty.ts && tsx prisma/backfill-folio-payments.ts",
     "db:update-rates": "tsx prisma/update-rates.ts",

@@ -1,3 +1,5 @@
+import "dotenv/config";
+
 import {
   BookingSource,
   EmployeeRole,
@@ -33,11 +35,11 @@ type DemoEmployee = {
 };
 
 const DEMO_EMPLOYEES: DemoEmployee[] = [
-  { key: "admin", name: "Demo Administrator", email: "demo.admin@amar.test", role: EmployeeRole.ADMINISTRATOR },
-  { key: "frontdesk", name: "Lester Demo", email: "demo.frontdesk@amar.test", role: EmployeeRole.FRONT_DESK },
-  { key: "frontdesk2", name: "Mia Demo", email: "demo.frontdesk2@amar.test", role: EmployeeRole.FRONT_DESK },
-  { key: "guard", name: "Noel Guard Demo", email: "demo.guard@amar.test", role: EmployeeRole.SECURITY },
-  { key: "housekeeping", name: "Ana Housekeeping Demo", email: "demo.housekeeping@amar.test", role: EmployeeRole.HOUSEKEEPING },
+  { key: "admin", name: "Demo Administrator", email: "demo.admin@realtybytes.test", role: EmployeeRole.ADMINISTRATOR },
+  { key: "frontdesk", name: "Lester Demo", email: "demo.frontdesk@realtybytes.test", role: EmployeeRole.FRONT_DESK },
+  { key: "frontdesk2", name: "Mia Demo", email: "demo.frontdesk2@realtybytes.test", role: EmployeeRole.FRONT_DESK },
+  { key: "guard", name: "Noel Guard Demo", email: "demo.guard@realtybytes.test", role: EmployeeRole.SECURITY },
+  { key: "housekeeping", name: "Ana Housekeeping Demo", email: "demo.housekeeping@realtybytes.test", role: EmployeeRole.HOUSEKEEPING },
 ];
 
 function roomSeedData(number: string) {
@@ -73,11 +75,11 @@ async function seedSettings() {
   await prisma.hotelSettings.create({
     data: {
       id: "default",
-      name: "Amar Residences Demo",
+      name: "RealtyBytes Demo",
       tagline: "Demo environment only",
       address: "Demo Street, Cagayan de Oro City",
       phone: "0917 000 0000",
-      email: "demo@amar.test",
+      email: "demo@realtybytes.test",
       receiptFooter: "Demo receipt only — not an official transaction.",
     },
   });

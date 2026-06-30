@@ -1,4 +1,4 @@
-# Deploy Amar Residence Online
+# Deploy RealtyBytes Online
 
 This guide puts the hotel system on the internet so staff (and you as owner) can log in from anywhere — front desk, home, or on the road — and view bookings on the **Dashboard** and **Reservation Calendar**.
 
@@ -19,16 +19,16 @@ This guide puts the hotel system on the internet so staff (and you as owner) can
 Open PowerShell in the project folder:
 
 ```powershell
-cd C:\Users\Admin\Projects\amar-residence
+cd C:\Projects\realtybytes-pms
 git init
 git add .
-git commit -m "Prepare Amar Residence for deployment"
+git commit -m "Prepare RealtyBytes for deployment"
 ```
 
-On GitHub, create a new **private** repository named `amar-residence`, then:
+On GitHub, create a new **private** repository named `realtybytes-pms`, then:
 
 ```powershell
-git remote add origin https://github.com/YOUR_USERNAME/amar-residence.git
+git remote add origin https://github.com/YOUR_USERNAME/realtybytes-pms.git
 git branch -M main
 git push -u origin main
 ```
@@ -40,7 +40,7 @@ Replace `YOUR_USERNAME` with your GitHub username.
 ## Step 2 — Create Railway project
 
 1. Go to [railway.app/new](https://railway.app/new)
-2. **Deploy from GitHub repo** → choose `amar-residence`
+2. **Deploy from GitHub repo** → choose `realtybytes-pms`
 3. Railway detects Next.js and uses `railway.toml` automatically
 
 ---
@@ -64,8 +64,8 @@ Replace `YOUR_USERNAME` with your GitHub username.
 | `DATABASE_URL` | `${{Postgres.DATABASE_URL}}` (use Railway reference) **or** paste the full URL |
 | `AUTH_SECRET` | A long random string (see below) |
 | `SEED_ADMIN_PASSWORD` | Strong password for the first admin account (min 6 characters) |
-| `SEED_ADMIN_EMAIL` | Optional — defaults to `admin@amarresidence.com` |
-| `NEXT_PUBLIC_APP_NAME` | `Amar Residence` |
+| `SEED_ADMIN_EMAIL` | Optional — defaults to `admin@realtybytes.test` |
+| `NEXT_PUBLIC_APP_NAME` | `RealtyBytes` |
 
 **Generate AUTH_SECRET** (PowerShell):
 
@@ -82,7 +82,7 @@ Never use the demo secret from `.env.example` in production.
 ## Step 5 — Get your public URL
 
 1. Web service → **Settings** → **Networking** → **Generate Domain**
-2. You get a URL like: `https://amar-residence-production.up.railway.app`
+2. You get a URL like: `https://realtybytes-pms-production.up.railway.app`
 3. Open it in a browser → you should see the **login page**
 
 ---
@@ -93,7 +93,7 @@ On first deploy, the app creates **one administrator** and loads all **18 rooms 
 
 | | |
 |--|--|
-| **Email** | Value of `SEED_ADMIN_EMAIL` (default `admin@amarresidence.com`) |
+| **Email** | Value of `SEED_ADMIN_EMAIL` (default `admin@realtybytes.test`) |
 | **Password** | Value of `SEED_ADMIN_PASSWORD` you set in Railway |
 
 Log in as **Administrator**, then:
@@ -107,7 +107,7 @@ Log in as **Administrator**, then:
 If your database still has sample guests/bookings from an older seed, reset it from your PC:
 
 ```powershell
-cd C:\Users\Admin\Projects\amar-residence
+cd C:\Projects\realtybytes-pms
 $env:DATABASE_URL = "paste-your-railway-postgres-url-here"
 $env:SEED_ADMIN_PASSWORD = "your-new-admin-password"
 npm run db:reset
@@ -119,10 +119,10 @@ This **deletes all data** and reloads vacant rooms plus one admin account.
 
 ## Step 7 — Optional custom domain
 
-If you own `amarresidence.com`:
+If you own `realtybytes.com`:
 
 1. Railway → web service → **Settings** → **Custom Domain**
-2. Add e.g. `hms.amarresidence.com`
+2. Add e.g. `hms.realtybytes.com`
 3. Add the CNAME record at your domain registrar (Railway shows the target)
 
 ---

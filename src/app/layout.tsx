@@ -4,7 +4,7 @@ import { HOTEL_NAME } from "@/lib/constants";
 
 export const metadata: Metadata = {
   title: `${HOTEL_NAME} — Hotel Management`,
-  description: "Hotel management system for Amar Residence",
+  description: "Hotel management system for RealtyBytes",
 };
 
 export const viewport = {

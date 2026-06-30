@@ -1,6 +1,6 @@
-# Amar Residence — Hotel Management System
+# RealtyBytes — Hotel Management System
 
-Web-based HMS for **Amar Residence**, scaffolded from the SunnyView-style dashboard design (Phase 0).
+Web-based HMS for **RealtyBytes**, scaffolded from the SunnyView-style dashboard design (Phase 0).
 
 ## Stack
 
@@ -78,18 +78,18 @@ All demo accounts use password `demo1234` unless `DEMO_PASSWORD` is set:
 
 | Role | Email |
 |------|-------|
-| Administrator | `demo.admin@amar.test` |
-| Front Desk | `demo.frontdesk@amar.test` |
-| Front Desk | `demo.frontdesk2@amar.test` |
-| Security / Guard | `demo.guard@amar.test` |
-| Housekeeping | `demo.housekeeping@amar.test` |
+| Administrator | `demo.admin@realtybytes.test` |
+| Front Desk | `demo.frontdesk@realtybytes.test` |
+| Front Desk | `demo.frontdesk2@realtybytes.test` |
+| Security / Guard | `demo.guard@realtybytes.test` |
+| Housekeeping | `demo.housekeeping@realtybytes.test` |
 
 ## Getting started
 
 ### 1. Install dependencies
 
 ```bash
-cd C:\Users\Admin\Projects\amar-residence
+cd C:\Projects\realtybytes-pms
 npm install
 ```
 

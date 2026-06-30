@@ -16,7 +16,7 @@ type SidebarProps = {
 };
 
 export function Sidebar({
-  hotelName = "Amar Residences",
+  hotelName = "RealtyBytes",
   mobileOpen = false,
   onMobileClose,
 }: SidebarProps) {

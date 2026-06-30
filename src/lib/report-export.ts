@@ -82,7 +82,7 @@ export function reportToHtml(report: ReportSummary): string {
   </style>
 </head>
 <body>
-  <h1>Amar Residence — ${escapeHtml(report.label)}</h1>
+  <h1>RealtyBytes — ${escapeHtml(report.label)}</h1>
   <p class="meta">Period: ${from} to ${to} · Generated ${new Date().toLocaleString("en-PH")}</p>
   <div class="stats">
     ${statCards}
@@ -102,3 +102,4 @@ function escapeHtml(s: string): string {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
 }
+

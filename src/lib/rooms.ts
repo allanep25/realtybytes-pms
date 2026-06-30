@@ -22,9 +22,22 @@ export type RoomFilters = {
 };
 
 export type UpdateRoomInput = {
+  number?: string;
+  floor?: number;
   status?: RoomStatus;
   type?: RoomType;
   baseRate?: number;
+  description?: string;
+  maxPax?: number;
+  breakfastRate?: number | null;
+};
+
+export type CreateRoomInput = {
+  number: string;
+  floor: number;
+  status?: RoomStatus;
+  type?: RoomType;
+  baseRate: number;
   description?: string;
   maxPax?: number;
   breakfastRate?: number | null;
@@ -87,6 +100,8 @@ export async function updateRoom(id: string, input: UpdateRoomInput) {
   const room = await prisma.room.update({
     where: { id },
     data: {
+      ...(input.number != null ? { number: input.number } : {}),
+      ...(input.floor != null ? { floor: input.floor } : {}),
       ...(input.status != null ? { status: input.status } : {}),
       ...(input.type != null ? { type: input.type } : {}),
       ...(input.baseRate != null ? { baseRate: input.baseRate } : {}),
@@ -97,6 +112,33 @@ export async function updateRoom(id: string, input: UpdateRoomInput) {
   });
 
   return mapRoom(room);
+}
+
+export async function createRoom(input: CreateRoomInput) {
+  const room = await prisma.room.create({
+    data: {
+      number: input.number,
+      floor: input.floor,
+      status: input.status ?? "VACANT",
+      type: input.type ?? "STANDARD",
+      baseRate: input.baseRate,
+      description: input.description ?? "",
+      maxPax: input.maxPax ?? 2,
+      ...(input.breakfastRate !== undefined ? { breakfastRate: input.breakfastRate } : {}),
+    },
+  });
+
+  return mapRoom(room);
+}
+
+export async function deleteRoom(id: string) {
+  const reservationCount = await prisma.reservation.count({ where: { roomId: id } });
+  if (reservationCount > 0) {
+    throw new Error("Cannot delete a room with reservations");
+  }
+
+  await prisma.room.delete({ where: { id } });
+  return { ok: true };
 }
 
 export function toRoomGridItem(room: RoomListItem): RoomGridItem {
