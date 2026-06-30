@@ -48,51 +48,72 @@ export function LoginForm() {
 
   return (
     <div className="flex min-h-screen">
-      <div className="hidden w-1/2 flex-col justify-between bg-sidebar p-10 text-white lg:flex">
-        <div className="flex items-center gap-4">
+      <div className="hidden w-1/2 flex-col justify-between bg-sidebar px-12 py-14 text-white lg:flex">
+        <div className="space-y-10">
           <Image
             src="/realtybytes-logo.png"
             alt={HOTEL_NAME}
             width={128}
             height={128}
-            className="h-16 w-16 rounded-full object-cover ring-1 ring-white/10"
+            className="h-[12.6rem] w-[12.6rem] object-contain"
             priority
           />
-          <p className="text-lg font-semibold">{HOTEL_NAME}</p>
+          <div className="max-w-sm space-y-5">
+            <div className="space-y-3">
+              <p className="text-2xl font-semibold tracking-tight">RealtyBytes PMS</p>
+              <p className="text-lg leading-7 text-slate-100">
+                Professional Property Management Platform
+              </p>
+              <p className="text-base leading-7 text-slate-300">
+                Streamline reservations, guest management, room availability,
+                billing, and daily operations from one secure platform.
+              </p>
+              <p className="text-lg font-medium text-slate-200">
+                Smart Property Management Made Simple
+              </p>
+            </div>
+            <div className="space-y-1 text-xs leading-5 text-slate-400">
+              <p>
+                Powered by{" "}
+                <span className="font-medium text-slate-400">
+                  MarawiOnline Technologies
+                </span>
+              </p>
+            </div>
+          </div>
         </div>
-        <p className="max-w-sm text-slate-300">
-          Sign in with your staff account to access the hotel management system.
-        </p>
-        <p className="text-xs text-slate-500">© {HOTEL_NAME}</p>
       </div>
 
-      <div className="flex flex-1 items-center justify-center p-6">
-        <div className="w-full max-w-md">
-          <div className="mb-8 flex flex-col items-center text-center lg:hidden">
+      <div className="flex flex-1 items-center justify-center px-6 py-10 lg:px-10 lg:py-12">
+        <div className="w-full max-w-lg">
+          <div className="mb-10 flex flex-col items-center text-center lg:hidden">
             <Image
               src="/realtybytes-logo.png"
               alt={HOTEL_NAME}
               width={128}
               height={128}
-              className="mb-3 h-20 w-20 rounded-full object-cover ring-1 ring-slate-200"
-              priority
+              className="mb-4 h-[12.25rem] w-[12.25rem] object-contain"
             />
             <p className="text-xl font-bold text-slate-800">{HOTEL_NAME}</p>
-            <p className="text-sm text-slate-500">Staff Login</p>
+            <p className="text-sm text-slate-500">
+              Professional Property Management System
+            </p>
           </div>
 
           <form
             onSubmit={handleSubmit}
             autoComplete="off"
-            className="rounded-xl border border-slate-200 bg-white p-8 shadow-sm"
+            className="rounded-xl border border-slate-200 bg-white p-10 shadow-sm"
           >
-            <h1 className="text-xl font-semibold text-slate-800">Welcome back</h1>
-            <p className="mt-1 text-sm text-slate-500">
-              Sign in with the email address from Employee Accounts
-            </p>
-            <p className="mt-2 text-xs text-slate-400">
-              Shared front desk computer? Always use Sign out before you leave.
-            </p>
+            <div className="space-y-2">
+              <h1 className="text-xl font-semibold text-slate-800">Welcome Back</h1>
+              <p className="text-sm text-slate-500">
+                Sign in to access your RealtyBytes PMS account.
+              </p>
+              <p className="text-xs text-slate-400">
+                For shared front desk computers, always sign out before leaving.
+              </p>
+            </div>
 
             {signedOut && (
               <p className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
@@ -139,7 +160,7 @@ export function LoginForm() {
               disabled={loading}
               className="mt-6 w-full rounded-lg bg-sidebar py-2.5 text-sm font-medium text-white hover:bg-sidebar-hover disabled:opacity-50"
             >
-              {loading ? "Signing in…" : "Sign In"}
+              {loading ? "Signing inâ€¦" : "Sign In"}
             </button>
           </form>
         </div>

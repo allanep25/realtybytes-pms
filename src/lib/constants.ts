@@ -66,7 +66,7 @@ export function getRoomGridColor(
   return ROOM_STATUS_COLORS[status];
 }
 
-export const HOTEL_NAME = process.env.NEXT_PUBLIC_APP_NAME ?? "Amar Residences";
+export const HOTEL_NAME = process.env.NEXT_PUBLIC_APP_NAME ?? "RealtyBytes PMS";
 
 export const ROOM_STATUS_LABELS: Record<string, string> = {
   VACANT: "Vacant",
