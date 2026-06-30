@@ -1,5 +1,6 @@
-import { prisma } from "@/lib/db";
+﻿import { prisma } from "@/lib/db";
 import { addDays, setTime, startOfDay } from "@/lib/dates";
+import { Prisma } from "@prisma/client";
 
 export type BackdateResult = {
   reservationId: string;
@@ -75,7 +76,7 @@ export async function backdateTodayArrivalsToCheckout(options?: {
       }),
       prisma.housekeepingTask.updateMany({
         where: { roomId: res.roomId },
-        data: { status: "CLEAN", notes: null },
+        data: { status: "CLEAN", notes: null, checklistState: Prisma.DbNull },
       }),
     ]);
   }
@@ -166,7 +167,7 @@ export async function shiftCheckInsFromDate(
             }),
             prisma.housekeepingTask.updateMany({
               where: { roomId: res.roomId },
-              data: { status: "CLEAN", notes: null },
+              data: { status: "CLEAN", notes: null, checklistState: Prisma.DbNull },
             }),
           ]
         : []),
@@ -175,3 +176,5 @@ export async function shiftCheckInsFromDate(
 
   return results;
 }
+
+

@@ -1,4 +1,4 @@
-import "dotenv/config";
+﻿import "dotenv/config";
 
 import {
   BookingSource,
@@ -7,6 +7,7 @@ import {
   ExpenseCategory,
   HousekeepingStatus,
   PaymentMethod,
+  Prisma,
   PrismaClient,
   ReservationStatus,
   RoomStatus,
@@ -80,7 +81,7 @@ async function seedSettings() {
       address: "Demo Street, Cagayan de Oro City",
       phone: "0917 000 0000",
       email: "demo@realtybytes.test",
-      receiptFooter: "Demo receipt only — not an official transaction.",
+      receiptFooter: "Demo receipt only â€” not an official transaction.",
     },
   });
 }
@@ -400,7 +401,11 @@ async function seedReservations(
   await prisma.room.update({ where: { id: checkedOut.room.id }, data: { status: RoomStatus.DIRTY } });
   await prisma.housekeepingTask.update({
     where: { roomId: checkedOut.room.id },
-    data: { status: HousekeepingStatus.DIRTY, notes: "Checked out — needs cleaning" },
+    data: {
+      status: HousekeepingStatus.DIRTY,
+      notes: "Checked out â€” needs cleaning",
+      checklistState: Prisma.DbNull,
+    },
   });
 }
 
@@ -466,6 +471,7 @@ async function seedOperationalData(employees: Map<string, { id: string }>) {
         status: HousekeepingStatus.CLEANING,
         assignedTo: housekeeping.id,
         notes: "Demo: housekeeping in progress",
+        checklistState: Prisma.DbNull,
       },
     });
   }
@@ -502,3 +508,5 @@ main()
     await prisma.$disconnect();
     process.exit(1);
   });
+
+

@@ -25,6 +25,7 @@ type RoomDraft = {
   type: string;
   baseRate: string;
   breakfastRate: string;
+  housekeepingChecklist: string;
 };
 
 const STATUS_OPTIONS: RoomStatus[] = [
@@ -46,6 +47,7 @@ const EMPTY_DRAFT: RoomDraft = {
   type: "STANDARD",
   baseRate: "",
   breakfastRate: "",
+  housekeepingChecklist: "",
 };
 
 function roomToDraft(room?: RoomListItem | null): RoomDraft {
@@ -59,6 +61,7 @@ function roomToDraft(room?: RoomListItem | null): RoomDraft {
     type: room.type,
     baseRate: String(room.baseRate),
     breakfastRate: room.breakfastRate != null ? String(room.breakfastRate) : "",
+    housekeepingChecklist: room.housekeepingChecklist.join("\n"),
   };
 }
 
@@ -148,6 +151,10 @@ export function RoomManagement({
     const maxPax = parseNumber(form.maxPax);
     const baseRate = parseNumber(form.baseRate);
     const breakfastRate = parseNumber(form.breakfastRate);
+    const housekeepingChecklist = form.housekeepingChecklist
+      .split("\n")
+      .map((item) => item.trim())
+      .filter((item, index, array) => item !== "" && array.findIndex((value) => value.toLowerCase() === item.toLowerCase()) === index);
 
     if (roomNumber === "") {
       setError("Room number is required");
@@ -186,6 +193,7 @@ export function RoomManagement({
           type: form.type,
           baseRate,
           breakfastRate: form.breakfastRate.trim() === "" ? null : breakfastRate,
+          housekeepingChecklist,
         }),
       });
 
@@ -493,6 +501,22 @@ export function RoomManagement({
                   placeholder="Leave blank if not available"
                   className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2"
                 />
+              </label>
+
+              <label className="block text-sm sm:col-span-2">
+                <span className="text-slate-500">Housekeeping checklist</span>
+                <textarea
+                  value={form.housekeepingChecklist}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, housekeepingChecklist: e.target.value }))
+                  }
+                  rows={5}
+                  placeholder={"TV remote\nAircon remote\nTowels\nBlankets"}
+                  className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2"
+                />
+                <span className="mt-1 block text-xs text-slate-400">
+                  One item per line. Housekeeping will tick these off during room checks.
+                </span>
               </label>
             </div>
 

@@ -1,5 +1,6 @@
 import { deleteRoom, updateRoom } from "@/lib/rooms";
 import { getSession } from "@/lib/auth";
+import { normalizeHousekeepingChecklist } from "@/lib/housekeeping-checklist";
 import { isAdministrator } from "@/lib/permissions";
 import type { RoomStatus, RoomType } from "@prisma/client";
 import { revalidatePath } from "next/cache";
@@ -20,7 +21,17 @@ export async function PATCH(request: Request, context: RouteContext) {
 
   try {
     const body = await request.json();
-    const { number, floor, description, maxPax, status, type, baseRate, breakfastRate } = body as {
+    const {
+      number,
+      floor,
+      description,
+      maxPax,
+      status,
+      type,
+      baseRate,
+      breakfastRate,
+      housekeepingChecklist,
+    } = body as {
       number?: string;
       floor?: number;
       description?: string;
@@ -29,6 +40,7 @@ export async function PATCH(request: Request, context: RouteContext) {
       type?: RoomType;
       baseRate?: number;
       breakfastRate?: number | null;
+      housekeepingChecklist?: unknown;
     };
 
     if (number != null && (typeof number !== "string" || number.trim() === "")) {
@@ -59,6 +71,7 @@ export async function PATCH(request: Request, context: RouteContext) {
       type,
       baseRate,
       breakfastRate,
+      housekeepingChecklist: normalizeHousekeepingChecklist(housekeepingChecklist),
     });
     revalidatePath("/");
     revalidatePath("/rooms");

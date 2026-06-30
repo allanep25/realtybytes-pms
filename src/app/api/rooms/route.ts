@@ -1,5 +1,6 @@
 import { createRoom } from "@/lib/rooms";
 import { getSession } from "@/lib/auth";
+import { normalizeHousekeepingChecklist } from "@/lib/housekeeping-checklist";
 import { isAdministrator } from "@/lib/permissions";
 import type { RoomStatus, RoomType } from "@prisma/client";
 import { revalidatePath } from "next/cache";
@@ -25,6 +26,7 @@ export async function POST(request: Request) {
       type,
       baseRate,
       breakfastRate,
+      housekeepingChecklist,
     } = body as {
       number?: string;
       floor?: number;
@@ -34,6 +36,7 @@ export async function POST(request: Request) {
       type?: RoomType;
       baseRate?: number;
       breakfastRate?: number | null;
+      housekeepingChecklist?: unknown;
     };
 
     if (typeof number !== "string" || number.trim() === "") {
@@ -61,6 +64,7 @@ export async function POST(request: Request) {
       type,
       baseRate,
       breakfastRate,
+      housekeepingChecklist: normalizeHousekeepingChecklist(housekeepingChecklist),
     });
 
     revalidatePath("/");

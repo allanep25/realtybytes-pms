@@ -1,4 +1,4 @@
-import { isHotelCheckInDay } from "@/lib/cancellation-policy";
+﻿import { isHotelCheckInDay } from "@/lib/cancellation-policy";
 import { prisma } from "@/lib/db";
 import { normalizeBookingFields, validateGuestIdAtCheckIn } from "@/lib/booking-source";
 import { normalizePaymentMethod, requirePaymentMethodForAmount } from "@/lib/payment-method";
@@ -8,7 +8,7 @@ import { recordFolioPayment } from "@/lib/folio-payments";
 import { syncRoomOperationalStatus } from "@/lib/room-status";
 import { buildStayFolioLines, folioLinesTotal } from "@/lib/stay-pricing";
 import { compareRoomNumbers } from "@/lib/utils";
-import type { BookingPlatform, BookingSource, PaymentMethod, RoomType } from "@prisma/client";
+import { Prisma, type BookingPlatform, type BookingSource, type PaymentMethod, type RoomType } from "@prisma/client";
 
 export type StaffActionContext = {
   employeeId: string;
@@ -412,7 +412,7 @@ export async function performCheckIn(
     throw new Error("Room is out of order");
   }
   if (room.status !== "VACANT") {
-    throw new Error("Only vacant rooms can be checked in — select another room");
+    throw new Error("Only vacant rooms can be checked in â€” select another room");
   }
 
   if (await hasRoomConflict(room.id, checkIn, checkOut)) {
@@ -471,7 +471,7 @@ export async function performCheckIn(
 
   await prisma.housekeepingTask.updateMany({
     where: { roomId: room.id },
-    data: { status: "CLEAN", notes: null },
+    data: { status: "CLEAN", notes: null, checklistState: Prisma.DbNull },
   });
 
   const folioNumber = await createStayFolio(
@@ -531,10 +531,10 @@ export async function createReservation(
     throw new Error("Room is out of order");
   }
   if (checkIn.getTime() === today.getTime() && room.status === "DIRTY") {
-    throw new Error("Room needs cleaning — use Check-In after the room is ready");
+    throw new Error("Room needs cleaning â€” use Check-In after the room is ready");
   }
   if (checkIn.getTime() === today.getTime() && room.status === "OCCUPIED") {
-    throw new Error("Room is currently occupied — use Check-In for walk-ins");
+    throw new Error("Room is currently occupied â€” use Check-In for walk-ins");
   }
 
   if (await hasRoomConflict(room.id, checkIn, checkOut)) {
@@ -746,7 +746,7 @@ export async function performCheckInFromReservation(
 
   await prisma.housekeepingTask.updateMany({
     where: { roomId: room.id },
-    data: { status: "CLEAN", notes: null },
+    data: { status: "CLEAN", notes: null, checklistState: Prisma.DbNull },
   });
 
   return {
@@ -831,12 +831,14 @@ export async function performCheckOut(
     create: {
       roomId: reservation.roomId,
       status: "DIRTY",
-      notes: "Checked out — needs cleaning",
+      checklistState: Prisma.DbNull,
+      notes: "Checked out â€” needs cleaning",
     },
     update: {
       status: "DIRTY",
-      notes: "Checked out — needs cleaning",
+      notes: "Checked out â€” needs cleaning",
       assignedTo: null,
+      checklistState: Prisma.DbNull,
     },
   });
 
@@ -904,8 +906,8 @@ export async function createMaintenanceBlock(
     });
     await prisma.housekeepingTask.upsert({
       where: { roomId: room.id },
-      create: { roomId: room.id, status: "OUT_OF_ORDER", notes: note },
-      update: { status: "OUT_OF_ORDER", notes: note, assignedTo: null },
+      create: { roomId: room.id, status: "OUT_OF_ORDER", notes: note, checklistState: Prisma.DbNull },
+      update: { status: "OUT_OF_ORDER", notes: note, assignedTo: null, checklistState: Prisma.DbNull },
     });
   }
 
@@ -997,9 +999,16 @@ export async function cancelMaintenanceBlock(reservationId: string) {
     });
     await prisma.housekeepingTask.updateMany({
       where: { roomId: reservation.roomId },
-      data: { status: "DIRTY", notes: "Maintenance block removed — inspect room" },
+      data: { status: "DIRTY", notes: "Maintenance block removed â€” inspect room", checklistState: Prisma.DbNull },
     });
   }
 
   return { roomNumber: reservation.room.number };
 }
+
+
+
+
+
+
+

@@ -1,7 +1,12 @@
 import { prisma } from "@/lib/db";
+import {
+  checklistStateFromItems,
+  normalizeHousekeepingChecklist,
+  type HousekeepingChecklistState,
+} from "@/lib/housekeeping-checklist";
 import { compareRoomNumbers } from "@/lib/utils";
 import { addHotelDays, startOfHotelDay } from "@/lib/dates";
-import type { HousekeepingStatus, RoomStatus } from "@prisma/client";
+import { Prisma, type HousekeepingStatus, type RoomStatus } from "@prisma/client";
 
 export type HousekeepingTaskItem = {
   id: string;
@@ -14,6 +19,8 @@ export type HousekeepingTaskItem = {
   notes: string | null;
   priorityLabel: string | null;
   priorityScore: number;
+  checklistItems: string[];
+  checklistState: HousekeepingChecklistState;
 };
 
 export function isCleaningQueueStatus(status: HousekeepingStatus): boolean {
@@ -53,7 +60,7 @@ export async function getHousekeepingTasks(): Promise<HousekeepingTaskItem[]> {
 
   const tasks = await prisma.housekeepingTask.findMany({
     include: {
-      room: { select: { number: true, status: true } },
+      room: { select: { number: true, status: true, housekeepingChecklist: true } },
       employee: { select: { name: true } },
     },
     orderBy: { room: { number: "asc" } },
@@ -88,6 +95,8 @@ export async function getHousekeepingTasks(): Promise<HousekeepingTaskItem[]> {
         isVip: reservation?.guest.isVip ?? false,
         hasArrivalToday: Boolean(hasArrivalToday),
       });
+      const checklistItems = normalizeHousekeepingChecklist(t.room.housekeepingChecklist);
+      const checklistState = checklistStateFromItems(checklistItems, t.checklistState);
 
       return {
         id: t.id,
@@ -100,6 +109,8 @@ export async function getHousekeepingTasks(): Promise<HousekeepingTaskItem[]> {
         notes: t.notes,
         priorityLabel: priority.label,
         priorityScore: priority.score,
+        checklistItems,
+        checklistState,
       };
     })
     .sort((a, b) => {
@@ -126,6 +137,7 @@ type UpdateTaskInput = {
   status: HousekeepingStatus;
   assignedTo?: string | null;
   notes?: string | null;
+  checklistState?: HousekeepingChecklistState | null;
 };
 
 export async function updateHousekeepingTask(roomId: string, input: UpdateTaskInput) {
@@ -147,18 +159,20 @@ export async function updateHousekeepingTask(roomId: string, input: UpdateTaskIn
       break;
   }
 
-  const taskData: {
-    status: HousekeepingStatus;
-    assignedTo?: string | null;
-    notes?: string | null;
-  } = { status: input.status };
+  const taskData: Prisma.HousekeepingTaskUncheckedUpdateInput = {
+    status: input.status,
+  };
 
   if (input.status === "CLEAN") {
     taskData.assignedTo = null;
     taskData.notes = null;
+    taskData.checklistState = Prisma.DbNull;
   } else {
     if (input.assignedTo !== undefined) taskData.assignedTo = input.assignedTo;
     if (input.notes !== undefined) taskData.notes = input.notes;
+    if (input.checklistState !== undefined) {
+      taskData.checklistState = input.checklistState ?? Prisma.DbNull;
+    }
   }
 
   await prisma.$transaction([
@@ -185,4 +199,20 @@ export async function assignHousekeepingTask(roomId: string, employeeId: string 
     assignedTo: employeeId,
     notes: task.notes,
   });
+}
+
+export async function updateHousekeepingChecklist(
+  roomId: string,
+  checklistState: HousekeepingChecklistState,
+) {
+  const task = await prisma.housekeepingTask.findUnique({ where: { roomId } });
+  if (!task) throw new Error("Task not found");
+
+  await prisma.housekeepingTask.update({
+    where: { roomId },
+    data: { checklistState },
+  });
+
+  const tasks = await getHousekeepingTasks();
+  return tasks.find((t) => t.roomId === roomId)!;
 }

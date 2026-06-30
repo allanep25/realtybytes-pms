@@ -34,6 +34,7 @@ function TaskCard({
   task,
   currentUserId,
   onUpdate,
+  onChecklistUpdate,
   loading,
 }: {
   task: HousekeepingTaskItem;
@@ -43,9 +44,12 @@ function TaskCard({
     status: HousekeepingStatus,
     options?: { assignedTo?: string | null; notes?: string | null },
   ) => Promise<void>;
+  onChecklistUpdate: (roomId: string, checklistState: Record<string, boolean>) => Promise<void>;
   loading: boolean;
 }) {
   const isDirty = task.status === "DIRTY";
+  const checklistTotal = task.checklistItems.length;
+  const checklistComplete = task.checklistItems.filter((item) => task.checklistState[item]).length;
 
   return (
     <article className="flex h-full flex-col rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -79,6 +83,39 @@ function TaskCard({
         <p className="mt-2 text-xs text-slate-500">
           Assigned to <span className="font-medium text-slate-700">{task.assignedName}</span>
         </p>
+      )}
+
+      {checklistTotal > 0 && (
+        <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-3">
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+              Checklist
+            </p>
+            <p className="text-xs text-slate-500">
+              {checklistComplete}/{checklistTotal} complete
+            </p>
+          </div>
+          <div className="mt-3 space-y-2">
+            {task.checklistItems.map((item) => (
+              <label key={item} className="flex items-start gap-2 text-sm text-slate-700">
+                <input
+                  type="checkbox"
+                  checked={Boolean(task.checklistState[item])}
+                  disabled={loading}
+                  onChange={(e) => {
+                    const nextState = {
+                      ...task.checklistState,
+                      [item]: e.target.checked,
+                    };
+                    void onChecklistUpdate(task.roomId, nextState);
+                  }}
+                  className="mt-1 h-4 w-4 rounded border-slate-300 text-room-cleaning focus:ring-room-cleaning"
+                />
+                <span>{item}</span>
+              </label>
+            ))}
+          </div>
+        </div>
       )}
 
       <div className="mt-auto space-y-2 pt-4">
@@ -257,6 +294,30 @@ export function HousekeepingDesk({ tasks: initialTasks, currentUserId }: Houseke
     }
   }
 
+  async function handleChecklistUpdate(roomId: string, checklistState: Record<string, boolean>) {
+    setLoadingId(roomId);
+    setError(null);
+    setSuccess(null);
+
+    try {
+      const res = await fetch(`/api/housekeeping/${roomId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ checklistState }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Update failed");
+
+      setTasks((current) => current.map((task) => (task.roomId === roomId ? data : task)));
+      router.refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Update failed");
+    } finally {
+      setLoadingId(null);
+    }
+  }
+
   return (
     <div className="space-y-5">
       <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -335,6 +396,7 @@ export function HousekeepingDesk({ tasks: initialTasks, currentUserId }: Houseke
                     task={task}
                     currentUserId={currentUserId}
                     onUpdate={handleUpdate}
+                    onChecklistUpdate={handleChecklistUpdate}
                     loading={loadingId === task.roomId}
                   />
                 ))}
@@ -354,6 +416,7 @@ export function HousekeepingDesk({ tasks: initialTasks, currentUserId }: Houseke
                     task={task}
                     currentUserId={currentUserId}
                     onUpdate={handleUpdate}
+                    onChecklistUpdate={handleChecklistUpdate}
                     loading={loadingId === task.roomId}
                   />
                 ))}

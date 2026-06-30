@@ -1,6 +1,6 @@
-import { prisma } from "@/lib/db";
+﻿import { prisma } from "@/lib/db";
 import { addDays, startOfDay } from "@/lib/dates";
-import { HousekeepingStatus, RoomStatus } from "@prisma/client";
+import { Prisma, HousekeepingStatus, RoomStatus } from "@prisma/client";
 
 export type PurgePreview = {
   reservationId: string;
@@ -91,7 +91,7 @@ export async function purgeStaysInDateRange(
         await tx.room.update({ where: { id: roomId }, data: { status: RoomStatus.VACANT } });
         await tx.housekeepingTask.updateMany({
           where: { roomId },
-          data: { status: HousekeepingStatus.CLEAN, notes: null },
+          data: { status: HousekeepingStatus.CLEAN, notes: null, checklistState: Prisma.DbNull },
         });
       }
     }
@@ -99,3 +99,5 @@ export async function purgeStaysInDateRange(
 
   return preview;
 }
+
+

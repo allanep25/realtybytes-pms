@@ -1,9 +1,9 @@
-import { prisma } from "@/lib/db";
+﻿import { prisma } from "@/lib/db";
 import { daysBetween } from "@/lib/dates";
 import { syncAllRoomOperationalStatuses } from "@/lib/room-status";
 import { buildStayFolioLines, folioLinesTotal } from "@/lib/stay-pricing";
 import { compareRoomNumbers } from "@/lib/utils";
-import type { Room, RoomType } from "@prisma/client";
+import { Prisma, type Room, type RoomType } from "@prisma/client";
 
 export type RoomChangeOption = {
   id: string;
@@ -46,9 +46,9 @@ type ReservationForRoomChange = NonNullable<
 
 function isStayChargeForRoom(description: string, roomNumber: string): boolean {
   return (
-    description.startsWith(`Room ${roomNumber} —`) ||
-    description === `Day extension — Room ${roomNumber}` ||
-    description === `Hour extension — Room ${roomNumber}`
+    description.startsWith(`Room ${roomNumber} â€”`) ||
+    description === `Day extension â€” Room ${roomNumber}` ||
+    description === `Hour extension â€” Room ${roomNumber}`
   );
 }
 
@@ -216,17 +216,19 @@ export async function changeInHouseRoom(
       create: {
         roomId: reservation.roomId,
         status: "DIRTY",
+        checklistState: Prisma.DbNull,
         notes: `Guest moved to Room ${toRoom.number} — clean before reuse`,
       },
       update: {
         status: "DIRTY",
         notes: `Guest moved to Room ${toRoom.number} — clean before reuse`,
         assignedTo: null,
+        checklistState: Prisma.DbNull,
       },
     });
     await tx.housekeepingTask.updateMany({
       where: { roomId: toRoom.id },
-      data: { status: "CLEAN", notes: null, assignedTo: null },
+      data: { status: "CLEAN", notes: null, assignedTo: null, checklistState: Prisma.DbNull },
     });
 
     if (reservation.folio) {
@@ -280,3 +282,13 @@ export async function changeInHouseRoom(
     balanceDue: quote.balanceDue,
   };
 }
+
+
+
+
+
+
+
+
+
+

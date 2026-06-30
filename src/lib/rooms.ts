@@ -1,5 +1,6 @@
 import type { RoomGridItem } from "@/components/dashboard/RoomStatusGrid";
 import { prisma } from "@/lib/db";
+import { normalizeHousekeepingChecklist } from "@/lib/housekeeping-checklist";
 import type { RoomStatus, RoomType } from "@prisma/client";
 
 export type RoomListItem = {
@@ -12,6 +13,7 @@ export type RoomListItem = {
   status: RoomStatus;
   baseRate: number;
   breakfastRate: number | null;
+  housekeepingChecklist: string[];
 };
 
 export type RoomFilters = {
@@ -30,6 +32,7 @@ export type UpdateRoomInput = {
   description?: string;
   maxPax?: number;
   breakfastRate?: number | null;
+  housekeepingChecklist?: string[];
 };
 
 export type CreateRoomInput = {
@@ -41,6 +44,7 @@ export type CreateRoomInput = {
   description?: string;
   maxPax?: number;
   breakfastRate?: number | null;
+  housekeepingChecklist?: string[];
 };
 
 function mapRoom(r: {
@@ -53,6 +57,7 @@ function mapRoom(r: {
   status: RoomStatus;
   baseRate: { toString(): string };
   breakfastRate: { toString(): string } | null;
+  housekeepingChecklist: unknown;
 }): RoomListItem {
   return {
     id: r.id,
@@ -64,6 +69,7 @@ function mapRoom(r: {
     status: r.status,
     baseRate: Number(r.baseRate),
     breakfastRate: r.breakfastRate != null ? Number(r.breakfastRate) : null,
+    housekeepingChecklist: normalizeHousekeepingChecklist(r.housekeepingChecklist),
   };
 }
 
@@ -108,6 +114,9 @@ export async function updateRoom(id: string, input: UpdateRoomInput) {
       ...(input.description != null ? { description: input.description } : {}),
       ...(input.maxPax != null ? { maxPax: input.maxPax } : {}),
       ...(input.breakfastRate !== undefined ? { breakfastRate: input.breakfastRate } : {}),
+      ...(input.housekeepingChecklist !== undefined
+        ? { housekeepingChecklist: input.housekeepingChecklist }
+        : {}),
     },
   });
 
@@ -125,6 +134,9 @@ export async function createRoom(input: CreateRoomInput) {
       description: input.description ?? "",
       maxPax: input.maxPax ?? 2,
       ...(input.breakfastRate !== undefined ? { breakfastRate: input.breakfastRate } : {}),
+      ...(input.housekeepingChecklist !== undefined
+        ? { housekeepingChecklist: input.housekeepingChecklist }
+        : {}),
     },
   });
 
