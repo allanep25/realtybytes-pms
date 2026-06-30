@@ -38,6 +38,29 @@ const STATUS_OPTIONS: RoomStatus[] = [
 
 const TYPE_OPTIONS: RoomType[] = ["STANDARD", "DELUXE", "SUITE"];
 
+const INVENTORY_TEMPLATES: Record<RoomType, string[]> = {
+  STANDARD: ["TV remote", "Aircon remote", "2 towels", "Blanket", "Trash bin"],
+  DELUXE: [
+    "TV remote",
+    "Aircon remote",
+    "4 towels",
+    "Blanket",
+    "Electric kettle",
+    "4 cups",
+    "4 pillows",
+  ],
+  SUITE: [
+    "TV remote",
+    "Aircon remote",
+    "4 towels",
+    "Blanket",
+    "Electric kettle",
+    "4 cups",
+    "4 pillows",
+    "Hair dryer",
+  ],
+};
+
 const EMPTY_DRAFT: RoomDraft = {
   number: "",
   floor: "",
@@ -89,6 +112,7 @@ export function RoomManagement({
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [inventoryInput, setInventoryInput] = useState("");
 
   const floors = useMemo(
     () => [...new Set(rooms.map((r) => r.floor))].sort((a, b) => a - b),
@@ -140,6 +164,83 @@ export function RoomManagement({
     setMode(null);
     setSelectedRoom(null);
     setForm({ ...EMPTY_DRAFT });
+    setError(null);
+  }
+
+  function getInventoryItems() {
+    return form.housekeepingChecklist
+      .split("\n")
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+
+  function setInventoryItems(items: string[]) {
+    setForm((f) => ({
+      ...f,
+      housekeepingChecklist: items.join("\n"),
+    }));
+  }
+
+  function addInventoryItem() {
+    const item = inventoryInput.trim();
+
+    if (!item) return;
+
+    const items = getInventoryItems();
+    const exists = items.some(
+      (existing) => existing.toLowerCase() === item.toLowerCase(),
+    );
+
+    if (exists) {
+      setError("This inventory item already exists.");
+      return;
+    }
+
+    setInventoryItems([...items, item]);
+    setInventoryInput("");
+    setError(null);
+  }
+
+  function removeInventoryItem(index: number) {
+    const items = getInventoryItems();
+    setInventoryItems(items.filter((_, i) => i !== index));
+  }
+
+  function editInventoryItem(index: number) {
+    const items = getInventoryItems();
+
+    const updated = window.prompt("Edit inventory item", items[index]);
+
+    if (!updated?.trim()) return;
+
+    const cleanValue = updated.trim();
+    const exists = items.some(
+      (existing, i) =>
+        i !== index && existing.toLowerCase() === cleanValue.toLowerCase(),
+    );
+
+    if (exists) {
+      setError("This inventory item already exists.");
+      return;
+    }
+
+    items[index] = cleanValue;
+    setInventoryItems([...items]);
+    setError(null);
+  }
+
+  function applyInventoryTemplate() {
+    const template = INVENTORY_TEMPLATES[form.type as RoomType];
+
+    if (!template) return;
+
+    const confirmed = window.confirm(
+      `Apply ${form.type.toLowerCase()} room inventory template? This will replace the current inventory list.`,
+    );
+
+    if (!confirmed) return;
+
+    setInventoryItems(template);
     setError(null);
   }
 
@@ -394,7 +495,7 @@ export function RoomManagement({
 
       {mode && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-xl rounded-xl bg-white p-6 shadow-xl">
+          <div className="max-h-[90vh] w-full max-w-xl overflow-y-auto rounded-xl bg-white p-6 shadow-xl">
             <h3 className="text-lg font-semibold text-slate-800">
               {mode === "create" ? "Add Room" : `Edit Room ${selectedRoom?.number ?? ""}`}
             </h3>
@@ -503,26 +604,87 @@ export function RoomManagement({
                 />
               </label>
 
-              <label className="block text-sm sm:col-span-2">
-                <span className="text-slate-500">Room Inventory Checklist</span>
-                <textarea
-                  value={form.housekeepingChecklist}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, housekeepingChecklist: e.target.value }))
-                  }
-                  rows={5}
-                  placeholder={"TV remote\nAircon remote\nTowels\nBlankets"}
-                  className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2"
-                />
+              <div className="col-span-2">
+                <div className="mb-2 flex items-center justify-between gap-2">
+                  <span className="text-sm text-slate-500">Room Inventory</span>
+
+                  <div className="flex gap-2">
+                    <input
+                      value={inventoryInput}
+                      onChange={(e) => setInventoryInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          addInventoryItem();
+                        }
+                      }}
+                      placeholder="Add item"
+                      className="w-48 rounded-lg border border-slate-200 px-3 py-1 text-sm"
+                    />
+
+                    <button
+                      type="button"
+                      onClick={addInventoryItem}
+                      className="rounded-lg border border-slate-200 px-3 py-1 text-sm text-slate-700 hover:bg-slate-50"
+                    >
+                      + Add
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={applyInventoryTemplate}
+                      className="rounded-lg border border-emerald-200 px-3 py-1 text-sm text-emerald-700 hover:bg-emerald-50"
+                    >
+                      Apply Template
+                    </button>
+                  </div>
+                </div>
+
+                <div className="space-y-2 rounded-lg border border-slate-200 bg-slate-50 p-3">
+                  {getInventoryItems().length === 0 ? (
+                    <p className="text-sm text-slate-400">No inventory items yet.</p>
+                  ) : (
+                    getInventoryItems().map((item, index) => (
+                      <div
+                        key={`${item}-${index}`}
+                        className="flex items-center justify-between rounded-md bg-white px-3 py-2 text-sm"
+                      >
+                        <div className="flex items-center gap-3">
+                          <span>{item}</span>
+                        </div>
+
+                        <div className="flex items-center gap-3">
+                          <button
+                            type="button"
+                            onClick={() => editInventoryItem(index)}
+                            className="text-xs text-blue-500 hover:text-blue-700"
+                          >
+                            Edit
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => removeInventoryItem(index)}
+                            className="text-xs text-red-500 hover:text-red-700"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+
                 <span className="mt-1 block text-xs text-slate-400">
-                  One item per line. These items will be used during housekeeping room checks.
+                  Add the items that should belong to this room. Housekeeping will use this list
+                  during room checks.
                 </span>
-              </label>
+              </div>
             </div>
 
             {error && <p className="mt-3 text-sm text-room-dirty">{error}</p>}
 
-            <div className="mt-6 flex flex-wrap justify-end gap-2">
+            <div className="sticky bottom-0 mt-6 flex flex-wrap justify-end gap-2 bg-white pt-4">
               {canManageRooms && mode === "edit" && selectedRoom && (
                 <button
                   type="button"
