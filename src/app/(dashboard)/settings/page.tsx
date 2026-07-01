@@ -8,7 +8,7 @@ export default async function SettingsPage() {
   return (
     <DashboardShell title="Property Profile">
       <p className="mb-6 text-sm text-slate-500">
-        Customize your property's branding, logo, contact information, and business settings.
+        Customize your property&apos;s branding, logo, contact information, and business settings.
         Changes are applied throughout the system.
       </p>
       <SettingsForm settings={settings} />

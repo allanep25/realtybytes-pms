@@ -1,4 +1,4 @@
-import { getShellProps } from "@/app/(dashboard)/layout";
+import { getShellProps } from "@/lib/get-shell-props";
 import { AppShell } from "./AppShell";
 
 type DashboardShellProps = {

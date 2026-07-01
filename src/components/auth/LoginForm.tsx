@@ -1,6 +1,5 @@
 "use client";
 
-import { HOTEL_NAME } from "@/lib/constants";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 

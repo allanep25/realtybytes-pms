@@ -2,7 +2,7 @@
 import { prisma } from "@/lib/db";
 import { normalizeBookingFields, validateGuestIdAtCheckIn } from "@/lib/booking-source";
 import { normalizePaymentMethod, requirePaymentMethodForAmount } from "@/lib/payment-method";
-import { addDays, addHotelDays, daysBetween, parseHotelCalendarDate, setHotelTime, startOfHotelDay } from "@/lib/dates";
+import { addHotelDays, daysBetween, parseHotelCalendarDate, setHotelTime, startOfHotelDay } from "@/lib/dates";
 import { updateFolio } from "@/lib/billing";
 import { recordFolioPayment } from "@/lib/folio-payments";
 import { syncRoomOperationalStatus } from "@/lib/room-status";

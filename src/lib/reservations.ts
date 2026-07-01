@@ -161,18 +161,6 @@ function barColor(
   }
 }
 
-function barLabel(status: ReservationStatus, bookingType: BookingType): string {
-  if (bookingType === "MAINTENANCE") return "Maintenance";
-  switch (status) {
-    case "CHECKED_IN":
-      return "Checked in";
-    case "RESERVED":
-      return "Reserved";
-    default:
-      return status.replace("_", " ");
-  }
-}
-
 export function getTimelineRange(monthOffset = 0): { start: Date; end: Date } {
   const start = getHotelMonthStart(monthOffset);
   const end = getHotelMonthEnd(start);

@@ -1,5 +1,5 @@
 import { SESSION_COOKIE, type SessionUser } from "@/lib/auth-types";
-import { verifySessionToken, createSessionToken } from "@/lib/auth-jwt";
+import { verifySessionToken } from "@/lib/auth-jwt";
 import { cookies } from "next/headers";
 
 export { SESSION_COOKIE, type SessionUser } from "@/lib/auth-types";
@@ -10,6 +10,10 @@ export async function getSession(): Promise<SessionUser | null> {
   const token = cookieStore.get(SESSION_COOKIE)?.value;
   if (!token) return null;
   return verifySessionToken(token);
+}
+
+export async function getSessionUser(): Promise<SessionUser | null> {
+  return getSession();
 }
 
 const SESSION_COOKIE_OPTIONS = {
