@@ -32,6 +32,19 @@ export function ReceiptPreview({
   const [folioId, setFolioId] = useState(initialFolioId ?? folios[0]?.id ?? "");
   const [receipt, setReceipt] = useState<ReceiptData | null>(initialReceipt ?? null);
   const [loading, setLoading] = useState(false);
+  const savedProfile =
+    typeof window !== "undefined"
+      ? JSON.parse(localStorage.getItem("propertyProfile") || "{}")
+      : {};
+  const receiptPropertyName = savedProfile.propertyName || receipt?.hotel?.name || "RealtyBytes PMS";
+  const receiptAddress = savedProfile.address || receipt?.hotel?.address || "";
+  const receiptPhone = savedProfile.phone || receipt?.hotel?.phone || "";
+  const receiptEmail = savedProfile.email || receipt?.hotel?.email || "";
+  const receiptWebsite = savedProfile.website || "";
+  const receiptFooter =
+    savedProfile.receiptFooter ||
+    receipt?.hotel?.receiptFooter ||
+    "Thank you for staying with us!";
 
   useEffect(() => {
     if (!folioId) {
@@ -55,7 +68,12 @@ export function ReceiptPreview({
     const subject = encodeURIComponent(`Receipt ${receipt.orNumber} — ${receipt.guestName}`);
     const body = encodeURIComponent(
       [
-        receipt.hotel.name,
+        receiptPropertyName,
+        receiptAddress,
+        receiptPhone ? `Phone: ${receiptPhone}` : "",
+        receiptEmail ? `Email: ${receiptEmail}` : "",
+        receiptWebsite ? `Website: ${receiptWebsite}` : "",
+        "",
         `Receipt: ${receipt.orNumber}`,
         `Guest: ${receipt.guestName}`,
         `Room: ${receipt.roomNumber}`,
@@ -63,7 +81,7 @@ export function ReceiptPreview({
         `Paid: ${formatPHP(receipt.paid)}`,
         receipt.paid < receipt.total ? `Balance: ${formatPHP(receipt.total - receipt.paid)}` : "",
         "",
-        "Thank you for staying with us.",
+        receiptFooter,
       ]
         .filter(Boolean)
         .join("\n"),
@@ -137,14 +155,14 @@ export function ReceiptPreview({
           className="mx-auto max-w-md rounded-xl border border-slate-200 bg-white p-8 shadow-sm print:shadow-none print:border-0"
         >
           <div className="border-b border-dashed border-slate-300 pb-4 text-center">
-            <p className="text-lg font-bold text-slate-800">{receipt.hotel.name}</p>
-            <p className="text-xs tracking-[0.2em] text-slate-500">{receipt.hotel.tagline}</p>
-            {receipt.hotel.address && (
-              <p className="mt-2 text-xs text-slate-500">{receipt.hotel.address}</p>
-            )}
-            {receipt.hotel.phone && (
-              <p className="text-xs text-slate-500">Tel: {receipt.hotel.phone}</p>
-            )}
+            <p className="text-lg font-bold text-slate-800">{receiptPropertyName}</p>
+            <p className="text-xs tracking-[0.2em] text-slate-500">
+              {savedProfile.tagline || receipt.hotel.tagline}
+            </p>
+            {receiptAddress && <p className="mt-2 text-xs text-slate-500">{receiptAddress}</p>}
+            {receiptPhone && <p className="text-xs text-slate-500">Phone: {receiptPhone}</p>}
+            {receiptEmail && <p className="text-xs text-slate-500">Email: {receiptEmail}</p>}
+            {receiptWebsite && <p className="text-xs text-slate-500">{receiptWebsite}</p>}
           </div>
 
           <div className="mt-4 space-y-1 text-sm">
@@ -232,8 +250,7 @@ export function ReceiptPreview({
           </div>
 
           <p className="mt-6 text-center text-xs text-slate-400">
-            {receipt.hotel.receiptFooter ??
-              `Thank you for staying at ${receipt.hotel.name}!`}
+            {receiptFooter}
           </p>
         </div>
       )}

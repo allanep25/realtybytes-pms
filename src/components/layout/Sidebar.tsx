@@ -5,8 +5,8 @@ import { NAV_ITEMS } from "@/lib/constants";
 import { filterNavItems } from "@/lib/permissions";
 import { cn } from "@/lib/utils";
 import { X } from "lucide-react";
-import Image from "next/image";
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 
 type SidebarProps = {
@@ -23,6 +23,32 @@ export function Sidebar({
   const pathname = usePathname();
   const user = useAuth();
   const items = filterNavItems(user.role, NAV_ITEMS);
+  const [savedProfile, setSavedProfile] = useState<{
+    propertyName?: string;
+    website?: string;
+    logo?: string;
+  }>({});
+
+  useEffect(() => {
+    const readProfile = () => {
+      try {
+        const parsed = JSON.parse(localStorage.getItem("propertyProfile") || "{}");
+        setSavedProfile(parsed);
+      } catch {
+        setSavedProfile({});
+      }
+    };
+
+    readProfile();
+
+    window.addEventListener("propertyProfileUpdated", readProfile);
+    return () => {
+      window.removeEventListener("propertyProfileUpdated", readProfile);
+    };
+  }, []);
+
+  const sidebarLogo = savedProfile.logo;
+  const sidebarPropertyName = savedProfile.propertyName || hotelName || "RealtyBytes PMS";
 
   return (
     <aside
@@ -35,19 +61,24 @@ export function Sidebar({
         <Link
           href="/"
           onClick={onMobileClose}
-          className="flex min-w-0 flex-1 flex-col items-center gap-2 lg:items-start"
+          className="flex min-w-0 flex-1 items-center gap-3 px-4 py-4"
         >
-          <Image
-            src="/realtybytes-logo.png"
-            alt={hotelName}
-            width={128}
-            height={128}
-            className="h-[4.5rem] w-[4.5rem] rounded-full object-cover ring-1 ring-white/10"
-            priority
-          />
-          <p className="text-center text-sm font-semibold leading-tight text-white lg:text-left">
-            {hotelName}
-          </p>
+          <div className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-slate-200">
+            {sidebarLogo ? (
+              <img
+                src={sidebarLogo}
+                alt={sidebarPropertyName}
+                className="h-full w-full object-contain p-1.5"
+              />
+            ) : (
+              <span className="text-sm font-bold text-emerald-700">RB</span>
+            )}
+          </div>
+
+          <div className="min-w-0">
+            <p className="truncate text-sm font-bold text-white">{sidebarPropertyName}</p>
+            <p className="text-xs text-emerald-100">Property Management</p>
+          </div>
         </Link>
         <button
           type="button"

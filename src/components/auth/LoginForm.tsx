@@ -1,7 +1,6 @@
 "use client";
 
 import { HOTEL_NAME } from "@/lib/constants";
-import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 
@@ -12,6 +11,11 @@ export function LoginForm() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [savedProfile, setSavedProfile] = useState<{
+    propertyName?: string;
+    tagline?: string;
+    logo?: string;
+  }>({});
   const signedOut = searchParams.get("signedOut") === "1";
   const idleTimeout = searchParams.get("reason") === "idle";
 
@@ -19,6 +23,27 @@ export function LoginForm() {
     setEmail("");
     setPassword("");
   }, []);
+
+  useEffect(() => {
+    const readProfile = () => {
+      try {
+        const parsed = JSON.parse(localStorage.getItem("propertyProfile") || "{}");
+        setSavedProfile(parsed);
+      } catch {
+        setSavedProfile({});
+      }
+    };
+
+    readProfile();
+    window.addEventListener("propertyProfileUpdated", readProfile);
+    return () => {
+      window.removeEventListener("propertyProfileUpdated", readProfile);
+    };
+  }, []);
+
+  const loginLogo = savedProfile.logo;
+  const loginPropertyName = savedProfile.propertyName || "RealtyBytes PMS";
+  const loginTagline = savedProfile.tagline || "Property Management System";
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -50,17 +75,25 @@ export function LoginForm() {
     <div className="flex min-h-screen">
       <div className="hidden w-1/2 flex-col justify-between bg-sidebar px-12 py-14 text-white lg:flex">
         <div className="space-y-10">
-          <Image
-            src="/realtybytes-logo.png"
-            alt={HOTEL_NAME}
-            width={128}
-            height={128}
-            className="h-[12.6rem] w-[12.6rem] object-contain"
-            priority
-          />
+          <div className="mb-8 flex flex-col items-center text-center">
+            <div className="mb-4 flex h-24 w-24 items-center justify-center overflow-hidden rounded-3xl bg-white shadow-lg ring-1 ring-slate-200">
+              {loginLogo ? (
+                <img
+                  src={loginLogo}
+                  alt={loginPropertyName}
+                  className="h-full w-full object-contain p-3"
+                />
+              ) : (
+                <span className="text-2xl font-black text-emerald-700">RB</span>
+              )}
+            </div>
+
+            <h1 className="text-2xl font-black text-slate-900">{loginPropertyName}</h1>
+
+            <p className="mt-2 text-sm text-slate-500">{loginTagline}</p>
+          </div>
           <div className="max-w-sm space-y-5">
             <div className="space-y-3">
-              <p className="text-2xl font-semibold tracking-tight">RealtyBytes PMS</p>
               <p className="text-lg leading-7 text-slate-100">
                 Professional Property Management Platform
               </p>
@@ -87,17 +120,19 @@ export function LoginForm() {
       <div className="flex flex-1 items-center justify-center px-6 py-10 lg:px-10 lg:py-12">
         <div className="w-full max-w-lg">
           <div className="mb-10 flex flex-col items-center text-center lg:hidden">
-            <Image
-              src="/realtybytes-logo.png"
-              alt={HOTEL_NAME}
-              width={128}
-              height={128}
-              className="mb-4 h-[12.25rem] w-[12.25rem] object-contain"
-            />
-            <p className="text-xl font-bold text-slate-800">{HOTEL_NAME}</p>
-            <p className="text-sm text-slate-500">
-              Professional Property Management System
-            </p>
+            <div className="mb-4 flex h-24 w-24 items-center justify-center overflow-hidden rounded-3xl bg-white shadow-lg ring-1 ring-slate-200">
+              {loginLogo ? (
+                <img
+                  src={loginLogo}
+                  alt={loginPropertyName}
+                  className="h-full w-full object-contain p-3"
+                />
+              ) : (
+                <span className="text-2xl font-black text-emerald-700">RB</span>
+              )}
+            </div>
+            <p className="text-xl font-bold text-slate-800">{loginPropertyName}</p>
+            <p className="text-sm text-slate-500">{loginTagline}</p>
           </div>
 
           <form

@@ -11,6 +11,7 @@ import {
   LayoutDashboard,
   LogIn,
   Printer,
+  Wrench,
   Settings,
   Sparkles,
   UserCircle,
@@ -36,6 +37,7 @@ export const NAV_ITEMS: NavItem[] = [
   { label: "Employee Accounts", href: "/employees", icon: Users },
   { label: "Housekeeping", href: "/housekeeping", icon: Sparkles },
   { label: "Receipt Printing", href: "/receipts", icon: Printer },
+  { label: "System Tools", href: "/system-tools", icon: Wrench },
   { label: "Edit Records", href: "/settings/edit-records", icon: FilePenLine },
   { label: "Settings", href: "/settings", icon: Settings },
 ];

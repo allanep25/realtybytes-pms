@@ -17,6 +17,7 @@ import {
 import { CheckoutAlertsBanner } from "@/components/dashboard/CheckoutAlertsBanner";
 import { getCheckoutAlerts } from "@/lib/checkout-alerts";
 import { getTodayRevenueSummary } from "@/lib/revenue";
+import { DashboardBrandHeader } from "@/components/dashboard/DashboardBrandHeader";
 
 export const dynamic = "force-dynamic";
 
@@ -40,6 +41,8 @@ export default async function DashboardPage() {
 
   return (
     <DashboardShell title="Dashboard">
+      <DashboardBrandHeader />
+
       {!summary.fromDatabase && (
         <p className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-800">
           Database not connected. Set <code className="text-xs">DATABASE_URL</code> and run{" "}

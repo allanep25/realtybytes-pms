@@ -14,11 +14,14 @@ export default async function EditRecordsPage({ searchParams }: PageProps) {
   return (
     <DashboardShell title="Edit Records">
       <p className="mb-2 text-sm text-slate-500">
-        Administrator only — correct guest or reservation details when front desk encoding mistakes
+        Administrator only - correct guest or reservation details when front desk encoding mistakes
         are found.
       </p>
-      <Link href="/settings" className="mb-6 inline-block text-sm text-room-occupied hover:underline">
-        ← Back to Settings
+      <Link
+        href="/system-tools"
+        className="mb-6 inline-block text-sm text-room-occupied hover:underline"
+      >
+        &larr; Back to System Tools
       </Link>
       <EditRecordsWorkspace
         initialTodayRecords={todayRecords}
