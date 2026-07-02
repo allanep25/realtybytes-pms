@@ -194,7 +194,7 @@ export function LoginForm() {
               disabled={loading}
               className="mt-6 w-full rounded-lg bg-sidebar py-2.5 text-sm font-medium text-white hover:bg-sidebar-hover disabled:opacity-50"
             >
-              {loading ? "Signing inâ€¦" : "Sign In"}
+              {loading ? "Signing in..." : "Sign In"}
             </button>
           </form>
         </div>

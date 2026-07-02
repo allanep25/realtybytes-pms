@@ -354,7 +354,7 @@ export function SettingsForm({ settings: initial }: SettingsFormProps) {
         disabled={saving}
         className="rounded-lg bg-room-vacant px-6 py-2.5 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
       >
-        {saving ? "Savingâ€¦" : "Save Settings"}
+        {saving ? "Saving..." : "Save Settings"}
       </button>
     </form>
   );

@@ -412,7 +412,7 @@ export async function performCheckIn(
     throw new Error("Room is out of order");
   }
   if (room.status !== "VACANT") {
-    throw new Error("Only vacant rooms can be checked in â€” select another room");
+    throw new Error("Only vacant rooms can be checked in - select another room");
   }
 
   if (await hasRoomConflict(room.id, checkIn, checkOut)) {
@@ -531,10 +531,10 @@ export async function createReservation(
     throw new Error("Room is out of order");
   }
   if (checkIn.getTime() === today.getTime() && room.status === "DIRTY") {
-    throw new Error("Room needs cleaning â€” use Check-In after the room is ready");
+    throw new Error("Room needs cleaning - use Check-In after the room is ready");
   }
   if (checkIn.getTime() === today.getTime() && room.status === "OCCUPIED") {
-    throw new Error("Room is currently occupied â€” use Check-In for walk-ins");
+    throw new Error("Room is currently occupied - use Check-In for walk-ins");
   }
 
   if (await hasRoomConflict(room.id, checkIn, checkOut)) {
@@ -832,11 +832,11 @@ export async function performCheckOut(
       roomId: reservation.roomId,
       status: "DIRTY",
       checklistState: Prisma.DbNull,
-      notes: "Checked out â€” needs cleaning",
+      notes: "Checked out - needs cleaning",
     },
     update: {
       status: "DIRTY",
-      notes: "Checked out â€” needs cleaning",
+      notes: "Checked out - needs cleaning",
       assignedTo: null,
       checklistState: Prisma.DbNull,
     },
@@ -999,7 +999,7 @@ export async function cancelMaintenanceBlock(reservationId: string) {
     });
     await prisma.housekeepingTask.updateMany({
       where: { roomId: reservation.roomId },
-      data: { status: "DIRTY", notes: "Maintenance block removed â€” inspect room", checklistState: Prisma.DbNull },
+      data: { status: "DIRTY", notes: "Maintenance block removed - inspect room", checklistState: Prisma.DbNull },
     });
   }
 

@@ -46,9 +46,9 @@ type ReservationForRoomChange = NonNullable<
 
 function isStayChargeForRoom(description: string, roomNumber: string): boolean {
   return (
-    description.startsWith(`Room ${roomNumber} â€”`) ||
-    description === `Day extension â€” Room ${roomNumber}` ||
-    description === `Hour extension â€” Room ${roomNumber}`
+    description.startsWith(`Room ${roomNumber} -`) ||
+    description === `Day extension - Room ${roomNumber}` ||
+    description === `Hour extension - Room ${roomNumber}`
   );
 }
 

@@ -81,7 +81,7 @@ async function seedSettings() {
       address: "Demo Street, Cagayan de Oro City",
       phone: "0917 000 0000",
       email: "demo@realtybytes.test",
-      receiptFooter: "Demo receipt only â€” not an official transaction.",
+      receiptFooter: "Demo receipt only - not an official transaction.",
     },
   });
 }
@@ -403,7 +403,7 @@ async function seedReservations(
     where: { roomId: checkedOut.room.id },
     data: {
       status: HousekeepingStatus.DIRTY,
-      notes: "Checked out â€” needs cleaning",
+      notes: "Checked out - needs cleaning",
       checklistState: Prisma.DbNull,
     },
   });

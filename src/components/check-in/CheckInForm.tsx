@@ -208,7 +208,7 @@ export function CheckInForm() {
                 onChange={(e) => setForm((f) => ({ ...f, idType: e.target.value }))}
                 className={fieldClass}
               >
-                <option value="">Select ID type…</option>
+                <option value="">Select ID type...</option>
                 {ID_TYPES.map((t) => (
                   <option key={t} value={t}>
                     {t}
